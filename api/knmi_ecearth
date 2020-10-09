@@ -1,0 +1,23 @@
+#!/usr/bin/env python3
+
+import iris
+from uuuu import *
+
+def _to_o(i): 
+    o = iris.load('/nobackup/rossby22/sm_chali/DATA/ECEARTH23/'
+                  'tasmin_day_ECEARTH23_rcp85_r{}i1p1_*nc'.format(i)) 
+    o0 = concat_cube_(o) 
+    nc = iris.coords.AuxCoord(i, long_name='realization', units='no_unit') 
+    o0.add_aux_coord(nc) 
+    cubesv_(o0, '/nobackup/rossby22/sm_chali/DATA/hw2018/iii/other/'
+                'eEC-EARTH/tasmin_ECEARTH23_RCP85_r_{}_cube.nc'.format(i),
+            zlib=True, complevel=6)
+
+
+def main():
+    for i in range(1, 17):
+        _to_o(i)
+
+
+if __name__ == '__main__':
+    main()

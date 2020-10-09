@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+
+from uuuu import *
+import iris
+from iris.fileformats.netcdf import UnknownCellMethodWarning
+import numpy as np
+import warnings
+import logging
+import re
+import argparse
+import time
+from time import localtime, strftime
+
+
+def main():
+    parser = argparse.ArgumentParser('REGRID to RCA4')
+    parser.add_argument("-s", "--start",
+                        type=int, help="simulation-loop start")
+    parser.add_argument("-e", "--end",
+                        type=int, help="simulation-loop end")
+    parser.add_argument("-l", "--log",
+                        type=str, help="exclusive log identifier")
+    args = parser.parse_args()
+
+    logging.basicConfig(filename='r2r_{}.log'.format(args.log),
+                        filemode='w',
+                        level=logging.INFO)
+    logging.info(' {:_^42}'.format('start of program'))
+    logging.info(strftime(" %a, %d %b %Y %H:%M:%S +0000", localtime()))
+    logging.info(' ')
+    warnings.filterwarnings("ignore", category=UserWarning)
+    warnings.filterwarnings("ignore", category=UnknownCellMethodWarning)
+    idir = '/nobackup/rossby24/users/sm_chali/DATA/energi/res/h248/'\
+           'cordex/EUR11/grp1/'
+    #fn = glob.glob(idir + 'DTR_*_DMI-HIRHAM5_v1_*.nc')
+    #o0 = iris.load_cube(idir + 'SfcWind_ICHEC-EC-EARTH_historical_r3i1p1_' +
+    #                    'DMI-HIRHAM5_v1_EUR_season_current.nc')
+    fnl = schF_keys_(idir, 'rcp')
+    o0 = iris.load_cube(idir + 'PR_ICHEC-EC-EARTH_historical_r12i1p1_' +
+                               'SMHI-RCA4_v1_EUR_month_.nc')[0,:,:]
+    for fn in fnl[args.start:args.end]:
+        try:
+            o = concat_cube_(iris.cube.CubeList((
+                iris.load_cube(re.sub('rcp\d+', 'historical', fn)),
+                iris.load_cube(fn))))
+        except:
+            ll_('loading error: {}'.format(fn))
+            continue
+        if 'SMHI' not in fn:
+            try:
+                t0 = l__('regriding')
+                o = o.regrid(o0,
+                             iris.analysis.Linear(extrapolation_mode='mask'))
+                ll_('iris regrid: {}'.format(fn))
+                ll_('regriding', t0)
+            except:
+                try:
+                    t0 = l__('regriding')
+                    o = remap_ll_(o0, o)
+                    ll_('uuuu regrid: {}'.format(fn))
+                    ll_('regriding', t0)
+                except:
+                    ll_('regrid error: {}'.format(fn))
+                    continue
+        iris.save(o, fn.replace('grp1', 'grp1_regrid'))
+
+
+if __name__ == '__main__':
+    start_time = time.time()
+    main()
+    logging.info(' ')
+    logging.info(' {:_^42}'.format('end of program'))
+    logging.info(' {:_^42}'.format('TOTAL'))
+    logging.info(' ' + rTime_(time.time() - start_time))
+    logging.info(strftime(" %a, %d %b %Y %H:%M:%S +0000", localtime()))

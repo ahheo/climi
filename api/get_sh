@@ -1,0 +1,45 @@
+#!/usr/bin/env python3
+
+
+import string
+import argparse
+import os
+
+
+def main():                                                                     
+    parser = argparse.ArgumentParser('RUN CLIMIDX')                             
+    parser.add_argument("opt", type=int,                                        
+                        help="options for dataset on BI")                       
+    parser.add_argument("-s", "--start",                                        
+                        type=int, help="simulation-loop start", default=0)                 
+    parser.add_argument("-t", "--step",                                        
+                        type=int, help="simulation-loop step")                 
+    parser.add_argument("-e", "--end",                                        
+                        type=int, help="simulation-loop start")                 
+    args = parser.parse_args() 
+
+    wkdir = '/home/sm_chali/wks/heat-wave-2018/'
+    os.makedirs(wkdir + 'api/tmp/', exist_ok=True)
+    fn = 'run_climidx_cordex-{}'.format(args.opt)
+    ts = list(range(args.start, args.end, args.step))
+    sba = '#SBATCH {}\n'
+    for i, ii in zip(ts, string.ascii_letters.swapcase()):
+        fn_ = '{}api/tmp/{}_{}.sh'.format(wkdir, fn, ii)
+        with open(fn_, 'w') as f:
+            f.write('#!/bin/bash\n#\n')
+            f.write(sba.format('-J idx-{}_{}'.format(args.opt, ii)))
+            f.write(sba.format('-N 1'))
+            f.write(sba.format('-C fat'))
+            f.write(sba.format('--exclusive'))
+            #f.write(sba.format('-t 23:59:59'))
+            f.write(sba.format('-t 3:59:59'))
+            f.write(sba.format('--mail-type=FAIL'))
+            f.write(sba.format('--mail-type=END'))
+            f.write(sba.format('--mail-user=changgui.lin@smhi.se'))
+            f.write('\n')
+            f.write('python {}api/mkclimidx.py {} -s {} -e {} -l {}'.format(
+                    wkdir, args.opt, i, min((i + args.step, args.end)), ii))
+
+
+if __name__ == '__main__':
+    main()

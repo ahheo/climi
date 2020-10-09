@@ -1,0 +1,72 @@
+experiment: hc
+
+proj: cordex                                                                       
+_d: False                                                                       
+_sdi: True                                                                      
+hORc: heat
+
+ehr: evaluation
+
+#idir: /nobackup/rossby22/sm_chali/DATA/CMIP5
+#rdir0: /nobackup/rossby22/sm_chali/DATA/hw2018/iii/cordex/hist/ # ref. dir
+#ddir0: /nobackup/rossby22/sm_chali/DATA/hw2018/iii/cordex/hist/ # inv. dir
+ldir: /nobackup/rossby22/sm_chali/DATA/fx/ # sftlf dir
+
+#gcms: ['ICHEC-EC-EARTH', 'MOHC-HadGEM2-ES', 'MPI-M-MPI-ESM-LR',
+#       'IPSL-IPSL-CM5A-MR', 'CCCma-CanESM2', 'NCC-NorESM1-M']
+#rcms: ['CLMcom-CCLM4-8-17', 'DMI-HIRHAM5', 'KNMI-RACMO22E',
+#       'MPI-CSC-REMO2009', 'GERICS-REMO2015', 'SMHI-RCA4']                     
+gcms: ['ECMWF-ERAINT']
+rcms: ['KNMI-RACMO22E',
+       'MPI-CSC-REMO2009', 'GERICS-REMO2015', 'SMHI-RCA4']                     
+
+rip:
+  ICHEC-EC-EARTH: r12i1p1
+
+r_v:
+  SMHI-RCA4: v1
+
+f_opts:
+  var: tasmax
+  freq: day
+
+#2nd loop on regions
+regions:
+  - ALL # [SWE, NSWE, SSWE, EUR, GLOBAL]
+sub_r:                                                                          
+  SWE:                                                                          
+    longitude: [10.0, 23.0]                                                     
+    latitude: [55.0, 69.0]                                                      
+  EUR:                                                                          
+    longitude: [-15.0, 60.0]                                                    
+    latitude: [35.0, 72.0] 
+
+#3rd loop on periods
+#periods: [hist] # [hist, rcp]
+p_:
+  ref: [1989, 2008]
+  hist: [1989, 2010]
+#  rcp: [2006, 2099]
+
+#season
+#season: mjja
+
+#output
+root: /home/sm_chali/wks/
+
+#subH_() option
+minL: 3
+
+#data4kde_() option
+data4kde_mtd: 'ymax'
+
+#thr_() option
+thr_pctl: 90
+
+#kde_ option
+kde_opts:
+  bw: silverman
+  gridsize: 512
+
+#logging option
+dbgl: INFO #level for logging

@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+import iris
+from iris.coords import DimCoord
+import numpy as np
+import glob
+import warnings
+
+
+def main():
+    from iris.fileformats.netcdf import UnknownCellMethodWarning
+    warnings.filterwarnings("ignore", category=UserWarning)
+    warnings.filterwarnings("ignore", category=UnknownCellMethodWarning)
+    idir = '/nobackup/rossby22/sm_chali/DATA/energi/res/gwls/EUR/'
+    idir = '/nobackup/rossby24/users/sm_chali/DATA/energi/res/h248/'\
+           'cordex/EUR11/grp1/'
+    #fn = glob.glob(idir + 'DTR_*_DMI-HIRHAM5_v1_*.nc')
+    #o0 = iris.load_cube(idir + 'SfcWind_ICHEC-EC-EARTH_historical_r3i1p1_' +
+    #                    'DMI-HIRHAM5_v1_EUR_season_current.nc')
+    fn = glob.glob(idir + '*_*_IPSL-WRF381P_v1_*.nc')
+    o0 = iris.load_cube(idir + 'PR_NCC-NorESM1-M_rcp85_r1i1p1_' +
+                               'IPSL-WRF381P_v1_EUR_month_.nc')
+    cx = o0.coord('grid_longitude')
+    cxd = o0.coord_dims(cx)
+    cy = o0.coord('grid_latitude')
+    cyd = o0.coord_dims(cy)
+    epochs = {}
+    for i, ifn in enumerate(fn):
+        o = iris.load_cube(ifn)
+        if len(o.dim_coords) == 1:
+            print(ifn)
+            o.add_dim_coord(cx, cxd)
+            o.add_dim_coord(cy, cyd)
+            iris.save(o, ifn.replace(idir, idir.replace('grp1/','')))
+
+
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,55 @@
+experiment: hc
+
+proj: other
+_d: True
+_sdi: True
+hORc: heat
+
+#datasets: [eCanSISE, eEC-EARTH, eEC-EARTH-LENS]
+datasets: [eCanSISE, eEC-EARTH]
+
+idir: /nobackup/rossby22/sm_chali/DATA/hw2018/iii/other/
+
+f_opts:
+  var: tasmin
+
+#2nd loop on regions
+regions:                                                                        
+  - ALL # [SWE, NSWE, SSWE, EUR, GLOBAL]                                        
+sub_r:                                                                          
+  SWE:                                                                          
+    longitude: [10.0, 23.0]                                                     
+    latitude: [55.0, 69.0]                                                      
+  EUR:                                                                          
+    longitude: [-15.0, 60.0]                                                    
+    latitude: [35.0, 72.0] 
+
+#3rd loop on periods
+#periods:
+#  - hist
+
+p_:
+  ref: [1971, 2000]
+
+#season
+season: ndjf
+
+#output
+root: /nobackup/rossby22/sm_chali/DATA/
+
+#subH_() option
+minL: 3
+
+#data4kde_() option
+data4kde_mtd: 'ymax'
+
+#thr_() option
+thr_pctl: 90
+
+#kde_ option
+kde_opts:
+  bw: silverman
+  gridsize: 512
+
+#logging option
+dbgl: INFO #level for logging

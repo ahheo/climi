@@ -1,0 +1,67 @@
+experiment: hw2018
+
+#io
+odir: /home/sm_chali/wks/fig/
+idir: /nobackup/rossby22/sm_chali/DATA/hw2018/res/other/
+dns: [EOBS, CanSISE, EC-EARTH, EC-EARTH-LENS, CMIP5]
+
+fxdir: /nobackup/rossby22/sm_chali/DATA/CMIP5/fx/
+
+dn_obs: ['EOBS']
+dn_cmp: ['HadGEM2-ES', 'MPI-ESM-LR', 'CNRM-CM5',
+         'EC-EARTH', 'IPSL-CM5A-MR', 'NorESM1-M']
+dn_cdx: ['CLMcom-CCLM4-8-17_CNRM-CERFACS-CNRM-CM5',
+         'CLMcom-CCLM4-8-17_ICHEC-EC-EARTH',
+         'CLMcom-CCLM4-8-17_MOHC-HadGEM2-ES',
+         'DMI-HIRHAM5_ICHEC-EC-EARTH',
+         'DMI-HIRHAM5_NCC-NorESM1-M',
+         'KNMI-RACMO22E_ICHEC-EC-EARTH']
+
+rn: 'SWE'
+sub_r:
+  SWE:
+    longitude: [10.0, 23.0]
+    latitude: [55.0, 69.0]
+  EUR:
+    longitude: [-15.0, 60.0]
+    latitude: [35.0, 72.0]
+
+v: hwmi
+
+#kde options
+kde_opts:
+  gridsize: 512
+  #clip: [.0001, inf]
+  cut: 3
+  adjust: 3
+
+#map options
+#color, bounds
+cbd_h: [0, .5, 1, 2, 4, 8, 16, 32] # for HWMI it self or with aggregator like
+                                   # MEAN, MEDIAN, PERCENTILE...
+cbd_w: [0, 3, 6, 9, 12, 15, 30, 60]
+cbdz_h: [0, .25, .5, .75, 1., 2., 4., 8.]
+cbdp_h : [-4., -3., -2., -1., 1., 2., 3., 4.]
+cm: ['white', 'bisque', 'gold', 'tomato', 'red', 'sienna', 'maroon']
+cmp: ['steelblue', 'seagreen', 'darkseagreen', 'white', 'bisque', 'gold', 'tomato']
+cmo: 'indigo'
+cmpo: 'indigo'
+cmpu: 'navy'
+
+#periods
+p_:
+  - [1951, 1980]
+  - [1981, 2005]
+  - [1991, 2005]
+  - [2001, 2005]
+
+#analysis over periods
+aggr_h: [MEAN, MEDIAN, PCTL75, PCTL90]
+aggr_w: MEAN # [MEAN, MEDIAN, PCTL75, PCTL90]
+
+cbti_h : 'HWMI'
+cbti_w : 'WSDI (days)'
+
+sv_opts:
+  #dpi: 300
+  frameon: False

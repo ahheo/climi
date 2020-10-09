@@ -1,0 +1,181 @@
+vars: ['ET', 'HumiWarmDays', 'EffPR', 'PR7Dmax', 'LnstDryDays', 'DryDays',
+       'PR', 'PRmax', 'PRRN', 'PRSN', 'NetRO', 'SD', 'RLDS', 'RSDS',
+       'CoolingDegDay', 'ConWarmDays', 'TX', 'WarmDays', 'ColdDays',
+       'DegDay20', 'DegDay8', 'DegDay17', 'TN', 'SpringFrostDayEnd',
+       'FrostDays', 'TropicNights', 'ZeroCrossingDays', 'VegSeasonDayEnd-5',
+       'VegSeasonDayEnd-2', 'VegSeasonDayStart-5', 'VegSeasonDayStart-2',
+       'VegSeasonLength-5', 'VegSeasonLength-2', 'SfcWind', 'WindGustMax',
+       'WindyDays', 'PRgt10Days', 'PRgt25Days', 'SncDays', 'Snd10Days',
+       'Snd20Days', 'SNWmax', 'TAS', 'DTR', 'Rho925', 'RhoS', 'SuperCooledPR',
+       'Snc25Days', 'R5OScw', 'R1OScw', 'R5OSc', 'R1OSc', 'PRSNmax',
+       'CalmDays', 'ConCalmDays', 'Wind975', 'Wind975toSfc', 'ColdRainDays',
+       'ColdRainGT10Days', 'ColdRainGT20Days', 'WarmSnowDays',
+       'WarmSnowGT10Days', 'WarmSnowGT20Days', 'ColdPRRNdays',
+       'ColdPRRNgt10Days', 'ColdPRRNgt20Days', 'WarmPRSNdays',
+       'WarmPRSNgt10Days', 'WarmPRSNgt20Days', 'SST', 'SIC', 'Rho975',
+       'hSuperCooledPR', 'Wind925', 'Wind925toSfc', 'FirstDayWithoutFrost',
+       'CalmDays925', 'ConCalmDays925', 'CalmDays975', 'ConCalmDays975']
+
+odir:
+ ET: 1-ET
+ HumiWarmDays: 2-HumiWarmDays
+ EffPR: 3-EffPR
+ PR7Dmax: 4-PR7Dmax
+ LnstDryDays: 5-LnstDryDays
+ DryDays: 6-DryDays
+ PR: 7-PR
+ PRmax: 8-PRmax
+ PRRN: 9-PRRN
+ PRSN: 10-PRSN
+ NetRO: 11-NetRO
+ SD: 12-SD
+ RLDS: 13-RLDS
+ RSDS: 14-RSDS
+ CoolingDegDay: 15-CoolingDegDay
+ ConWarmDays: 16-ConWarmDays
+ TX: 17-TX
+ WarmDays: 18-WarmDays
+ ColdDays: 19-ColdDays
+ DegDay20: 20-DegDay20
+ DegDay8: 21-DegDay8
+ DegDay17: 22-DegDay17
+ TN: 23-TN
+ SpringFrostDayEnd: 24-SpringFrostDayEnd
+ FrostDays: 25-FrostDays
+ TropicNights: 26-TropicNights
+ ZeroCrossingDays: 27-ZeroCrossingDays
+ VegSeasonDayEnd-5: 28-VegSeasonDayEnd-5
+ VegSeasonDayEnd-2: 29-VegSeasonDayEnd-2
+ VegSeasonDayStart-5: 30-VegSeasonDayStart-5
+ VegSeasonDayStart-2: 31-VegSeasonDayStart-2
+ VegSeasonLength-5: 32-VegSeasonLength-5
+ VegSeasonLength-2: 33-VegSeasonLength-2
+ SfcWind: 34-SfcWind
+ WindGustMax: 35-WindGustMax
+ WindyDays: 36-WindyDays
+ PRgt10Days: 37-PRgt10Days
+ PRgt25Days: 38-PRgt25Days
+ SncDays: 39-SncDays
+ Snd10Days: 40-Snd10Days
+ Snd20Days: 41-Snd20Days
+ SNWmax: 42-SNWmax
+ TAS: 43-TAS
+ DTR: 44-DTR
+ Rho925: 45-Rho925
+ RhoS: 46-RhoS
+ SuperCooledPR: 47-SuperCooledPR
+ Snc25Days: 48-Snc25Days
+ R5OScw: 49-R5OScw
+ R1OScw: 50-R1OScw
+ R5OSc: 51-R5OSc
+ R1OSc: 52-R1OSc
+ PRSNmax: 53-PRSNmax
+ CalmDays: 54-CalmDays
+ ConCalmDays: 55-ConCalmDays
+ Wind975: 56-Wind975
+ Wind975toSfc: 57-Wind975toSfc
+ ColdRainDays: 58-ColdRainDays
+ ColdRainGT10Days: 59-ColdRainGT10Days
+ ColdRainGT20Days: 60-ColdRainGT20Days
+ WarmSnowDays: 61-WarmSnowDays
+ WarmSnowGT10Days: 62-WarmSnowGT10Days
+ WarmSnowGT20Days: 63-WarmSnowGT20Days
+ ColdPRRNdays: 64-ColdPRRNdays
+ ColdPRRNgt10Days: 65-ColdPRRNgt10Days
+ ColdPRRNgt20Days: 66-ColdPRRNgt20Days
+ WarmPRSNdays: 67-WarmPRSNdays
+ WarmPRSNgt10Days: 68-WarmPRSNgt10Days
+ WarmPRSNgt20Days: 69-WarmPRSNgt20Days
+ SST: 70-SST
+ SIC: 71-SIC
+ Rho975: 72-Rho975
+ hSuperCooledPR: 73-hSuperCooledPR
+ Wind925: 74-Wind925
+ Wind925toSfc: 75-Wind925toSfc
+ FirstDayWithoutFrost: 76-FirstDayWithoutFrost
+ CalmDays925: 77-CalmDays925
+ ConCalmDays925: 78-ConCalmDays925
+ CalmDays975: 79-CalmDays975
+ ConCalmDays975: 80-ConCalmDays975
+
+freq:
+ PR: [season, year]
+ PRSN: [season, year]
+ PRRN: [season, year]
+ ET: [season, year]
+ EffPR: [season, year]
+ NetRO: [year]
+ SD: [year]
+ RSDS: [season]
+ RLDS: [season]
+ TAS: [season, year]
+ TX: [season, year]
+ TN: [season, year]
+ DTR: [month]
+ SfcWind: [season, year]
+ DryDays: [month]
+ PRmax: [year]
+ PR7Dmax: [year]
+ PRgt10Days: [season, year]
+ PRgt25Days: [season, year]
+ LnstDryDays: [season]
+ DegDay20: [year]
+ DegDay8: [year]
+ DegDay17: [year]
+ VegSeasonDayStart-5: [year]
+ VegSeasonDayEnd-5: [year]
+ VegSeasonLength-5: [year]
+ VegSeasonDayStart-2: [year]
+ VegSeasonDayEnd-2: [year]
+ VegSeasonLength-2: [year]
+ HumiWarmDays: [season]
+ RhoS: [month]
+ SuperCooledPR: [year]
+ Rho925: [month]
+ WarmDays: [season, year]
+ ColdDays: [season, year]
+ CoolingDegDay: [month, year]
+ ConWarmDays: [year]
+ FrostDays: [season, year]
+ TropicNights: [year]
+ SpringFrostDayEnd: [year]
+ ZeroCrossingDays: [season]
+ WindGustMax: [year]
+ WindyDays: [season, year]
+ SncDays: [year]
+ Snd10Days: [year]
+ Snd20Days: [year]
+ SNWmax: [year]
+ Snc25Days: [year]
+ R5OScw: [year]
+ R1OScw: [year]
+ R5OSc: [year]
+ R1OSc: [year]
+ PRSNmax: [year]
+ CalmDays: [year]
+ ConCalmDays: [year]
+ Wind975: [season, year]
+ Wind975toSfc: [season, year]
+ ColdRainDays: [year]
+ ColdRainGT10Days: [year]
+ ColdRainGT20Days: [year]
+ WarmSnowDays: [year]
+ WarmSnowGT10Days: [year]
+ WarmSnowGT20Days: [year]
+ ColdPRRNdays: [year]
+ ColdPRRNgt10Days: [year]
+ ColdPRRNgt20Days: [year]
+ WarmPRSNdays: [year]
+ WarmPRSNgt10Days: [year]
+ WarmPRSNgt20Days: [year]
+ SST: [season, year]
+ SIC: [season, year]
+ Rho975: [month]
+ hSuperCooledPR: [year]
+ Wind925: [season, year]
+ Wind925toSfc: [season, year]
+ FirstDayWithoutFrost: [year]
+ CalmDays925: [year]
+ ConCalmDays925: [year]
+ CalmDays975: [year]
+ ConCalmDays975: [year]

@@ -1,0 +1,60 @@
+experiment: hc
+proj: obs
+_d: False
+_sdi: True
+hORc: heat
+
+datasets: [STOCKHOLM-Corrected, STOCKHOLM-Homogenized] # [EOBS]
+
+idir: /nobackup/rossby22/sm_chali/DATA/hw2018/iii/obs/
+ifn:
+  STOCKHOLM-Corrected: STOCKHOLM/STOCKHOLM-Corrected.nc
+  STOCKHOLM-Homogenized: STOCKHOLM/STOCKHOLM-Homogenized.nc
+  EOBS: EOBS19/tx_ens_mean_0.1deg_reg_v19.0e.nc
+
+f_opts:                                                                         
+  var: tx                                                                   
+  freq: day                                                                     
+
+#2nd loop on regions
+regions:
+  - ALL
+
+sub_r:
+  SWE:
+    longitude: [10.0, 23.0]
+    latitude: [55.0, 69.0]
+  EUR:
+    longitude: [-15.0, 60.0]
+    latitude: [35.0, 72.0]
+
+#3rd loop on periods
+#periods:
+#  - hist
+p_:
+  ref: [1756, 2005]
+#  ref: [1971, 2000]
+#  hist: [1951, 2018]
+
+#season
+season: mjja
+
+#output
+root: /home/sm_chali/wks/
+
+#subH_() option
+minL: 3
+
+#data4kde_() option
+data4kde_mtd: 'ymax'
+
+#thr_() option
+thr_pctl: 90
+
+#kde_ option
+kde_opts:
+  bw: silverman
+  gridsize: 512
+
+#logging option
+dbgl: INFO #level for logging

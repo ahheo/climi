@@ -1,0 +1,61 @@
+experiment: hc
+proj: obs
+_d: True
+_sdi: True
+hORc: cold
+
+datasets: [ERA-Interim] # [STOCKHOLM-Corrected, STOCKHOLM-Homogenized] # [EOBS]
+
+idir: /nobackup/rossby22/sm_chali/DATA/hw2018/iii/obs/ERAI/
+#ifn:
+#  STOCKHOLM-Corrected: STOCKHOLM/STOCKHOLM-Corrected.nc
+#  STOCKHOLM-Homogenized: STOCKHOLM/STOCKHOLM-Homogenized.nc
+#  EOBS: EOBS19/tx_ens_mean_0.1deg_reg_v19.0e.nc
+#  EOBS20: EOBS20/tn_ens_mean_0.1deg_reg_v20.0e.nc
+
+f_opts:
+  var: tasmin
+  freq: day
+
+#2nd loop on regions
+regions:
+  - ALL
+
+sub_r:
+  SWE:
+    longitude: [10.0, 23.0]
+    latitude: [55.0, 69.0]
+  EUR:
+    longitude: [-15.0, 60.0]
+    latitude: [35.0, 72.0]
+
+#3rd loop on periods
+#periods:
+#  - hist
+p_:
+#  ref: [1756, 2005]
+  ref: [1989, 2008]
+#  hist: [1951, 2018]
+
+#season
+season: mjja
+
+#output
+root: /nobackup/rossby22/sm_chali/DATA/
+
+#subH_() option
+minL: 3
+
+#data4kde_() option
+data4kde_mtd: 'ymax'
+
+#thr_() option
+thr_pctl: 10
+
+#kde_ option
+kde_opts:
+  bw: silverman
+  gridsize: 512
+
+#logging option
+dbgl: INFO #level for logging

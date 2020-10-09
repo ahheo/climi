@@ -1,0 +1,233 @@
+root: /home/rossby/prod/
+eval: 201117
+rcps: [[201131, 201621], [201131, 201132], [201131, 201133],
+       [201137, 201147], [201137, 201138], [201137, 201139],
+       [201247, 201248], [201620, 201622], [201620, 201609],
+       [201620, 201610], [201249, 201403], [201249, 201250],
+       [201706, 201806], [201706, 202001], [201706, 201801],
+       [201807, 201808], [201901, 201902], [201903, 201904],
+       [201916, 201917]]
+h248: [201131, 201621, 201132, 201133, 201137, 201147, 201138, 201139,
+       201248, 201620, 201622, 201609, 201610, 201249, 201403, 201250,
+       201706, 201806, 202001, 201801, 201807, 201808, 201901, 201902,
+       201903, 201904, 201916, 201917]
+h8: [[201131, 201133], [201137, 201139], [201247, 201248],
+     [201620, 201610], [201249, 201250], [201706, 201801],
+     [201807, 201808], [201901, 201902], [201903, 201904],
+     [201916, 201917]]
+201117:
+ gcm: ECMWF-ERAINT
+ rcp: evaluation
+ rip: r1i1p1
+ rcm: SMHI-RCA4
+ version: v1
+201254:
+ gcm: ECMWF-ERAINT-SN
+ rcp: evaluation
+ rip: r1i1p1
+ rcm: SMHI-RCA4
+ version: v1
+201611:
+ gcm: ECMWF-ERAINT
+ rcp: evaluation
+ rip: r1i1p1
+ rcm: SMHI-RCA4
+ version: v1a
+201612:
+ gcm: ECMWF-ERAINT-SN
+ rcp: evaluation
+ rip: r1i1p1
+ rcm: SMHI-RCA4
+ version: v1a
+201131:
+ gcm: MOHC-HadGEM2-ES
+ rcp: historical
+ rip: r1i1p1
+ rcm: SMHI-RCA4
+ version: v1
+201621:
+ gcm: MOHC-HadGEM2-ES
+ rcp: rcp26
+ rip: r1i1p1
+ rcm: SMHI-RCA4
+ version: v1
+201132:
+ gcm: MOHC-HadGEM2-ES
+ rcp: rcp45
+ rip: r1i1p1
+ rcm: SMHI-RCA4
+ version: v1
+201133:
+ gcm: MOHC-HadGEM2-ES
+ rcp: rcp85
+ rip: r1i1p1
+ rcm: SMHI-RCA4
+ version: v1
+201137:
+ gcm: ICHEC-EC-EARTH
+ rcp: historical
+ rip: r12i1p1
+ rcm: SMHI-RCA4
+ version: v1
+201147:
+ gcm: ICHEC-EC-EARTH
+ rcp: rcp26
+ rip: r12i1p1
+ rcm: SMHI-RCA4
+ version: v1
+201138:
+ gcm: ICHEC-EC-EARTH
+ rcp: rcp45
+ rip: r12i1p1
+ rcm: SMHI-RCA4
+ version: v1
+201139:
+ gcm: ICHEC-EC-EARTH
+ rcp: rcp85
+ rip: r12i1p1
+ rcm: SMHI-RCA4
+ version: v1
+201143:
+ gcm: CNRM-CERFACS-CNRM-CM5
+ rcp: historical
+ rip: r1i1p1
+ rcm: SMHI-RCA4
+ version: v1
+201144:
+ gcm: CNRM-CERFACS-CNRM-CM5
+ rcp: rcp45
+ rip: r1i1p1
+ rcm: SMHI-RCA4
+ version: v1
+201145:
+ gcm: CNRM-CERFACS-CNRM-CM5
+ rcp: rcp85
+ rip: r1i1p1
+ rcm: SMHI-RCA4
+ version: v1
+201247:
+ gcm: MPI-M-MPI-ESM-LR
+ rcp: historical
+ rip: r1i1p1
+ rcm: SMHI-RCA4
+ version: v1
+201248:
+ gcm: MPI-M-MPI-ESM-LR
+ rcp: rcp85
+ rip: r1i1p1
+ rcm: SMHI-RCA4
+ version: v1
+201620:
+ gcm: MPI-M-MPI-ESM-LR
+ rcp: historical
+ rip: r1i1p1
+ rcm: SMHI-RCA4
+ version: v1a
+201622:
+ gcm: MPI-M-MPI-ESM-LR
+ rcp: rcp26
+ rip: r1i1p1
+ rcm: SMHI-RCA4
+ version: v1a
+201609:
+ gcm: MPI-M-MPI-ESM-LR
+ rcp: rcp45
+ rip: r1i1p1
+ rcm: SMHI-RCA4
+ version: v1a
+201610:
+ gcm: MPI-M-MPI-ESM-LR
+ rcp: rcp85
+ rip: r1i1p1
+ rcm: SMHI-RCA4
+ version: v1a
+201249:
+ gcm: IPSL-IPSL-CM5A-MR
+ rcp: historical
+ rip: r1i1p1
+ rcm: SMHI-RCA4
+ version: v1
+201403:
+ gcm: IPSL-IPSL-CM5A-MR
+ rcp: rcp45
+ rip: r1i1p1
+ rcm: SMHI-RCA4
+ version: v1
+201250:
+ gcm: IPSL-IPSL-CM5A-MR
+ rcp: rcp85
+ rip: r1i1p1
+ rcm: SMHI-RCA4
+ version: v1
+201706:
+ gcm: NCC-NorESM1-M
+ rcp: historical
+ rip: r1i1p1
+ rcm: SMHI-RCA4
+ version: v1
+201806:
+ gcm: NCC-NorESM1-M
+ rcp: rcp26
+ rip: r1i1p1
+ rcm: SMHI-RCA4
+ version: v1
+202001:
+ gcm: NCC-NorESM1-M
+ rcp: rcp45
+ rip: r1i1p1
+ rcm: SMHI-RCA4
+ version: v1
+201801:
+ gcm: NCC-NorESM1-M
+ rcp: rcp85
+ rip: r1i1p1
+ rcm: SMHI-RCA4
+ version: v1
+201901:
+ gcm: ICHEC-EC-EARTH
+ rcp: historical
+ rip: r1i1p1
+ rcm: SMHI-RCA4
+ version: v1
+201902:
+ gcm: ICHEC-EC-EARTH
+ rcp: rcp85
+ rip: r1i1p1
+ rcm: SMHI-RCA4
+ version: v1
+201807:
+ gcm: ICHEC-EC-EARTH
+ rcp: historical
+ rip: r3i1p1
+ rcm: SMHI-RCA4
+ version: v1
+201808:
+ gcm: ICHEC-EC-EARTH
+ rcp: rcp85
+ rip: r3i1p1
+ rcm: SMHI-RCA4
+ version: v1
+201903:
+ gcm: MPI-M-MPI-ESM-LR
+ rcp: historical
+ rip: r2i1p1
+ rcm: SMHI-RCA4
+ version: v1
+201904:
+ gcm: MPI-M-MPI-ESM-LR
+ rcp: rcp85
+ rip: r2i1p1
+ rcm: SMHI-RCA4
+ version: v1
+201916:
+ gcm: MPI-M-MPI-ESM-LR
+ rcp: historical
+ rip: r3i1p1
+ rcm: SMHI-RCA4
+ version: v1
+201917:
+ gcm: MPI-M-MPI-ESM-LR
+ rcp: rcp85
+ rip: r3i1p1
+ rcm: SMHI-RCA4
+ version: v1

@@ -1,0 +1,11 @@
+root: '/home/rossby/imports/cordex/EUR-11/'
+p_: ['CLMcom-CCLM4-8-17/v1/ECMWF-ERAINT/r1i1p1/evaluation/input/',
+     'RMIB-UGent-ALARO-0/v1/ECMWF-ERAINT/r1i1p1/evaluation/input/',
+     'IPSL-INERIS-WRF331F/v1/ECMWF-ERAINT/r1i1p1/evaluation/input/',
+     'KNMI-RACMO22E/v1/ECMWF-ERAINT/r1i1p1/evaluation/input/',
+     'MPI-CSC-REMO2009/v1/ECMWF-ERAINT/r1i1p1/evaluation/input/',
+     'CNRM-ALADIN53/v1/ECMWF-ERAINT/r1i1p1/evaluation/input/',
+     'CNRM-ALADIN63/v1/ECMWF-ERAINT/r1i1p1/evaluation/input/',
+     'GERICS-REMO2015/v1/ECMWF-ERAINT/r1i1p1/evaluation/input/']
+
+p__: ['DMI-HIRHAM5/v1/ECMWF-ERAINT/r1i1p1/evaluation/input/']
