@@ -1,34 +1,20 @@
-# heat-wave-magnitude-index 
-
-
+# climi 
 
 ## Getting Started
 
-
-
 ### Prerequisites
-
-This package requires the following python packages: numpy, iris, matplotlib
-
+This package requires the following python packages: numpy, scipy, iris, matplotlib
 
 ### Installing
-
-*--- TODO ---*
-
+pip install climi
 
 ## Running the tests
-
 *--- TODO ---* 
 
-
-
 ## Authors
-
-* **Changgui Lin, SMHI** - *Initial work* - [@SMHI git](https://git.smhi.se/a002344)
-
+* **Changgui Lin, SMHI/GU** - *Initial work* - [@github](https://github.com/ahheo)
 
 ## License
-
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
 
 ## Acknowledgments
