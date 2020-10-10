@@ -1,4 +1,4 @@
-from uuuu.ffff import flt_l
+from .ffff import flt_l
 import numpy as np
 import pandas as pd
 import geopandas as gpd

@@ -13,8 +13,8 @@ import warnings
 from time import localtime, strftime
 from typing import Iterable
 
-from uuuu import *
-from pppp import *
+from climi.uuuu import *
+from climi.pppp import *
 
 
 def _shps():

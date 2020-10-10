@@ -1,8 +1,8 @@
 """
->--#¤&#¤%/%&(¤%¤#%"¤#"#¤%&¤#!"#%#%&()/=?=()/&%¤%&/()/£$€¥{[}]()=?=)(/&¤%&/()--<
+>--#########################################################################--<
 >---------------You don't need to know what for this script is----------------<
 >-----------------------------I don't know too--------------------------------<
->--#¤&&()/=?=()/&#¤%&/(=)(/&$€¥{[]}]\±$¡$£€@"#%¤#¤&/("#¤!&/(%&"#¤"¤%&#%/)/*#--<
+>--#########################################################################--<
 * p25_75_           : 25th and 75th percentile      --> pre_hwmid_
 * md_               : daily magnitude               --> pre_hwmid_
 * tE                : class of heat/cold extreme    --> tE_
@@ -38,8 +38,7 @@ import cf_units
 from datetime import datetime
 from dataclasses import dataclass, field
 from typing import List
-from uuuu.ffff import *
-from uuuu.cccc import *
+from climi.uuuu import *
 
 
 __all__ = ['p25_75_', 'md_', 'tE', 'tE_', 'thr_', 'dt_thr_', 'subH', 'subH_',

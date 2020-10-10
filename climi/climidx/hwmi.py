@@ -1,8 +1,8 @@
 """
->--#¤&#¤%/%&(¤%¤#%"¤#"#¤%&¤#!"#%#%&()/=?=()/&%¤%&/()/£$€¥{[}]()=?=)(/&¤%&/()--<
+>--#########################################################################--<
 >------------------------Heat/Cold Wave Magnitude Index-----------------------<
 >------------------------Warm/Cold Spell Duration Index-----------------------<
->--#¤&&()/=?=()/&#¤%&/(=)(/&$€¥{[]}]\±$¡$£€@"#%¤#¤&/("#¤!&/(%&"#¤"¤%&#%/)/*#--<
+>--#########################################################################--<
 
 *****REFERENCE***** : Russo, Simone, et al. "Magnitude of extreme heat waves
                       in present climate and their projection in a warming
@@ -22,8 +22,7 @@ import iris
 import iris.coord_categorisation as cat
 import math
 import logging
-from uuuu.ffff import *
-from uuuu.cccc import *
+from climi.uuuu import *
 from .zzzz import *
 
 

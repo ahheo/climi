@@ -13,8 +13,8 @@ import yaml
 
 from time import localtime, strftime
 
-from uuuu import *
-from pppp import *
+from climi.uuuu import *
+from climi.pppp import *
 
 
 def _shps(n):

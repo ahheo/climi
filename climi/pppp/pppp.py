@@ -6,8 +6,9 @@ import iris.plot as iplt
 import cartopy.crs as ccrs
 import os
 import warnings
-from uuuu import cyl_, flt_l, nanMask_, rgMean_cube, extract_period_cube, \
-                 extract_byAxes_, load_res_, load_fx_
+from climi.uuuu import cyl_, flt_l, nanMask_, rgMean_cube,\
+                       extract_period_cube,\
+                       extract_byAxes_, load_res_, load_fx_
 
 
 __all__ = ['aligned_cb_',

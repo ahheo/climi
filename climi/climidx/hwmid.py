@@ -1,8 +1,8 @@
 """
->--#¤&#¤%/%&(¤%¤#%"¤#"#¤%&¤#!"#%#%&()/=?=()/&%¤%&/()/£$€¥{[}]()=?=)(/&¤%&/()--<
+>--#########################################################################--<
 >---------------------Heat/Cold Wave Magnitude Index daily--------------------<
 >------------------------Warm/Cold Spell Duration Index-----------------------<
->--#¤&&()/=?=()/&#¤%&/(=)(/&$€¥{[]}]\±$¡$£€@"#%¤#¤&/("#¤!&/(%&"#¤"¤%&#%/)/*#--<
+>--#########################################################################--<
 
 *****REFERENCE***** : Russo, Simone, et al. "Top ten European heatwaves since
                       1950 and their occurrence in the coming decades",
@@ -21,8 +21,7 @@ import iris
 import iris.coord_categorisation as cat
 import math
 import logging
-from uuuu.ffff import *
-from uuuu.cccc import *
+from climi.uuuu import *
 from .zzzz import *
 
 
