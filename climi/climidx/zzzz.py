@@ -49,8 +49,8 @@ __all__ = ['p25_75_', 'md_', 'tE', 'tE_', 'thr_', 'dt_thr_', 'subH', 'subH_',
 def p25_75_(t_ref, ax_t):
     warnings.filterwarnings("ignore", message="All-NaN slice encountered")
 
-    p25 = tmp = np.nanpercentile(t_ref, 25, ax_t, keepdims=True)
-    p75 = tmp = np.nanpercentile(t_ref, 75, ax_t, keepdims=True)
+    p25 = np.nanpercentile(t_ref, 25, ax_t, keepdims=True)
+    p75 = np.nanpercentile(t_ref, 75, ax_t, keepdims=True)
     return (p25, p75)
 
 
