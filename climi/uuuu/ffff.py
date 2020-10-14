@@ -8,6 +8,7 @@
 * find_patt_            : extract list from items matching pattern
 * flt_                  : flatten (out: generator)          --> flt_l
 * flt_l                 : flatten (out: list)               --> (o)uniqL_
+* get_path_             : get path from filename str
 * indFront_             : move element with specified index to front
 * ind_inRange_          : indices of values in a range
 * ind_s_                : extraction indices (1 axis)       --> inds_ss_
@@ -71,6 +72,7 @@ __all__ = ['cyl_',
            'find_patt_',
            'flt_',
            'flt_l',
+           'get_path_',
            'indFront_',
            'ind_inRange_',
            'ind_s_',
@@ -481,6 +483,14 @@ def pure_fn_(s):
         return re.sub(r'\.\w+$', '', fn) if fn else fn
     else:
         return [pure_fn_(i) for i in s]
+
+
+def get_path_(s):
+    """
+    ... get path from filename ...
+    """
+    tmp = re.sub(r'[^\/]+$', '', s)
+    return tmp if tmp else './'
 
 
 def rest_mns_(mmm):

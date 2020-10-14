@@ -945,20 +945,66 @@ def _unify_xycoord_points(cubeL, thr=1e-10):
             _unify_1coord_points(cubeL, coord_name, thr=thr)
 
 
-def _unify_dtype(cubeL):
+def _unify_1coord_names(cubeL, coord_name):
+    epochs = {}
+    for c in cubeL:
+        cc = c.coord(coord_name)
+        d0 = epochs.setdefault('points', cc.long_name)
+        d1 = epochs.setdefault('points', cc.var_name)
+        cc.long_name = d0
+        cc.var_name = d1
+
+
+def _unify_coord_names(cubeL):
+    if len(cubeL) > 1:
+        coord_names = [i.name() for i in cubeL.coords()]
+        for coord_name in coord_names:
+            _unify_1coord_names(cubeL, coord_name)
+
+
+def _unify_time_units(cubeL):
+    CLD0 = 'proleptic_gregorian'
+    CLD = 'gregorian'
+    clds = [c.coord('time').units.calendar for c in cubeL]
+    if len(uniqL_(clds)) > 1:
+        for c in cubeL:
+            ctu = c.coord('time').units
+            if ctu.calendar == CLD0:
+                ctu = cf_units.Unit(c.coord('time').units.origin, CLD)
+    iris.util.unify_time_units(cubeL)
+    
+
+
+def _unify_dtype(cubeL, fst=True):
     tps = [c.dtype for c in cubeL]
-    utps = np.unique(tps)
-    tpi = [np.sum(np.asarray(tps) == i) for i in utps]
-    tp = utps[np.argmax(tpi)]
+    if fst:
+        tp = tps[i]
+    else:
+        utps = np.unique(tps)
+        tpi = [np.sum(np.asarray(tps) == i) for i in utps]
+        tp = utps[np.argmax(tpi)]
     for c in cubeL:
         if c.dtype != tp:
             c.data = c.data.astype(tp)
 
 
+def _unify_cellmethods(cubeL, fst=True):
+    cms = [c.cell_methods for c in cubeL]
+    if fst:
+        cm = cms[i]
+    else:
+        ucms = np.unique(cms)
+        cmi = [np.sum(np.asarray(cms) == i) for i in ucms]
+        cm = utps[np.argmax(cmi)]
+    for c in cubeL:
+        if c.cell_methods != cm:
+            c.cell_methods = cm
+
+
 def purefy_cubeL_(cubeL):
     _rm_extra_coords_cubeL(cubeL)
     equalise_attributes(cubeL)
-    iris.util.unify_time_units(cubeL)
+    _unify_time_units(cubeL)
 
 
 def concat_cube_(cubeL, thr=1e-10):
@@ -968,8 +1014,11 @@ def concat_cube_(cubeL, thr=1e-10):
     except iris.exceptions.ConcatenateError as ce_:
         if any(['Data types' in i for i in ce_.args[0]]):
             _unify_dtype(cubeL)
+        elif any(['metadata' in i for i in ce_.args[0]]):
+            _unify_cellmethods(cubeL)
         elif any(['found 2' in i for i in ce_.args[0]]):
             _unify_xycoord_points(cubeL, thr=thr)
+            _unify_coord_names(cubeL)
         o = cubeL.concatenate_cube()
     return o
 

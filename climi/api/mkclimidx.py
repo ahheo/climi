@@ -1,5 +1,5 @@
-from uuuu import *
-from climidx import *
+from climi.uuuu import *
+from climi.climidx import *
 
 import numpy as np
 import iris
@@ -13,16 +13,19 @@ import argparse
 from time import localtime, strftime
 
 
+here = get_path_(__file__)
+
+
 i__ = {'ET': (1, 0, ['et'], None, ['year']),
        'HumiWarmDays': (2, 1, ['hurs', 't'], dHumiWarmDays_cube, ['season']),
        'EffPR': (3, 0, ['et', 'pr'], None, ['season', 'year']),
        'PR7Dmax': (4, 1, ['pr'], dPr7_, ['year']),
        'LnstDryDays': (5, 1, ['pr'], dLongestDryDays_, ['season']),
        'DryDays': (6, 1, ['pr'], dDryDays_, ['month']),
-       #'PR': (7, 0, ['pr'], None, ['season', 'year']),
-       'PR': (7, 0, ['pr'], None, ['month']),
-       #'PRmax': (8, 1, ['pr'], 'MAX', ['month', 'year']),
-       'PRmax': (8, 1, ['pr'], 'MAX', ['month']),
+       'PR': (7, 0, ['pr'], None, ['season', 'year']),
+       #'PR': (7, 0, ['pr'], None, ['month']),
+       'PRmax': (8, 1, ['pr'], 'MAX', ['month', 'year']),
+       #'PRmax': (8, 1, ['pr'], 'MAX', ['month']),
        'PRRN': (9, 0, ['pr', 'prsn'], None, ['season', 'year']),
        'PRSN': (10, 0, ['pr', 'prsn'], None, ['season', 'year']),
        'NetRO': (11, 0, ['ro'], None, ['year']),
@@ -31,15 +34,15 @@ i__ = {'ET': (1, 0, ['et'], None, ['year']),
        'RSDS': (14, 0, ['rs'], None, ['season']),
        'CoolingDegDay': (15, 1, ['tx'], dDegDay_, ['month', 'year']),
        'ConWarmDays': (16, 1, ['tx'], dConWarmDays_, ['year']),
-       #'TX': (17, 0, ['tx'], None, ['season', 'year']),
-       'TX': (17, 0, ['tx'], None, ['month']),
+       'TX': (17, 0, ['tx'], None, ['season', 'year']),
+       #'TX': (17, 0, ['tx'], None, ['month']),
        'WarmDays': (18, 1, ['tx'], dWarmDays_, ['season', 'year']),
        'ColdDays': (19, 1, ['tx'], dColdDays_, ['season', 'year']),
        'DegDay20': (20, 1, ['t'], dDegDay_, ['year']),
        'DegDay8': (21, 1, ['t'], dDegDay8_vegSeason_, ['year']),
        'DegDay17': (22, 1, ['t'], dDegDay_, ['year']),
-       #'TN': (23, 0, ['tn'], None, ['season', 'year']),
-       'TN': (23, 0, ['tn'], None, ['month']),
+       'TN': (23, 0, ['tn'], None, ['season', 'year']),
+       #'TN': (23, 0, ['tn'], None, ['month']),
        'SpringFrostDayEnd': (24, 1, ['tn'], dEndSpringFrost_, ['year']),
        'FrostDays': (25, 1, ['tn'], dFrostDays_, ['season', 'year']),
        'TropicNights': (26, 1, ['tn'], dTropicNights_, ['year']),
@@ -60,8 +63,8 @@ i__ = {'ET': (1, 0, ['et'], None, ['year']),
        'Snd10Days': (40, 1, ['snd'], dSndGT10LE20Days_, ['year']),
        'Snd20Days': (41, 1, ['snd'], dSndGT10LE20Days_, ['year']),
        'SNWmax': (42, 1, ['snw'], 'MAX', ['year']),
-       #'TAS': (43, 0, ['t'], None, ['season', 'year']),
-       'TAS': (43, 0, ['t'], None, ['month']),
+       'TAS': (43, 0, ['t'], None, ['season', 'year']),
+       #'TAS': (43, 0, ['t'], None, ['month']),
        'DTR': (44, 0, ['tx', 'tn'], mDTR_, ['month']),
        'Rho925': (45, 1, ['t925', 'hus925', 'ps'], None, ['month']),
        'RhoS': (46, 1, ['t', 'huss', 'ps'], None, ['month']),
@@ -144,7 +147,7 @@ def _vv2(a, xvn=9):
         yield (aa, bb)
 
 
-def _vv(ii_, tint, subg=None, xvn=5):
+def _vv(ii_, tint, subg=None, xvn=9):
     if tint == 'mon':
         nn = 0
     elif tint == 'day':
@@ -160,13 +163,15 @@ def _vv(ii_, tint, subg=None, xvn=5):
         if nn == 1 and len(tmp_) > xvn:
             if subg == 'v':
                 tmp__ = ss_fr_sl_(list(map(set, tmp)))
-                return [(ii_, i) for i in tmp__]
+                return [([ii for ii in ii_
+                          if all([iii in i for iii in i__[ii][2]])], i)
+                        for i in tmp__]
             elif subg == 'i':
                 ii__ = [ii_[:(len(ii_)//2)], ii_[(len(ii_)//2):]]
                 tmp__ = [_vv(i, tint) for i in ii__]
                 return nli_(tmp__)
         else:
-            return (ii_, tmp_)
+            return ([i for i in ii_ if i__[i][1] == nn], tmp_)
 
 
 def _vd_fr_vv(vl):
@@ -473,7 +478,7 @@ def _dclimidx(c_pr=None, c_t=None, c_tx=None, c_tn=None, c_wsgs=None,
             _d0(v_, c_tx)                                             #ColdDays
         v_ = 'CoolingDegDay'
         if v_ in il_:
-            _d0(v_, c_tx, fA_=i__[v_][4], fK_=dict(thr=20),
+            _d0(v_, c_tx, fK_=dict(thr=20),
                 pK_=dict(name='degree day cooling', var_name='dd20x_'))
                                                                  #CoolingDegDay
         v_ = 'ConWarmDays'
@@ -510,10 +515,10 @@ def _dclimidx(c_pr=None, c_t=None, c_tx=None, c_tn=None, c_wsgs=None,
     if c_t:
         v_ = 'DegDay20'
         if v_ in il_:
-            _d0(v_, c_t, fA_=i__[v_][4], fK_=dict(thr=20))            #DegDay20
+            _d0(v_, c_t, fK_=dict(thr=20))                            #DegDay20
         v_ = 'DegDay17'
         if v_ in il_:
-            _d0(v_, c_t, fA_=i__[v_][4], fK_=dict(thr=17, left=True)) #DegDay17
+            _d0(v_, c_t, fK_=dict(thr=17, left=True))                 #DegDay17
         if any([i in il_ for i in ['DegDay8',
                                    'VegSeasonDayStart-5',
                                    'VegSeasonDayEnd-5', 'VegSeasonLength-5',
@@ -563,7 +568,7 @@ def _dclimidx(c_pr=None, c_t=None, c_tx=None, c_tn=None, c_wsgs=None,
             ll_(v_, t000)                                          #VegSeason-2
     v_ = 'HumiWarmDays'
     if v_ in il_ and c_hurs and c_t:
-        _d0(v_, (c_hurs, c_t), fA_=i__[v_][4])                    #HumiWarmDays
+        _d0(v_, (c_hurs, c_t))                                    #HumiWarmDays
     v_ = 'RhoS'
     if v_ in il_ and all([i is not None for i in (c_t, c_huss, c_ps)]):
         t000 = l__('{} {} ... predata'.format(i__[v_][0], v_))
@@ -806,9 +811,9 @@ def rf__(pi_, freq, folder='cordex', reg_d=None, **kwargs):
 
 def _gg(folder='cordex'):
     if folder == 'cmip5':
-        yf = '/home/sm_chali/wks/heat-wave-2018/api/gcm_gwls_.yml'
+        yf = here + 'gcm_gwls_.yml'
     elif folder == 'cordex':
-        yf = '/home/sm_chali/wks/heat-wave-2018/api/gcm_gwls.yml'
+        yf = here + 'gcm_gwls.yml'
     else:
         raise Exception("unknown folder: {!r}".format(folder))
     with open(yf, 'r') as ymlfile:
@@ -823,22 +828,24 @@ def _pp(yf0):
 
 
 def _yy_dn(pD, dn, gwl, gg, curr):
-    if gwl != 'current':
+    if gwl[:3] == 'gwl':
         try:
             y0 = gg[gwl][pD['rcp']][pD['gcm']][pD['rip']]
             y0y1 = [y0, y0 + 29]
         except KeyError:
             y0y1 = None
-    elif pD['rcp'] == 'rcp85':
+    elif gwl == 'current' and pD['rcp'] == 'rcp85':
         y0y1 = curr
         dn = dn.replace('rcp85', 'historical')
+    elif gwl == 'curr0130':
+        y0y1 = curr
     else:
         y0y1 = None
     return (y0y1, dn)
 
 
 def cmip5_imp_rcp_(il_, reg_d, reg_n, po_, sss=None, eee=None):
-    pp = _pp('/home/sm_chali/wks/heat-wave-2018/api/cmip5_import_.yml')
+    pp = _pp(here + 'cmip5_import_.yml')
     ppp = pp['p_'][sss:eee]
     for p_ in ppp:
         tmp = path2cmip5_info_(p_)
@@ -853,7 +860,7 @@ def cmip5_imp_rcp_(il_, reg_d, reg_n, po_, sss=None, eee=None):
 
 def cmip5_imp_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
                   sss=None, eee=None):
-    pp = _pp('/home/sm_chali/wks/heat-wave-2018/api/cmip5_import.yml')
+    pp = _pp(here + 'cmip5_import.yml')
     gg = _gg('cmip5')
     ppp = pp['p_'][sss:eee]
     for p_ in ppp:
@@ -874,7 +881,7 @@ def cmip5_imp_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
 
 
 def eur11_imp_rcp_(il_, reg_d, reg_n, po_, sss=None, eee=None):
-    pp = _pp('/home/sm_chali/wks/heat-wave-2018/api/eur-11_import__.yml')
+    pp = _pp(here + 'eur-11_import__.yml')
     for p_ in pp['p_'][sss:eee]:
         tmp = path2cordex_info_(p_)
         dn = '_'.join((tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
@@ -889,7 +896,7 @@ def eur11_imp_rcp_(il_, reg_d, reg_n, po_, sss=None, eee=None):
 
 def eur11_imp_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
                   sss=None, eee=None):
-    pp = _pp('/home/sm_chali/wks/heat-wave-2018/api/eur-11_import.yml')
+    pp = _pp(here + 'eur-11_import.yml')
     gg = _gg()
     for p_ in pp['p_'][sss:eee]:
         tmp = path2cordex_info_(p_)
@@ -911,7 +918,7 @@ def eur11_imp_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
 
 def eur11_imp_eval(il_, reg_d, reg_n, po_, sss=None, eee=None):
     gwl = ''
-    pp = _pp('/home/sm_chali/wks/heat-wave-2018/api/eur-11_import_eval.yml')
+    pp = _pp(here + 'eur-11_import_eval.yml')
     for p_ in pp['p_'][sss:eee]:
         tmp = path2cordex_info_(p_)
         dn = '_'.join((tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
@@ -926,7 +933,7 @@ def eur11_imp_eval(il_, reg_d, reg_n, po_, sss=None, eee=None):
 
 def eur11_imp_eval_dmi(il_, reg_d, reg_n, po_):
     gwl = ''
-    pp = _pp('/home/sm_chali/wks/heat-wave-2018/api/eur-11_import_eval.yml')
+    pp = _pp(here + 'eur-11_import_eval.yml')
     y0y1 = [1989, 2010]
     for p_ in pp['p__']:
         tmp = path2cordex_info_(p_)
@@ -942,7 +949,7 @@ def eur11_imp_eval_dmi(il_, reg_d, reg_n, po_):
 
 def eur11_smhi_eval(il_, reg_d, reg_n, po_):
     gwl = ''
-    pp = _pp('/home/sm_chali/wks/heat-wave-2018/api/eur-11_smhi-rca4.yml')
+    pp = _pp(here + 'eur-11_smhi-rca4.yml')
     p_ = pp['root'] + str(pp['eval']) + '/netcdf/'
     gcm = pp[pp['eval']]['gcm']
     rcp = pp[pp['eval']]['rcp']
@@ -958,7 +965,7 @@ def eur11_smhi_eval(il_, reg_d, reg_n, po_):
 
 
 def eur11_smhi_rcp_(il_, reg_d, reg_n, po_, sss=None, eee=None):
-    pp = _pp('/home/sm_chali/wks/heat-wave-2018/api/eur-11_smhi-rca4.yml')
+    pp = _pp(here + 'eur-11_smhi-rca4.yml')
     for ppi in pp['h248'][sss:eee]:
         pi_ = '{}{}/netcdf/'.format(pp['root'], ppi)
         dn = '_'.join((pp[ppi]['gcm'], pp[ppi]['rcp'], pp[ppi]['rip'],
@@ -972,7 +979,7 @@ def eur11_smhi_rcp_(il_, reg_d, reg_n, po_, sss=None, eee=None):
 
 def eur11_smhi_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
                    sss=None, eee=None):
-    pp = _pp('/home/sm_chali/wks/heat-wave-2018/api/eur-11_smhi-rca4.yml')
+    pp = _pp(here + 'eur-11_smhi-rca4.yml')
     gg = _gg()
     for p0p1 in pp['rcps'][sss:eee]:
         pi0, pi1 = p0p1[0], p0p1[1]
@@ -1074,14 +1081,14 @@ def main():
     parser.add_argument("-l", "--log",
                         type=str, help="exclusive log identifier")
     args = parser.parse_args()
-    #il_ = list(i__.keys())
-    #il_.remove('SIC')
-    #il_.remove('SST')
-    #il_.remove('hSuperCooledPR')
+    il_ = list(i__.keys())
+    il_.remove('SIC')
+    il_.remove('SST')
+    il_.remove('hSuperCooledPR')
     #il_.remove('SuperCooledPR')
     #il_.remove('FirstDayWithoutFrost')
     #il_.remove('SpringFrostDayEnd')
-    il_ = ['TAS', 'TX', 'TN', 'PR', 'PRmax']
+    #il_ = ['TAS', 'TX', 'TN', 'PR', 'PRmax']
     #il_ = ['CalmDays975', 'ConCalmDays975', 'CalmDays925', 'ConCalmDays925']
     #       'Wind975toSfc', 'ColdRainDays', 'ColdRainGT10Days',
     #       'ColdRainGT20Days', 'WarmSnowDays', 'WarmSnowGT10Days',
@@ -1127,11 +1134,17 @@ def main():
     elif args.opt == 2:
         eur11_imp_rcp(il_, reg_d, reg_n, po__,
                       gwl=args.gwl, sss=args.start, eee=args.end)
+    elif args.opt == 22:
+        eur11_imp_rcp(il_, reg_d, reg_n, po__, curr=[2001, 2030],
+                      gwl='curr0130', sss=args.start, eee=args.end)
     elif args.opt == 3:
         eur11_smhi_eval(il_, reg_d, reg_n, po_)
     elif args.opt == 4:
         eur11_smhi_rcp(il_, reg_d, reg_n, po__,
                        gwl=args.gwl, sss=args.start, eee=args.end)
+    elif args.opt == 44:
+        eur11_smhi_rcp(il_, reg_d, reg_n, po__, curr=[2001, 2030],
+                       gwl='curr0130', sss=args.start, eee=args.end)
     elif args.opt == 5:
         eobs20_(il_, reg_d, reg_n, po___)
     elif args.opt == 6:
@@ -1139,6 +1152,9 @@ def main():
     elif args.opt == 7:
         cmip5_imp_rcp(il_, reg_d, reg_n, po____,
                       gwl=args.gwl, sss=args.start, eee=args.end)
+    elif args.opt == 77:
+        cmip5_imp_rcp(il_, reg_d, reg_n, po____, curr=[2001, 2030],
+                      gwl='curr0130', sss=args.start, eee=args.end)
     elif args.opt == 8:
         eur11_smhi_rcp_(il_, reg_d, reg_n, pcdx, sss=args.start, eee=args.end)
     elif args.opt == 9:

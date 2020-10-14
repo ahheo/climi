@@ -1,7 +1,7 @@
 """
->--#########################################################################--<
+>--#¤&#¤%/%&(¤%¤#%"¤#"#¤%&¤#!"#%#%&()/=?=()/&%¤%&/()/£$€¥{[}]()=?=)(/&¤%&/()--<
 >--------------------functions dealing with BI directories--------------------<
->--#########################################################################--<
+>--#¤&&()/=?=()/&%¤%&/()/(/&%&/(/()=?=)(/&¤%&/("%"¤#&#&¤&&/(%&"#¤"¤%&#%/)/*#--<
 * cmip5_dir_finfo       : file info of a directory: cmip5
 * cordex_dir_finfo      : file info of a directory: cordex
 * min_fselect_          : select files according specified period
@@ -439,8 +439,9 @@ def _clmidx_dn_rplrcp(dn, nrcp='historical'):
 
 
 def clmidx_finfo_(idir, var, gwls=['gwl15', 'gwl2'],
-                   gcm='*', rcp='*', rip='*', rcm='*',
-                   version='*', rn='EUR', freq='year', newestV=False):
+                  gcm='*', rcp='*', rip='*', rcm='*',
+                  version='*', rn='EUR', freq='year', newestV=False,
+                  addCurr=True):
     files = glob.glob(idir + '_'.join((var, gcm, '*', rip, rcm, version,
                                        rn, freq, '*.nc')))
     files.sort()
@@ -455,11 +456,12 @@ def clmidx_finfo_(idir, var, gwls=['gwl15', 'gwl2'],
                             'current.nc')) for i in oi]
     fng = [[i for i, ii in zip(ff, oo) if ii in oi]
            for ff, oo in zip(fns, ois)]
-    return ([fnc] + fng, oi)
+    return ([fnc] + fng, oi) if addCurr else (fng, oi)
 
 
 def clmidx_finfo_cmip5_(idir, var, gwls=['gwl15', 'gwl2'],
-                        gcm='*', rcp='*', rip='*', rn='GLB', freq='year'):
+                        gcm='*', rcp='*', rip='*', rn='GLB', freq='year',
+                        addCurr=True):
     files = glob.glob(idir + '_'.join((var, gcm, '*', rip, rn, freq, '*.nc')))
     files.sort()
     fns = [[i for i in files if '{}.nc'.format(ii) in i] for ii in gwls]
@@ -471,7 +473,7 @@ def clmidx_finfo_cmip5_(idir, var, gwls=['gwl15', 'gwl2'],
                             'current.nc')) for i in oi]
     fng = [[i for i, ii in zip(ff, oo) if ii in oi]
            for ff, oo in zip(fns, ois)]
-    return ([fnc] + fng, oi)
+    return ([fnc] + fng, oi) if addCurr else (fng, oi)
 
 
 def clmidx_finfo_eval_(idir, var, gcm='*', rcp='*', rip='*', rcm='*',
@@ -543,14 +545,14 @@ def load_clmidx_eval_(idir, var, freq='year', rn='EUR', period=[1989, 2008]):
 
 
 def load_clmidx_(idir, var, gwls=['gwl15', 'gwl2'], freq='year', rn='EUR',
-                 folder=None, newestV=False):
+                 folder=None, newestV=False, addCurr=True):
     from iris.fileformats.netcdf import UnknownCellMethodWarning
     warnings.filterwarnings("ignore", category=UnknownCellMethodWarning)
     warnings.filterwarnings("ignore", category=UserWarning)
     finfo_ = (eval('clmidx_finfo_{}_'.format(folder)) if folder else
               clmidx_finfo_)
     aT = (idir, var)
-    kaD = dict(gwls=gwls, freq=freq, rn=rn)
+    kaD = dict(gwls=gwls, freq=freq, rn=rn, addCurr=addCurr)
     if folder is None:
         kaD.update(dict(newestV=newestV))
     def _ilc(fn, *Args, **kwArgs):
