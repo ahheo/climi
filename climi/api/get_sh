@@ -31,7 +31,7 @@ def main():
             f.write(sba.format('-N 1'))
             f.write(sba.format('-C fat'))
             f.write(sba.format('--exclusive'))
-            f.write(sba.format('-t 11:59:59'))
+            f.write(sba.format('-t 13:59:59'))
             f.write(sba.format('--mail-type=FAIL'))
             f.write(sba.format('--mail-type=END'))
             f.write(sba.format('--mail-user=changgui.lin@smhi.se'))

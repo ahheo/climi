@@ -889,17 +889,9 @@ def rgMean_poly_cube(cubeD, poly, sftlf=None, areacella=None, **kwArgs):
 
 
 def _rm_extra_coords_cubeL(cubeL):
-    l0 = []
-    for i in cubeL:
-        tmp = []
-        for ii in i.coords():
-            tmp.append(ii.name())
-        l0.append(tmp)
-    l1 = set(flt_l(l0))
-    l2 = []
-    for i in l1:
-        if sum(np.array(flt_l(l0))==i) < len(cubeL):
-            l2.append(i)
+    l0 = [[ii.name() for ii in i.aux_coords] for i in cubeL]
+    l1 = ouniqL_(flt_l(l0))
+    l2 = [i for i in l1 if sum(np.array(flt_l(l0))==i) < len(cubeL)]
     if len(l2) != 0:
         for i, ii in zip(cubeL, l0):
             for iii in l2:
@@ -920,7 +912,8 @@ def _get_xycoords(cube):
 
 def _unify_1coord_points(cubeL, coord_name, thr=1e-10):
     epochs = {}
-    emsg = "COORD ({}) can't be unified!".format(coord_name)
+    emsg = "COORD {!r} can't be unified!".format(coord_name)
+    emsg_ = "Bounds of COORD {!r} can't be unified!".format(coord_name)
     for c in cubeL:
         cc = c.coord(coord_name)
         d0 = epochs.setdefault('points', cc.points)
@@ -935,7 +928,7 @@ def _unify_1coord_points(cubeL, coord_name, thr=1e-10):
             if 0 < db < thr:
                 cc.bounds = d1
             elif db > thr:
-                raise Exception(emsg)
+                raise Exception(emsg_)
 
 
 def _unify_xycoord_points(cubeL, thr=1e-10):
@@ -945,19 +938,21 @@ def _unify_xycoord_points(cubeL, thr=1e-10):
             _unify_1coord_points(cubeL, coord_name, thr=thr)
 
 
-def _unify_1coord_names(cubeL, coord_name):
+def _unify_1coord_attrs(cubeL, coord_name):
     epochs = {}
     for c in cubeL:
         cc = c.coord(coord_name)
-        d0 = epochs.setdefault('points', cc.long_name)
-        d1 = epochs.setdefault('points', cc.var_name)
+        d0 = epochs.setdefault('l_n', cc.long_name)
+        d1 = epochs.setdefault('v_n', cc.var_name)
+        d2 = epochs.setdefault('attr', cc.attributes)
         cc.long_name = d0
         cc.var_name = d1
+        cc.attributes = d2
 
 
 def _unify_coord_names(cubeL):
     if len(cubeL) > 1:
-        coord_names = [i.name() for i in cubeL.coords()]
+        coord_names = [i.name() for i in cubeL[0].coords()]
         for coord_name in coord_names:
             _unify_1coord_names(cubeL, coord_name)
 
@@ -966,13 +961,12 @@ def _unify_time_units(cubeL):
     CLD0 = 'proleptic_gregorian'
     CLD = 'gregorian'
     clds = [c.coord('time').units.calendar for c in cubeL]
-    if len(uniqL_(clds)) > 1:
+    if len(ouniqL_(clds)) > 1:
         for c in cubeL:
             ctu = c.coord('time').units
             if ctu.calendar == CLD0:
                 ctu = cf_units.Unit(c.coord('time').units.origin, CLD)
     iris.util.unify_time_units(cubeL)
-    
 
 
 def _unify_dtype(cubeL, fst=True):
@@ -1014,11 +1008,13 @@ def concat_cube_(cubeL, thr=1e-10):
     except iris.exceptions.ConcatenateError as ce_:
         if any(['Data types' in i for i in ce_.args[0]]):
             _unify_dtype(cubeL)
-        elif any(['metadata' in i for i in ce_.args[0]]):
+        elif any(['Cube metadata' in i for i in ce_.args[0]]):
             _unify_cellmethods(cubeL)
-        elif any(['found 2' in i for i in ce_.args[0]]):
-            _unify_xycoord_points(cubeL, thr=thr)
+        elif any(['coordinates differ' in i for i in ce_.args[0]]):
             _unify_coord_names(cubeL)
+        elif any(['found 2' in i for i in ce_.args[0]]):
+            _unify_coord_names(cubeL)
+            _unify_xycoord_points(cubeL, thr=thr)
         o = cubeL.concatenate_cube()
     return o
 

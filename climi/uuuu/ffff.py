@@ -548,7 +548,7 @@ def ll_(msg, t0=None):
     logging.info(' {}{}'.format(msg, ' <--' if t0 else ''))
     if t0:
         logging.info(' ' + rTime_(time.time() - t0))
-    logging.info(' ')
+        logging.info(' ')
 
 
 def slctStrL_(strl, incl=None, excl=None, incl_or=False, excl_and=False):
