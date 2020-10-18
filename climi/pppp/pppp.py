@@ -35,12 +35,12 @@ __all__ = ['aligned_cb_',
 
 
 def init_fig_(fx=12, fy=6,
-              hspace=0.075, wspace=0.075,                          
-              top=0.98, bottom=0.075, left=0.075, right=0.98):                  
+              h=0.075, w=0.075,                          
+              t=0.98, b=0.075, l=0.075, r=0.98):                  
     fig = plt.figure(figsize=(fx, fy))                                          
-    fig.subplots_adjust(hspace=hspace, wspace=wspace,                           
-                        top=top, bottom=bottom,                                 
-                        left=left, right=right)                                 
+    fig.subplots_adjust(hspace=h, wspace=w,                           
+                        top=t, bottom=b,                                 
+                        left=l, right=r)                                 
     return fig
 
 

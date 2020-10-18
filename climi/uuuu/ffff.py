@@ -2,6 +2,7 @@
 >--#########################################################################--<
 >------------------------------whoknows functions-----------------------------<
 >--#########################################################################--<
+* b2l_endian_           : return little endian copy
 * cyl_                  : values in cylinder axis           --> extract_win_
 * dgt_                  : digits of the int part of a number
 * ext_                  : get extension of file name
@@ -22,6 +23,7 @@
 * kde__                 : tranform before kde_
 * l__                   : start logging
 * l_ind_                : extract list by providing indices
+* l2b_endian_           : return big endian copy
 * latex_unit_           : m s-1 -> m s$^{-1}$
 * ll_                   : end logging
 * nSlice_               : total number of slices
@@ -66,7 +68,8 @@ from typing import Iterable
 #import math
 
 
-__all__ = ['cyl_',
+__all__ = ['b2l_endian_',
+           'cyl_',
            'dgt_',
            'ext_',
            'find_patt_',
@@ -86,6 +89,7 @@ __all__ = ['cyl_',
            'kde__',
            'l__',
            'l_ind_',
+           'l2b_endian_',
            'latex_unit_',
            'll_',
            'nSlice_',
@@ -672,3 +676,11 @@ def dgt_(n):
 def prg_(i, n):
     ss = '#{:0' + r'{:d}'.format(dgt_(n)) + r'd}/{:d}'
     return ss.format(i, n)
+
+
+def b2l_endian_(x):
+    return x.astype(np.dtype(x.dtype.str.replace('>', '<')))
+
+
+def l2b_endian_(x):
+    return x.astype(np.dtype(x.dtype.str.replace('<', '>')))

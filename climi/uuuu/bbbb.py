@@ -30,7 +30,7 @@ import iris
 import numpy as np
 
 from .ffff import intsect_, ouniqL_, schF_keys_, valueEqFront_, p_least_, \
-                  p_deoverlap_, pure_fn_, latex_unit_, l_ind_
+                  p_deoverlap_, pure_fn_, latex_unit_, l_ind_, ll_
 from .cccc import concat_cube_, intersection_, en_rip_, rgMean_cube, \
                   repair_lccs_, en_mm_cubeL_, extract_byAxes_, maskNaN_cube, \
                   rgMean_poly_cube, extract_period_cube, en_mean_, en_iqr_, \
@@ -174,10 +174,15 @@ def cmip5_dir_cubeL(idir, var='*', freq='*', gcm='*', exp='*', realz='*',
     if len(cubeL) == 0:
         return None
     elif ifconcat:
-        cube = concat_cube_(cubeL, thr=1e-5)
-        p = sorted(info['p'])
-        return {'cube': cube,
-                'p': '-'.join((p[0].split('-')[0], p[-1].split('-')[-1]))}
+        try:
+            cube = concat_cube_(cubeL, thr=1e-5)
+            p = sorted(info['p'])
+            return {'cube': cube,
+                    'p': '-'.join((p[0].split('-')[0], p[-1].split('-')[-1]))}
+        except:
+            ll_('bbbb: cmip5_dir_cubeL: concat_cube_ error,'
+                ' return None instead')
+            return None
     else:
         return {'cube': cubeL, 'p': info['p']}
 
@@ -204,10 +209,15 @@ def cordex_dir_cubeL(idir, var='*', dm='*', gcm='*', exp='*', rcm='*',
     if len(cubeL) == 0:
         return None
     elif ifconcat:
-        cube = concat_cube_(cubeL)
-        p = sorted(info['p'])
-        return {'cube': cube,
-                'p': '-'.join((p[0].split('-')[0], p[-1].split('-')[-1]))}
+        try:
+            cube = concat_cube_(cubeL)
+            p = sorted(info['p'])
+            return {'cube': cube,
+                    'p': '-'.join((p[0].split('-')[0], p[-1].split('-')[-1]))}
+        except:
+            ll_('bbbb: cordex_dir_cubeL : concat_cube_ error,'
+                ' return None instead')
+            return None
     else:
         return {'cube': cubeL, 'p': info['p']}
 
@@ -277,7 +287,7 @@ def en_mm_(ddir, dns, cfg, rmp=True, rmpm=None, ref=None):
         else:
             if tmp.shape != cube.shape:
                 if rmp:
-                    cube = cube.regrid(tmp, rmpm)
+                    cube = iris_regrid_(tmp, cube, rmpm)
                 else:
                     raise Exception('unmatched cubes!')
             a = tmp.copy(cube.data)

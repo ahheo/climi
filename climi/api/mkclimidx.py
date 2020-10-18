@@ -13,7 +13,7 @@ import argparse
 from time import localtime, strftime
 
 
-here = get_path_(__file__)
+_here_ = get_path_(__file__)
 
 
 i__ = {'ET': (1, 0, ['et'], None, ['year']),
@@ -811,9 +811,9 @@ def rf__(pi_, freq, folder='cordex', reg_d=None, **kwargs):
 
 def _gg(folder='cordex'):
     if folder == 'cmip5':
-        yf = here + 'gcm_gwls_.yml'
+        yf = _here_ + 'gcm_gwls_.yml'
     elif folder == 'cordex':
-        yf = here + 'gcm_gwls.yml'
+        yf = _here_ + 'gcm_gwls.yml'
     else:
         raise Exception("unknown folder: {!r}".format(folder))
     with open(yf, 'r') as ymlfile:
@@ -845,7 +845,7 @@ def _yy_dn(pD, dn, gwl, gg, curr):
 
 
 def cmip5_imp_rcp_(il_, reg_d, reg_n, po_, sss=None, eee=None):
-    pp = _pp(here + 'cmip5_import_.yml')
+    pp = _pp(_here_ + 'cmip5_import_.yml')
     ppp = pp['p_'][sss:eee]
     for p_ in ppp:
         tmp = path2cmip5_info_(p_)
@@ -860,7 +860,7 @@ def cmip5_imp_rcp_(il_, reg_d, reg_n, po_, sss=None, eee=None):
 
 def cmip5_imp_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
                   sss=None, eee=None):
-    pp = _pp(here + 'cmip5_import.yml')
+    pp = _pp(_here_ + 'cmip5_import.yml')
     gg = _gg('cmip5')
     ppp = pp['p_'][sss:eee]
     for p_ in ppp:
@@ -881,7 +881,7 @@ def cmip5_imp_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
 
 
 def eur11_imp_rcp_(il_, reg_d, reg_n, po_, sss=None, eee=None):
-    pp = _pp(here + 'eur-11_import__.yml')
+    pp = _pp(_here_ + 'eur-11_import__.yml')
     for p_ in pp['p_'][sss:eee]:
         tmp = path2cordex_info_(p_)
         dn = '_'.join((tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
@@ -896,7 +896,7 @@ def eur11_imp_rcp_(il_, reg_d, reg_n, po_, sss=None, eee=None):
 
 def eur11_imp_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
                   sss=None, eee=None):
-    pp = _pp(here + 'eur-11_import.yml')
+    pp = _pp(_here_ + 'eur-11_import_.yml')
     gg = _gg()
     for p_ in pp['p_'][sss:eee]:
         tmp = path2cordex_info_(p_)
@@ -918,7 +918,7 @@ def eur11_imp_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
 
 def eur11_imp_eval(il_, reg_d, reg_n, po_, sss=None, eee=None):
     gwl = ''
-    pp = _pp(here + 'eur-11_import_eval.yml')
+    pp = _pp(_here_ + 'eur-11_import_eval.yml')
     for p_ in pp['p_'][sss:eee]:
         tmp = path2cordex_info_(p_)
         dn = '_'.join((tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
@@ -933,7 +933,7 @@ def eur11_imp_eval(il_, reg_d, reg_n, po_, sss=None, eee=None):
 
 def eur11_imp_eval_dmi(il_, reg_d, reg_n, po_):
     gwl = ''
-    pp = _pp(here + 'eur-11_import_eval.yml')
+    pp = _pp(_here_ + 'eur-11_import_eval.yml')
     y0y1 = [1989, 2010]
     for p_ in pp['p__']:
         tmp = path2cordex_info_(p_)
@@ -949,7 +949,7 @@ def eur11_imp_eval_dmi(il_, reg_d, reg_n, po_):
 
 def eur11_smhi_eval(il_, reg_d, reg_n, po_):
     gwl = ''
-    pp = _pp(here + 'eur-11_smhi-rca4.yml')
+    pp = _pp(_here_ + 'eur-11_smhi-rca4.yml')
     p_ = pp['root'] + str(pp['eval']) + '/netcdf/'
     gcm = pp[pp['eval']]['gcm']
     rcp = pp[pp['eval']]['rcp']
@@ -965,7 +965,7 @@ def eur11_smhi_eval(il_, reg_d, reg_n, po_):
 
 
 def eur11_smhi_rcp_(il_, reg_d, reg_n, po_, sss=None, eee=None):
-    pp = _pp(here + 'eur-11_smhi-rca4.yml')
+    pp = _pp(_here_ + 'eur-11_smhi-rca4.yml')
     for ppi in pp['h248'][sss:eee]:
         pi_ = '{}{}/netcdf/'.format(pp['root'], ppi)
         dn = '_'.join((pp[ppi]['gcm'], pp[ppi]['rcp'], pp[ppi]['rip'],
@@ -979,7 +979,7 @@ def eur11_smhi_rcp_(il_, reg_d, reg_n, po_, sss=None, eee=None):
 
 def eur11_smhi_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
                    sss=None, eee=None):
-    pp = _pp(here + 'eur-11_smhi-rca4.yml')
+    pp = _pp(_here_ + 'eur-11_smhi-rca4.yml')
     gg = _gg()
     for p0p1 in pp['rcps'][sss:eee]:
         pi0, pi1 = p0p1[0], p0p1[1]
@@ -1089,6 +1089,7 @@ def main():
     #il_.remove('FirstDayWithoutFrost')
     #il_.remove('SpringFrostDayEnd')
     #il_ = ['TAS', 'TX', 'TN', 'PR', 'PRmax']
+    il_ = ['SNWmax', 'R5OScw', 'R1OScw']
     #il_ = ['CalmDays975', 'ConCalmDays975', 'CalmDays925', 'ConCalmDays925']
     #       'Wind975toSfc', 'ColdRainDays', 'ColdRainGT10Days',
     #       'ColdRainGT20Days', 'WarmSnowDays', 'WarmSnowGT10Days',

@@ -17,9 +17,11 @@ from climi.uuuu import *
 from climi.pppp import *
 
 
+_here_ = get_path_(__file__)
+
+
 def _shps(n):
-    shp = gpd_read('/home/sm_chali/wks/heat-wave-2018/pppp/'
-                   'swe_districts/distriktsanalys_polygon.shp')
+    shp = gpd_read(_here_ + 'swe_districts/distriktsanalys_polygon.shp')
     shp_ = shp.to_crs(epsg=4326)
     idd = shp.ID.copy()
     idd.loc[:] = 0.
@@ -59,7 +61,7 @@ def _map(shp0, dn, gwls, unit, odir, var, freq, fig_dict=None):
     ngwls = gwls + [r'{} $-$ {}'.format(gwl, gwls[0]) for gwl in gwls[1:]]
     nrow = 2
     na, nb = len(gwls), len(ngwls) - len(gwls)
-    if na > 3:
+    if na > 4:
         dx = None
         nrow = 4
         ncol = na
@@ -86,9 +88,7 @@ def _map(shp0, dn, gwls, unit, odir, var, freq, fig_dict=None):
     if fig_dict:
         fig = init_fig_(**fig_dict)
     else:
-        fig = init_fig_(hspace=.02, wspace=.05,
-                        top=.95, bottom=.025,
-                        left=.01, right=.95)
+        fig = init_fig_(h=.02, w=.05, t=.95, b=.025, l=.01, r=.95)
 
     #########################################################################ax
     axs = []
@@ -147,7 +147,7 @@ def bp__(ts, dn, unit, gwls, odir, var, freq, opt='0', ap=None):
         ll = map_sim_(dn)
     ########################################################################bp0
     if '0' in opt:
-        fig = init_fig_(fx=16, left=.05, right=.95, top=0.8)
+        fig = init_fig_(fx=16, l=.05, r=.95, t=0.8)
         ax_opt = {'ylabel': '{} ({})'.format(var, unit)}
         ax0 = fig.add_subplot(1, 1, 1, **ax_opt)
         h_ = bp_dataLL0_(ax0, ts, labels=gwls)
@@ -173,7 +173,7 @@ def bp__(ts, dn, unit, gwls, odir, var, freq, opt='0', ap=None):
 
     ########################################################################bp2
     if '2' in opt:
-        fig = init_fig_(fx=16, left=.05, right=.975, bottom=.1)
+        fig = init_fig_(fx=16, l=.05, r=.975, b=.1)
         ax_opt = {'ylabel': '{} ({})'.format(var, unit)}
         ax0 = fig.add_subplot(2, 1, 1, **ax_opt)
         ax_opt.update({'ylabel': '$\Delta${} ({})'.format(var, unit)})
@@ -181,9 +181,9 @@ def bp__(ts, dn, unit, gwls, odir, var, freq, opt='0', ap=None):
         h0_ = bp_dataLL_(ax0, ts, labels=None)
         h1_ = bp_dataLL_(ax1, [di - ts[0] for di in ts[1:]],
                          labels=ll)
-        lgo = dict(ncol=len(gwls)) if len(gwls) > 3 else dict() 
+        lgo = dict(ncol=len(gwls)) if len(gwls) > 3 else dict()
         ax0.legend(h0_, gwls, **lgo)
-        lgo = dict(ncol=len(gwls) - 1) if len(gwls) > 3 else dict() 
+        lgo = dict(ncol=len(gwls) - 1) if len(gwls) > 3 else dict()
         ax1.legend(h1_, [r'{} $-$ {}'.format(gwl, gwls[0])
                          for gwl in gwls[1:]], **lgo)
 
@@ -201,7 +201,7 @@ def map__(am, ai, bm, bi, dn, gwls, unit, rg_dict, odir, var, freq,
     #################################################################parameters
     dgwls = [r'{} $-$ {}'.format(gwl, gwls[0]) for gwl in gwls[1:]]
     na, nb = len(gwls), len(dgwls)
-    if na > 3:
+    if na > 4:
         dx = None
         nrow = 4
         ncol = na
@@ -224,9 +224,7 @@ def map__(am, ai, bm, bi, dn, gwls, unit, rg_dict, odir, var, freq,
     if fig_dict:
         fig = init_fig_(**fig_dict)
     else:
-        fig = init_fig_(hspace=.02, wspace=.05,
-                        top=.95, bottom=.025,
-                        left=.01, right=.95)
+        fig = init_fig_(h=.02, w=.05, t=.95, b=.025, l=.01, r=.95)
 
     #########################################################################ax
     axs, pchs = [], []
@@ -308,7 +306,7 @@ def id__(cubeLL, dn, gwls, sc, unit, odir, var, freq, shp, shp_,
     _map(shp0, dn, gwls, unit, odir, var, freq, fig_dict=fig_dict)
 
 
-def _q_file(odir__, cubeLL, sc, freq, gwls):
+def _q_file(odir__, cubeLL, sc, freq, gwls, cref=None):
     fnam = ['{}am_{}_{}.nc'.format(odir__, freq, i)
             for i in ['current'] + gwls]
     fnai = ['{}ai_{}_{}.nc'.format(odir__, freq, i)
@@ -320,7 +318,7 @@ def _q_file(odir__, cubeLL, sc, freq, gwls):
                           for i in (fnam, fnai, fnbm, fnbi)]
     else:
         os.makedirs(odir__, exist_ok=True)
-        am, ai, bm, bi = get_clm_clmidx_(cubeLL, sc)
+        am, ai, bm, bi = get_clm_clmidx_(cubeLL, sc, cref=cref)
         for i, ii in zip((am, ai, bm, bi), (fnam, fnai, fnbm, fnbi)):
             for i_, ii_ in zip(i, ii):
                 iris.save(i_, ii_)
@@ -340,73 +338,133 @@ def _get_freq(vdict, var):
 
 
 def main():
+    mpl.style.use('seaborn')
+    #####################################################################PARSER
     parser = argparse.ArgumentParser('PLOT CLIMIDX')
+    parser.add_argument("opt", type=int, default=0,
+                        help="options for dataset on BI")
     parser.add_argument("-s", "--start", type=int, help="")
     parser.add_argument("-e", "--end", type=int, help="")
+    parser.add_argument("-l", "--log", type=str, help="")
     args = parser.parse_args()
+    opt_, log_ = args.opt, args.log
     sss_, eee_ = args.start, args.end
-    nlog = len(schF_keys_('', 'ploting1', ext='.log'))
-    logging.basicConfig(filename='ploting1' + '_' * nlog + '.log',
+    ####################################################################LOGGING
+    lfn = 'plt{}-{}'.format(opt_, log_)
+    nlog = len(schF_keys_('', lfn, ext='.log'))
+    logging.basicConfig(filename='{}{}.log'.format(lfn, '_' * nlog),
                         filemode='w',
                         level=logging.INFO)
     logging.info(' {:_^42}'.format('start of program'))
     logging.info(strftime(" %a, %d %b %Y %H:%M:%S +0000", localtime()))
     logging.info(' ')
-
-    mpl.style.use('seaborn')
+    ##################################################################CONFIGURE
+    yf = _here_ + 'cfg_plt_climidx_gwls.yml'
+    with open(yf, 'r') as ymlfile:
+        cfg = yaml.safe_load(ymlfile)
+    version = cfg['version']
+    gg, gwls = cfg['gg'], cfg['gwls']
     #gg = ['gwl15', 'gwl2']
     #gwls = ['current', '1.5 K warming', '2 K wariming']
-    gg = ['gwl15', 'gwl2', 'gwl25', 'gwl3', 'gwl35', 'gwl4']
-    gwls = ['current', '1.5 K warming', '2 K wariming', '2.5 K warming',
-                        '3 K wariming', '3.5 K warming', '4 K wariming']
-    ne50 = gpd_read('/home/sm_chali/wks/heat-wave-2018/pppp/ne_50m/'
-                    'ne_50m_admin_0_countries.shp')
-    sv = poly_to_path_(list(ne50.loc[ne50.NAME=='Sweden', 'geometry']))
-    shp, shp_ = _shps(len(gwls) * 2 - 1)
-
-    r24 = os.environ.get('r24')
-    odir = '{}DATA/energi/2/fig{}K/'.format(r24, gg[-1][3:])
-    os.makedirs(odir, exist_ok=True)
-    idir = '/nobackup/rossby22/sm_chali/DATA/energi/res/gwls/EUR/'
-    fxdir = '/nobackup/rossby22/sm_chali/DATA/fx/'
-    vf = '/home/sm_chali/wks/heat-wave-2018/pppp/var_dict.yml'
+    #gg = ['gwl15', 'gwl2', 'gwl25', 'gwl3', 'gwl35', 'gwl4']
+    #gwls = ['current', '1.5 K warming', '2 K wariming', '2.5 K warming',
+    #                    '3 K wariming', '3.5 K warming', '4 K warming']
+    root = cfg['root']
+    ddir, fxdir = cfg['ddir'], cfg['fxdir']
+    ######################################################INDEPENDENT VARIABLES
+    vf = _here_ + 'var_dict.yml'
     with open(vf, 'r') as ymlfile:
         vdict = yaml.safe_load(ymlfile)
-    rg_dict = {'longitude': [10.0, 23.0], 'latitude': [55.0, 69.0]}
-    figD = dict(fx=16, fy=12, hspace=.15, wspace=.015,
-                top=.95, bottom=.025,
-                left=.01, right=.925)
-    for var in vdict['vars'][sss_:eee_]:
+    yf = _here_ + 'rg_dict.yml'
+    with open(yf, 'r') as ymlfile:
+        rdict = yaml.safe_load(ymlfile)
+    #######################################VARIABLES VARY CORRISPONDING TO OPT_
+    rn = 'EUR' if opt_ in (0, 1) else 'GLB'
+    idir = '{}{}/'.format(ddir, rn)
+    odir = '{}DATA/energi/{}/fig{}K/'.format(root, version, gg[-1][3:])
+    _rn = 'SWE/' if opt_ == 0 else ('EUR/' if opt_ == 1 else 'SS/')
+    _od0 = odir + '{}/' + _rn
+    _od1 = odir.replace('/fig', '/nc') + '{}/'
+    #r24 = os.environ.get('r24')
+    #odir = '{}DATA/energi/2/fig{}K/'.format(r24, gg[-1][3:])
+    #os.makedirs(odir, exist_ok=True)
+    #idir = '/nobackup/rossby22/sm_chali/DATA/energi/res/gwls/EUR/'
+    #fxdir = '/nobackup/rossby22/sm_chali/DATA/fx/'
+    if opt_ == 0:
+        ne50 = gpd_read(_here_ + 'ne_50m/ne_50m_admin_0_countries.shp')
+        sv = poly_to_path_(list(ne50.loc[ne50.NAME=='Sweden', 'geometry']))
+        shp, shp_ = _shps(len(gwls) * 2 - 1)
+        rD_map = rdict[0]['SWE']
+        if len(gwls) == 3:
+            figD = None
+        elif len(gwls) < 5:
+            figD = dict(fx=len(gwls) * 4, h=.075, w=.075,
+                        t=.98, b=.075, l=.075, r=.98)
+        else:
+            figD = dict(fx=len(gwls) * 2, fy=12,
+                        h =.15, w=.015, t=.95, b=.025, l=.01, r=.925)
+        mD = dict(fig_dict=figD)
+    else:
+        rD_map = rdict[0]['EUR']
+        ix = 2.5 if opt_ == 1 else 2.75
+        if len(gwls) < 5:
+            figD = dict(fx=len(gwls) * ix * 2,
+                        h=.02, w=.05, t=.95, b=.025, l=.01, r=.95)
+            figD = dict(fx=len(gwls) * ix, fy=12,
+                        h=.15, w=.015, t=.95, b=.025, l=.01, r=.925)
+        mD = dict(pch__=pch_eur_, fig_dict=figD, ap='EUR') if opt_ == 1 else\
+             dict(pch__=pch_ll_, fig_dict=figD, ap='EUR')
+    if opt_ in (0, 1):
+        vvv_ = vdict['vars'][sss_:eee_]
+        lD = dict()
+        tsD = dict(fxdir=fxdir)
+        cref = iris.load_cube('{}{}'.format(idir,
+               'PR_ICHEC-EC-EARTH_historical_r12i1p1_'
+               'SMHI-RCA4_v1_EUR_year_current.nc'))[0, :, :]
+    else:
+        vvv_ = ['SST', 'SIC']
+        tsD = lD = dict(folder='cmip5')
+        cref = iris.load_cube('{}{}'.format(idir,
+               'SST_GFDL-ESM2M_rcp85_r1i1p1_GLB_year_gwl2.nc'))[0, :, :]
+    ############################################################DOING SOMETHING
+    for var in vvv_:
         freqs = _get_freq(vdict, var)
         #freqs = ['Nov', 'Dec']
-        odir_ = '{}{}/SWE/'.format(odir, vdict['odir'][var])
-        odir__ = odir_.replace('/fig', '/nc')[:-4]
+        odir_ = _od0.format(vdict['odir'][var])
+        odir__ = _od1.format(vdict['odir'][var])
+        os.makedirs(odir_, exist_ok=True)
         for freq in freqs:
             t000 = l__('{} >>>>>> {}'.format(var, freq))
-            a, dn = load_clmidx_(idir, var, gwls=gg, freq=freq, rn='EUR',
-                                 newestV=True)
-            ll_('< load', t000)
-            if len(dn) == 0:
-                continue
-            os.makedirs(odir_, exist_ok=True)
-            sc, unit = sc_unit_clmidx_(a[0][0], var)
-            #id__(a, dn, gwls, sc, unit, odir_, var, freq, shp, shp_)
-            id__(a, dn, gwls, sc, unit, odir_, var, freq, shp, shp_,
-                 fig_dict=figD)
-            ll_('<< id', t000)
+            a, dn = load_clmidx_(idir, var, gwls=gg, freq=freq, rn=rn,
+                                 newestV=True, **lD)
             ######################################################fixing SNWmax
             if var in ['SNWmax', 'R5OScw', 'R1OScw']:
                 a, dn = slct_cubeLL_dnL_(a, dn, slctStrL_, excl='KNMI')
             ######################################################fixing SNWmax
-            ts = get_ts_clmidx_(a, dn, sc, fxdir=fxdir, poly=sv)
-            ll_('< ts', t000)
-            bp__(ts, dn, unit, gwls, odir_, var, freq, opt='02', ap=None)
-            ll_('<< bp', t000)
-            am, ai, bm, bi = _q_file(odir__, a, sc, freq, gg)
+            ll_('< load', t000)
+            if len(dn) == 0:
+                continue
+            sc, unit = sc_unit_clmidx_(a[0][0], var)
+            #id__(a, dn, gwls, sc, unit, odir_, var, freq, shp, shp_)
+            if opt_ == 0:
+                id__(a, dn, gwls, sc, unit, odir_, var, freq, shp, shp_,
+                     fig_dict=figD)
+                ll_('<< id', t000)
+                ts = get_ts_clmidx_(a, dn, sc, fxdir=fxdir, poly=sv)
+                ll_('< ts', t000)
+                bp__(ts, dn, unit, gwls, odir_, var, freq, opt='02', ap=None)
+                ll_('<< bp', t000)
+            else:
+                for i in list(rdict[opt_].keys()):
+                    ts = get_ts_clmidx_(a, dn, sc, rgD=rdict[opt_][i], **tsD)
+                    ll_('< ts {}'.format(i), t000)
+                    bp__(ts, dn, unit, gwls, odir_, var, freq, opt='02', ap=i)
+                    ll_('<< bp {}'.format(i), t000)
+            am, ai, bm, bi = _q_file(odir__, a, sc, freq, gg, cref=cref)
             ll_('< clm', t000)
             #map__(am, ai, bm, bi, dn, gwls, unit, rg_dict, odir_, var, freq)
-            map__(am, ai, bm, bi, dn, gwls, unit, rg_dict, odir_, var, freq,
-                  fig_dict=figD)
+            map__(am, ai, bm, bi, dn, gwls, unit, rD_map, odir_, var, freq,
+                  **mD)
             ll_('<< map', t000)
 
 
@@ -429,24 +487,24 @@ def main_():
     #gwls = ['current', '1.5 K warming', '2 K wariming']
     gg = ['gwl15', 'gwl2', 'gwl25', 'gwl3', 'gwl35', 'gwl4']
     gwls = ['current', '1.5 K warming', '2 K wariming', '2.5 K warming',
-                        '3 K wariming', '3.5 K warming', '4 K wariming']
+                        '3 K wariming', '3.5 K warming', '4 K warming']
 
     r24 = os.environ.get('r24')
     odir = '{}DATA/energi/2/fig{}K/'.format(r24, gg[-1][3:])
     os.makedirs(odir, exist_ok=True)
     idir = '/nobackup/rossby22/sm_chali/DATA/energi/res/gwls/EUR/'
-    vf = '/home/sm_chali/wks/heat-wave-2018/pppp/var_dict.yml'
+    vf = _here_ + 'var_dict.yml'
     with open(vf, 'r') as ymlfile:
         vdict = yaml.safe_load(ymlfile)
-    rf = '/home/sm_chali/wks/heat-wave-2018/pppp/rg_dict.yml'
+    rf = _here_ + 'rg_dict.yml'
     with open(rf, 'r') as ymlfile:
         rdict = yaml.safe_load(ymlfile)
-    #figD = dict(fx=15, hspace=.02, wspace=.05,
-    #            top=.95, bottom=.025,
-    #            left=.01, right=.95)
-    figD = dict(fx=20, fy=12, hspace=.15, wspace=.015,
-                top=.95, bottom=.025,
-                left=.01, right=.925)
+    #figD = dict(fx=15, h=.02, w=.05,
+    #            t=.95, b=.025,
+    #            l=.01, r=.95)
+    figD = dict(fx=20, fy=12, h=.15, w=.015,
+                t=.95, b=.025,
+                l=.01, r=.925)
     for var in vdict['vars'][sss_:eee_]:
         freqs = _get_freq(vdict, var)
         odir_ = '{}{}/EUR/'.format(odir, vdict['odir'][var])
@@ -492,21 +550,22 @@ def main__():
     #gwls = ['current', '1.5 K warming', '2 K wariming']
     gg = ['gwl15', 'gwl2', 'gwl25', 'gwl3', 'gwl35', 'gwl4']
     gwls = ['current', '1.5 K warming', '2 K wariming', '2.5 K warming',
-                        '3 K wariming', '3.5 K warming', '4 K wariming']
+                        '3 K wariming', '3.5 K warming', '4 K warming']
 
-    odir = '/home/sm_chali/wks/energi/fig{}K/'.format(gg[-1][3:])
+    r24 = os.environ.get('r24')
+    odir = '{}DATA/energi/2/fig{}K/'.format(r24, gg[-1][3:])
     os.makedirs(odir, exist_ok=True)
     idir = '/nobackup/rossby22/sm_chali/DATA/energi/res/cmip5/GLB/'
     #fxdir = '/nobackup/rossby22/sm_chali/DATA/fx/'
-    vf = '/home/sm_chali/wks/heat-wave-2018/pppp/var_dict.yml'
+    vf = _here_ + 'var_dict.yml'
     with open(vf, 'r') as ymlfile:
         vdict = yaml.safe_load(ymlfile)
-    rf = '/home/sm_chali/wks/heat-wave-2018/pppp/rg_dict.yml'
+    rf = _here_ + 'rg_dict.yml'
     with open(rf, 'r') as ymlfile:
         rdict = yaml.safe_load(ymlfile)
-    figD = dict(fx=24, fy=12, hspace=.15, wspace=.015,
-                top=.95, bottom=.025,
-                left=.01, right=.925)
+    figD = dict(fx=24, fy=12, h=.15, w=.015,
+                t=.95, b=.025,
+                l=.01, r=.925)
     for var in ['SST', 'SIC']:
         cref = iris.load_cube('{}{}{}'.format(idir, var,
                '_GFDL-ESM2M_rcp85_r1i1p1_GLB_year_gwl2.nc'))

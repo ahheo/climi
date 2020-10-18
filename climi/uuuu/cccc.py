@@ -28,6 +28,7 @@
 * initAnnualCube_       : initiate annual cube
 * inpolygons_cube       : points if inside polygons
 * intersection_         : cube intersection with lon/lat range
+* iris_regrid_          : using iris.cube.Cube.regrid but keeping aux_coords
 * isMyIter_             : if tuple/list/CubeL
 * kde_cube              : kernal distribution estimation over all cube data
 * lccs_m2km_            : change LambfortComfort unit
@@ -106,6 +107,7 @@ __all__ = ['alng_axis_',
            'initAnnualCube_',
            'inpolygons_cube',
            'intersection_',
+           'iris_regrid_',
            'isMyIter_',
            'kde_cube',
            'lccs_m2km_',
@@ -932,6 +934,7 @@ def _unify_1coord_points(cubeL, coord_name, thr=1e-10):
 
 
 def _unify_xycoord_points(cubeL, thr=1e-10):
+    ll_('cccc: _unify_xycoord_points() called')
     if len(cubeL) > 1:
         coord_names = [i.name() for i in _get_xycoords(cubeL[0])]
         for coord_name in coord_names:
@@ -939,22 +942,28 @@ def _unify_xycoord_points(cubeL, thr=1e-10):
 
 
 def _unify_1coord_attrs(cubeL, coord_name):
+    attrs = ['long_name', 'var_name', 'attributes', 'coord_system']
     epochs = {}
     for c in cubeL:
         cc = c.coord(coord_name)
-        d0 = epochs.setdefault('l_n', cc.long_name)
-        d1 = epochs.setdefault('v_n', cc.var_name)
-        d2 = epochs.setdefault('attr', cc.attributes)
-        cc.long_name = d0
-        cc.var_name = d1
-        cc.attributes = d2
+        tp = cc.points.dtype
+        tp = np.dtype(tp.str.replace('>', '<')) if '>' in tp.str else tp
+        tmp = epochs.setdefault('dtype', tp)
+        if tp != tmp:
+            cc.points = cc.points.astype(tmp)
+        if cc.has_bounds() and cc.bounds.dtype != tmp:
+            cc.bounds = cc.bounds.astype(tmp)
+        for i in attrs:
+            tmp = epochs.setdefault(i, cc.__getattribute__(i))
+            cc.__setattr__(i, tmp)
 
 
-def _unify_coord_names(cubeL):
+def _unify_coord_attrs(cubeL):
+    ll_('cccc: _unify_coord_attrs() called')
     if len(cubeL) > 1:
         coord_names = [i.name() for i in cubeL[0].coords()]
         for coord_name in coord_names:
-            _unify_1coord_names(cubeL, coord_name)
+            _unify_1coord_attrs(cubeL, coord_name)
 
 
 def _unify_time_units(cubeL):
@@ -969,10 +978,11 @@ def _unify_time_units(cubeL):
     iris.util.unify_time_units(cubeL)
 
 
-def _unify_dtype(cubeL, fst=True):
+def _unify_dtype(cubeL, fst=False):
+    ll_('cccc: _unify_dtype() called')
     tps = [c.dtype for c in cubeL]
     if fst:
-        tp = tps[i]
+        tp = tps[0]
     else:
         utps = np.unique(tps)
         tpi = [np.sum(np.asarray(tps) == i) for i in utps]
@@ -983,9 +993,10 @@ def _unify_dtype(cubeL, fst=True):
 
 
 def _unify_cellmethods(cubeL, fst=True):
+    ll_('cccc: _unify_cellmethods() called')
     cms = [c.cell_methods for c in cubeL]
     if fst:
-        cm = cms[i]
+        cm = cms[0]
     else:
         ucms = np.unique(cms)
         cmi = [np.sum(np.asarray(cms) == i) for i in ucms]
@@ -1008,14 +1019,20 @@ def concat_cube_(cubeL, thr=1e-10):
     except iris.exceptions.ConcatenateError as ce_:
         if any(['Data types' in i for i in ce_.args[0]]):
             _unify_dtype(cubeL)
-        elif any(['Cube metadata' in i for i in ce_.args[0]]):
+        if any(['Cube metadata' in i for i in ce_.args[0]]):
             _unify_cellmethods(cubeL)
-        elif any(['coordinates differ' in i for i in ce_.args[0]]):
-            _unify_coord_names(cubeL)
-        elif any(['found 2' in i for i in ce_.args[0]]):
-            _unify_coord_names(cubeL)
-            _unify_xycoord_points(cubeL, thr=thr)
-        o = cubeL.concatenate_cube()
+        if any(['coordinates metadata differ' in i for i in ce_.args[0]]):
+            if any(['height' in i for i in ce_.args[0]]):
+                ll_("cccc: set COORD 'height' points to those of cubeL[0]")
+                _unify_1coord_points(cubeL, 'height', thr=10)
+            else:
+                _unify_coord_attrs(cubeL)
+        try:
+            o = cubeL.concatenate_cube()
+        except iris.exceptions.ConcatenateError as ce_:
+            if any(['Expected only a single cube' in i for i in ce_.args[0]]):
+                _unify_xycoord_points(cubeL, thr=thr)
+            o = cubeL.concatenate_cube()
     return o
 
 
@@ -1075,9 +1092,7 @@ def en_rip_(cubeL):
     return cubeL.merge_cube()
 
 
-def en_mm_cubeL_(cubeL, iris_=False, cref=None):
-    if iris_:
-        rmpm = iris.analysis.Linear(extrapolation_mode='mask')
+def en_mm_cubeL_(cubeL, opt=0, cref=None):
     tmpD = {}
     cl = []
     for i, c in enumerate(cubeL):
@@ -1086,10 +1101,17 @@ def en_mm_cubeL_(cubeL, iris_=False, cref=None):
             cref = tmpD.setdefault('ref', c.copy())
         else:
             cref.attributes = {}
-        if iris_:
-            tmp = c.regrid(cref, rmpm)
-        else:
+        if opt == 0:
+            try:
+                tmp = iris_regrid_(cref, c, rmpm)
+            except:
+                tmp = remap_ll_(cref, c)
+        elif opt == 1:
+            tmp = iris_regrid_(cref, c, rmpm)
+        elif opt == 2:
             tmp = remap_ll_(cref, c)
+        else:
+            raise ValueError('opt should be one of (0, 1, 2)!')
         a0 = tmpD.setdefault('a0', tmp)
         a = a0.copy(tmp.data)
         a.add_aux_coord(iris.coords.AuxCoord(np.int32(i),
@@ -1387,7 +1409,7 @@ def cubesv_(cube, filename, netcdf_format='NETCDF4', local_keys=None,
                                          '_{}{}'.format(i, ext_(filename))))
 
 
-def remap_ll_(cref, cdata, method='linear', fill_value=np.nan, rescale=False):
+def remap_ll_(cref, cdata, method='linear', fill_value=None, rescale=False):
     #from scipy.interpolate import griddata
 
     lo0, la0 = cref.coord('longitude'), cref.coord('latitude')
@@ -1408,8 +1430,8 @@ def remap_ll_(cref, cdata, method='linear', fill_value=np.nan, rescale=False):
         x1 = cyl_(x1, 180, -180)
 
     sh0, sh1 = np.asarray(cref.shape), np.asarray(cdata.shape)
-    xydim0 = list(set(cref.coord_dims(lo0) + cref.coord_dims(la0)))
-    xydim1 = list(set(cdata.coord_dims(lo1) + cdata.coord_dims(la1)))
+    xydim0 = cref.coord_dims(lo0) + cref.coord_dims(la0)
+    xydim1 = cdata.coord_dims(lo1) + cdata.coord_dims(la1)
 
     nsh = sh1.copy()
     dmap = {}
@@ -1434,9 +1456,14 @@ def remap_ll_(cref, cdata, method='linear', fill_value=np.nan, rescale=False):
     #    tmp[ind__] = np.nan
     #    slice_back_(data, tmp, i, xydim1)
     ax_fn_mp_(data1, xydim1, _regrid_slice, data, x1, y1, x0, y0, ind__,
-              method, fill_value, rescale)
+              method, np.nan, rescale)
 
-    data = np.ma.MaskedArray(data, np.isnan(data))
+    nmsk = np.isnan(data)
+    fill_value = fill_value if fill_value\
+                 else (cdata.data.fill_value
+                       if hasattr(cdata.data, 'fill_value') else 1e+20)
+    data[nmsk] = fill_value
+    data = np.ma.MaskedArray(data, nmsk)
 
     dimc_dim = []
     for c in cdata.dim_coords:
@@ -1455,8 +1482,8 @@ def remap_ll_(cref, cdata, method='linear', fill_value=np.nan, rescale=False):
             auxc_dim.append((c, dim))
     for c in cref.aux_coords:
         dim = cref.coord_dims(c)
-        if all([dim_ in xydim0 for dim_ in dim]) and len(dim) > 0:
-            auxc_dim.append((c, tuple([dmap[dim_] for dim_ in dim])))
+        if dim and all([dim_ in xydim0 for dim_ in dim]):
+            auxc_dim.append((c, tuple(dmap[dim_] for dim_ in dim)))
 
     return iris.cube.Cube(data, standard_name=cdata.standard_name,
                           long_name=cdata.long_name,
@@ -1477,4 +1504,23 @@ def _regrid_slice(dd, x1, y1, x0, y0, ind__, method, fill_value, rescale):
                    fill_value=fill_value, rescale=rescale)
     tmp = tmp.reshape(x0.shape)
     tmp[ind__] = np.nan
+    return tmp
+
+
+def _dmap(cref, cdata):
+    x0, y0 = get_x_y_dimcoords_(cref)
+    x1, y1 = get_x_y_dimcoords_(cdata)
+    return {cref.coord_dims(x0)[0]: cdata.coord_dims(x1)[0],
+            cref.coord_dims(y0)[0]: cdata.coord_dims(y1)[0]}
+
+
+def iris_regrid_(cref, cdata, scheme=None):
+    scheme = scheme if scheme else\
+             iris.analysis.Linear(extrapolation_mode='mask')
+    tmp = cdata.regrid(cref, scheme)
+    dmap = _dmap(cref, cdata)
+    for c in cref.aux_coords:
+        dim = cref.coord_dims(c)
+        if dim and all([dim_ in dmap.keys() for dim_ in dim]):
+            tmp.add_aux_coord(c, tuple(dmap[dim_] for dim_ in dim))
     return tmp
