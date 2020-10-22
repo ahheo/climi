@@ -13,10 +13,10 @@ ifn:
   EOBS: EOBS19/tx_ens_mean_0.1deg_reg_v19.0e.nc
   EOBS20: EOBS20/tn_ens_mean_0.1deg_reg_v20.0e.nc
 
-f_opts:                                                                         
-  var: tn                                                                   
-  freq: day                                                                     
-          
+f_opts:
+  var: tn
+  freq: day
+
 #2nd loop on regions
 regions:
   - ALL
@@ -34,11 +34,12 @@ sub_r:
 #  - hist
 p_:
 #  ref: [1756, 2005]
-  ref: [1971, 2000]
+#  ref: [1971, 2000]
+  ref: [1989, 2008]
 #  hist: [1951, 2018]
 
 #season
-season: mjja
+#season: mjja
 
 #output
 root: /nobackup/rossby22/sm_chali/DATA/

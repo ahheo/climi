@@ -456,7 +456,8 @@ def main():
                 ll_('<< bp', t000)
             else:
                 for i in list(rdict[opt_].keys()):
-                    ts = get_ts_clmidx_(a, dn, sc, rgD=rdict[opt_][i], **tsD)
+                    ts = get_ts_clmidx_(a, dn, sc, fxdir=fxdir, 
+                                        rgD=rdict[opt_][i], **tsD)
                     ll_('< ts {}'.format(i), t000)
                     bp__(ts, dn, unit, gwls, odir_, var, freq, opt='02', ap=i)
                     ll_('<< bp {}'.format(i), t000)

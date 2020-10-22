@@ -1,9 +1,9 @@
 experiment: hc
 
 proj: cordex                                                                       
-_d: False                                                                       
+_d: True                                                                       
 _sdi: True                                                                      
-hORc: heat
+hORc: cold
 
 ehr: evaluation
 
@@ -14,11 +14,11 @@ ldir: /nobackup/rossby22/sm_chali/DATA/fx/ # sftlf dir
 
 #gcms: ['ICHEC-EC-EARTH', 'MOHC-HadGEM2-ES', 'MPI-M-MPI-ESM-LR',
 #       'IPSL-IPSL-CM5A-MR', 'CCCma-CanESM2', 'NCC-NorESM1-M']
-#rcms: ['CLMcom-CCLM4-8-17', 'DMI-HIRHAM5', 'KNMI-RACMO22E',
-#       'MPI-CSC-REMO2009', 'GERICS-REMO2015', 'SMHI-RCA4']                     
-gcms: ['ECMWF-ERAINT']
-rcms: ['KNMI-RACMO22E',
+rcms: ['CLMcom-CCLM4-8-17', 'DMI-HIRHAM5', 'KNMI-RACMO22E',
        'MPI-CSC-REMO2009', 'GERICS-REMO2015', 'SMHI-RCA4']                     
+gcms: ['ECMWF-ERAINT']
+#rcms: ['KNMI-RACMO22E',
+#       'MPI-CSC-REMO2009', 'GERICS-REMO2015', 'SMHI-RCA4']                     
 
 rip:
   ICHEC-EC-EARTH: r12i1p1
@@ -27,7 +27,7 @@ r_v:
   SMHI-RCA4: v1
 
 f_opts:
-  var: tasmax
+  var: tasmin
   freq: day
 
 #2nd loop on regions
@@ -49,10 +49,10 @@ p_:
 #  rcp: [2006, 2099]
 
 #season
-#season: mjja
+season: ndjf
 
 #output
-root: /home/sm_chali/wks/
+root: '/nobackup/rossby22/sm_chali/DATA/'
 
 #subH_() option
 minL: 3
@@ -61,7 +61,7 @@ minL: 3
 data4kde_mtd: 'ymax'
 
 #thr_() option
-thr_pctl: 90
+thr_pctl: 10
 
 #kde_ option
 kde_opts:

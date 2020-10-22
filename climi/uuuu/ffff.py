@@ -209,10 +209,10 @@ def kde_(obs, **kde_opts):
         default option values as documented
         >>>help(sm.nonparametric.KDEUnivariate) #for more options
     """
-    kde_o = sm.nonparametric.KDEUnivariate(obs)
-    kde_o.fit(**kde_opts)
+    o = sm.nonparametric.KDEUnivariate(obs)
+    o.fit(**kde_opts)
 
-    return kde_o
+    return o
 
 
 def kde__(obs, log_it=False, **kde_opts):
@@ -229,8 +229,7 @@ def kde__(obs, log_it=False, **kde_opts):
         >>>help(sm.nonparametric.KDEUnivariate) #for more options
     """
     if log_it:
-        obs = obs[obs > 0]
-        kde_o = kde_(np.log(obs), **kde_opts)
+        kde_o = kde_(np.log(obs[obs > 0]), **kde_opts)
         x = np.exp(kde_o.support)
         y = kde_o.density / x
     else:

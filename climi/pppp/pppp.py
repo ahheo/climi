@@ -6,9 +6,7 @@ import iris.plot as iplt
 import cartopy.crs as ccrs
 import os
 import warnings
-from climi.uuuu import cyl_, flt_l, nanMask_, rgMean_cube,\
-                       extract_period_cube,\
-                       extract_byAxes_, load_res_, load_fx_
+from climi.uuuu import *
 
 
 __all__ = ['aligned_cb_',
@@ -66,21 +64,17 @@ def getAggrArg_(aggr):
     return args, kwargs
 
 
-def ts_iANDe_(ax, color, cfg, ddir, fxdir, dns):
-    warnings.filterwarnings("ignore",
-                            message="Collapsing a multi-dimensional ")
-    cl = []
+def ts_iANDe_(ax, cubeL, color):
+    y0y1 = y0y1_of_cube(cubeL)
     ils = []
-    for dn in dns:
-        rgm_opts = load_fx_(fxdir, dn)
-        cube = load_res_(ddir, cfg['v'], dn, cfg['rn'], cfg['sub_r'])
-        ts = rgMean_cube(cube, **rgm_opts)
-        cl.append(ts.data)
+    for cube in cubeL:
         #plot
-        il, = iplt.plot(ts, axes=ax, lw=1.25, color=color, alpha=.25)
+        il, = iplt.plot(cube, axes=ax, lw=.75, color=color, alpha=.25)
         ils.append(il)
-    ets = ts.copy(np.mean(np.array(cl), axis=0))
-    el, = iplt.plot(ets, axes=ax, lw=2, color=color, alpha=.85)
+    c = extract_period_cube(cubeL[0], *y0y1)
+    c.data = np.mean(np.array([extract_period_cube(i, *y0y1).data
+                               for i in cubeL]), axis=0)
+    el, = iplt.plot(ets, axes=ax, lw=1.5, color=color, alpha=.85)
     return (ils, el)
 
 
@@ -322,72 +316,40 @@ def _flt_cube(cube):
     return data[~np.isnan(data)]
 
 
-def pdf_iANDe_(ax, color, cfg, ddir, dns, p=None, log_it=False):
-    from ffff import kde__
-    if 'clip' in cfg['kde_opts']:
-        clip = np.array(cfg['kde_opts']['clip'], dtype=np.float64)
-        cfg['kde_opts'].update({'clip': clip})
-    ens = np.empty(0)
+def pdf_iANDe_(ax, eCube, color, log_it=False, kopt={}):
+    if 'clip' in kopt:
+        clip = np.array(kopt['clip'], dtype=np.float64)
+        kopt.update({'clip': clip})
     ils = []
-    if len(dns) > 1:
-        for dn in dns:
-            cube = load_res_(ddir, cfg['v'], dn, cfg['rn'], cfg['sub_r'])
-            if p is not None:
-                cube = extract_period_cube(cube, p[0], p[-1])
-            obs = _flt_cube(cube)
-            ens = np.concatenate((ens, obs))
-            x, y, kdeo = kde__(obs.astype(np.float64), log_it=log_it,
-                               **cfg['kde_opts'])
+    if 'realization' in (i.name() for i in eCube.dim_coords):
+        for c in eCube.slices_over('realization'):
+            obs = _flt_cube(c)
+            _, _, kdeo = kde__(obs.astype(np.float64), log_it=log_it, **kopt)
             #plot
-            il, = ax.plot(kdeo.support, kdeo.density, lw=1.25, color=color,
+            il, = ax.plot(kdeo.support, kdeo.density, lw=0.75, color=color,
                           alpha=.25)
             ils.append(il)
-        x, y, kdeo = kde__(ens.astype(np.float64), log_it=log_it,
-                           **cfg['kde_opts'])
-        el, = ax.plot(kdeo.support, kdeo.density, lw=2, color=color,
-                      alpha=.85)
-    else:
-        cube = load_res_(ddir, cfg['v'], dns[0], cfg['rn'], cfg['sub_r'])
-        if p is not None:
-            cube = extract_period_cube(cube, p[0], p[-1])
-        obs = _flt_cube(cube)
-        x, y, kdeo = kde__(obs.astype(np.float64), log_it=log_it,
-                           **cfg['kde_opts'])
-        el, = ax.plot(kdeo.support, kdeo.density, lw=2, color=color,
-                      alpha=.85)
+    obs = _flt_cube(eCube)
+    _, _, kdeo = kde__(obs.astype(np.float64), log_it=log_it, **kopt)
+    el, = ax.plot(kdeo.support, kdeo.density, lw=1.5, color=color, alpha=.85)
     return (ils, el)
 
 
-def cdf_iANDe_(ax, color, cfg, ddir, dns, p=None, log_it=False):
-    from ffff import kde__
-    if 'clip' in cfg['kde_opts']:
-        clip = np.array(cfg['kde_opts']['clip'], dtype=np.float64)
-        cfg['kde_opts'].update({'clip': clip})
-    ens = np.empty(0)
+def cdf_iANDe_(ax, eCube, color, log_it=False, kopt={}):
+    if 'clip' in kopt:
+        clip = np.array(kopt['clip'], dtype=np.float64)
+        kopt.update({'clip': clip})
     ils = []
-    if len(dns) > 1:
-        for dn in dns:
-            cube = load_res_(ddir, cfg['v'], dn, cfg['rn'], cfg['sub_r'])
-            if p is not None:
-                cube = extract_period_cube(cube, p[0], p[-1])
-            obs = _flt_cube(cube)
-            ens = np.concatenate((ens, obs))
-            x, y, kdeo = kde__(obs.astype(np.float64), log_it=log_it,
-                               **cfg['kde_opts'])
+    if 'realization' in (i.name() for i in eCube.dim_coords):
+        for c in eCube.slices_over('realization'):
+            obs = _flt_cube(c)
+            x, _, kdeo = kde__(obs.astype(np.float64), log_it=log_it, **kopt)
             #plot
-            il, = ax.plot(x, kdeo.cdf, lw=1.25, color=color, alpha=.25)
+            il, = ax.plot(x, kdeo.cdf, lw=0.75, color=color, alpha=.25)
             ils.append(il)
-        x, y, kdeo = kde__(ens.astype(np.float64), log_it=log_it,
-                           **cfg['kde_opts'])
-        el, = ax.plot(x, kdeo.cdf, lw=2, color=color, alpha=.85)
-    else:
-        cube = load_res_(ddir, cfg['v'], dns[0], cfg['rn'], cfg['sub_r'])
-        if p is not None:
-            cube = extract_period_cube(cube, p[0], p[-1])
-        obs = _flt_cube(cube)
-        x, y, kdeo = kde__(obs.astype(np.float64), log_it=log_it,
-                           **cfg['kde_opts'])
-        el, = ax.plot(x, kdeo.cdf, lw=2, color=color, alpha=.85)
+    obs = _flt_cube(eCube)
+    x, _, kdeo = kde__(obs.astype(np.float64), log_it=log_it, **kopt)
+    el, = ax.plot(x, kdeo.cdf, lw=1.5, color=color, alpha=.85)
     return (ils, el)
 
 

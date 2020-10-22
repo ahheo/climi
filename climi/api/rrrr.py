@@ -24,8 +24,8 @@ Date last modified: 15.05.2020
 """
 
 
-from climidx import hwmi__, hwmid__
-from uuuu import *
+from climi.climidx import hwmi__, hwmid__
+from climi.uuuu import *
 
 import numpy as np
 import iris
@@ -45,6 +45,9 @@ __all__ = ['hwmi_obs_',
            'hwmi_cmip5_',
            'hwmi_cordex_',
            'hwmi_other_']
+
+
+_here_ = get_path_(__file__)
 
 
 def dictdict_(cfg, fn_):
@@ -160,7 +163,7 @@ def _imp_dir(incl, dL=None):
 
 def _smhi_dir(incl, sY=None):
     if sY is None:
-        with open('api/eur-11_smhi-rca4.yml') as yf:
+        with open(_here_ + 'eur-11_smhi-rca4.yml') as yf:
             sY = yaml.safe_load(yf)
     out = [i for i in sY if isinstance(i, int) and
            all([ii in sY[i].values() for ii in incl])]
@@ -563,9 +566,10 @@ def hwmi_cordex_(cfg):
 
 def _realzL(cube):
     if 'realization' in [i.name() for i in cube.dim_coords]:
-        nr = cube.shape[cube.coord_dims('realization')[0]]
-        return [extract_byAxes_(cube,'realization', np.s_[i,])
-                for i in range(nr)]
+        return cube.slices_over('realization')
+        #nr = cube.shape[cube.coord_dims('realization')[0]]
+        #return [extract_byAxes_(cube,'realization', np.s_[i,])
+        #        for i in range(nr)]
     else:
         return cube
 
@@ -584,12 +588,10 @@ def get_cube0_o_(cfg, dn):
     fnL = schF_keys_(cfg['idir'] + dn + '/', *keys, ext='.nc')
     o = iris.load(fnL, 'air_temperature')
     out0 = _realzL(o[0]) if len(o) == 1 else\
-           [iris.load_cube(i, 'air_temperature') for i in fnL]
+           (iris.load_cube(i, 'air_temperature') for i in fnL)
 
     if len(fnL) > 1:
         out2 = [pure_fn_(i) for i in fnL]
-    elif len(fnL) == 1 and not isinstance(out0, iris.cube.Cube):
-        out2 = ['{}'.format(i) for i in range(len(out0))]
     else:
         out2 = None
 
@@ -623,13 +625,14 @@ def cubeORcubeL_hwmi_(cfg, odir, hORc, o0, rn, fn_, _d, pn='data'):
         out = inloop_func_(hORc, dd__, _d)
         tof_(out, odir, fn__, hORc, _d, cfg['_sdi'])
     else:
-        c_h = []
-        c_w = []
+        #c_h = []
+        #c_w = []
         for i, cc in enumerate(o0[0]):
             #if i :#QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ
             #    continue
             t00 = l__(prg_(i, len(o0[0])))
-            dd__ = dictdict_(cfg, '_'.join((fn_, o0[2][i])))
+            o02 = o0[2][i] if o0[2] else '{}'.format(i)
+            dd__ = dictdict_(cfg, '_'.join((fn_, o02)))
             if check_med_f_(dd__, _d):
                 rCube = ()
             else:
@@ -637,7 +640,7 @@ def cubeORcubeL_hwmi_(cfg, odir, hORc, o0, rn, fn_, _d, pn='data'):
             dCube = get_cube_m_(cc.copy(), rn, cfg['sub_r'], *o0[1], **kGet)
             dd__.update({'dCube': dCube, 'rCube': rCube, 'pn': pn})
             tmp = inloop_func_(hORc, dd__, _d)
-            tof_(tmp, odir, '_'.join((fn__, o0[2][i])), hORc, _d, cfg['_sdi'])
+            tof_(tmp, odir, '_'.join((fn__, o02)), hORc, _d, cfg['_sdi'])
             ll_(prg_(i, len(o0[0])), t00)
         frf_(odir, fn__, hORc, _d, cfg['_sdi'])
         #    c_h.append(tmp['hwmi'])
@@ -677,6 +680,8 @@ def hwmi_other_(cfg):
         for rn in cfg['regions']:
             fn_ = '_'.join((var, dn, rn, 'ref' + rPeriod_(cfg['p_']['ref'])))
             if 'periods' in cfg:
+                if isGI_(o0[0]) and len(cfg['periods']) > 1:
+                    o0 = (list(o0[0]), *o0[1:])
                 for pn in cfg['periods']:
                     fn__ = '_'.join((fn_, rPeriod_(cfg['p_'][pn])))
                     cubeORcubeL_hwmi_(cfg, odir, hORc, o0, rn, fn__, _d,

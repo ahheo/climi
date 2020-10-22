@@ -1,24 +1,14 @@
 """
->--#¤&#¤%/%&(¤%¤#%"¤#"#¤%&¤#!"#%#%&()/=?=()/&%¤%&/()/£$€¥{[}]()=?=)(/&¤%&/()--<
+>--#########################################################################--<
 >--------------------functions dealing with BI directories--------------------<
->--#¤&&()/=?=()/&%¤%&/()/(/&%&/(/()=?=)(/&¤%&/("%"¤#&#&¤&&/(%&"#¤"¤%&#%/)/*#--<
-* cmip5_dir_finfo       : file info of a directory: cmip5
-* cordex_dir_finfo      : file info of a directory: cordex
-* min_fselect_          : select files according specified period
-* cmip5_dir_cubeL       : load cube list from a directory: cmip5
-* cordex_dir_cubeL      : load cube list from a directory: cordex
-* load_res_             : load cube in hwmi result directory
-* load_fx_              : load 'sftlf' & 'areacella'
-* en_mm_                : ensemble (different models) cube
-* bi_cordex_info_       : get cordex data achieve in bi
-* path2cordex_info_     : cordex info from string of path
+>--#########################################################################--<
 ...
 
 ###############################################################################
             Author: Changgui Lin
             E-mail: changgui.lin@smhi.se
       Date created: 06.10.2019
-Date last modified: 24.09.2020
+Date last modified: 19.10.2020
           comments: some updates dealing with missing of EOBS or ERAI
 """
 
@@ -28,13 +18,10 @@ import glob
 import os
 import iris
 import numpy as np
+import re
 
-from .ffff import intsect_, ouniqL_, schF_keys_, valueEqFront_, p_least_, \
-                  p_deoverlap_, pure_fn_, latex_unit_, l_ind_, ll_
-from .cccc import concat_cube_, intersection_, en_rip_, rgMean_cube, \
-                  repair_lccs_, en_mm_cubeL_, extract_byAxes_, maskNaN_cube, \
-                  rgMean_poly_cube, extract_period_cube, en_mean_, en_iqr_, \
-                  rm_sc_cube
+from .ffff import *
+from .cccc import *
 
 
 __all__ = ['bi_cmip5_info_',
@@ -46,16 +33,18 @@ __all__ = ['bi_cmip5_info_',
            'cmip5_dir_finfo',
            'cordex_dir_cubeL',
            'cordex_dir_finfo',
-           'en_mm_',
            'en_pmean_cubeL_',
            'get_clm_clmidx_',
            'get_clm_eval_',
+           'get_period_h248_',
            'get_ts_clmidx_',
            'get_ts_eval_',
+           'get_ts_h248_',
+           'gp_',
            'load_clmidx_',
            'load_clmidx_eval_',
            'load_fx_',
-           'load_res_',
+           'load_h248_',
            'map_sim_',
            'map_sim_cmip5_',
            'min_fselect_',
@@ -66,6 +55,9 @@ __all__ = ['bi_cmip5_info_',
            'slct_cubeLL_dnL_',
            'version_up_',
            'version_up_cubeLL_']
+
+
+_here_ = get_path_(__file__)
 
 
 def cmip5_dir_finfo(idir, var='*', freq='*', gcm='*', exp='*', realz='*',
@@ -159,7 +151,7 @@ def cmip5_dir_cubeL(idir, var='*', freq='*', gcm='*', exp='*', realz='*',
     """
     Purpose: load cube list from a cmip5 data directory
     """
-    warnings.filterwarnings("ignore", message="Missing CF-netCDF measure")
+    warnings.filterwarnings("ignore", category=UserWarning)
     s = '_'
     info = cmip5_dir_finfo(idir, var=var, freq=freq, gcm=gcm, exp=exp,
                            realz=realz, p=p, ext=ext)
@@ -193,7 +185,7 @@ def cordex_dir_cubeL(idir, var='*', dm='*', gcm='*', exp='*', rcm='*',
     """
     Purpose: load cube list from a cordex data directory
     """
-    warnings.filterwarnings("ignore", message="Missing CF-netCDF ")
+    warnings.filterwarnings("ignore", category=UserWarning)
     s = '_'
     info = cordex_dir_finfo(idir, var=var, dm=dm, gcm=gcm, exp=exp,
                             realz=realz, rcm=rcm, p=p, ext=ext)
@@ -222,27 +214,6 @@ def cordex_dir_cubeL(idir, var='*', dm='*', gcm='*', exp='*', rcm='*',
         return {'cube': cubeL, 'p': info['p']}
 
 
-def load_res_(res_d, v, dn, rn, rn_dict):
-    """
-    Purpose: load single cube of hwmi
-    """
-    fn = schF_keys_(res_d, dn, rn, v)
-    if len(fn) == 1:
-        cube = iris.load_cube(fn[0])
-    elif len(fn) > 1:
-        raise Exception('multiple files found!')
-    else:
-        fn = schF_keys_(res_d, dn, v)
-        if len(fn) == 1:
-            tmp = iris.load_cube(fn[0])
-            cube = intersection_(tmp, **rn_dict[rn])
-        elif len(fn) > 1:
-            raise Exception('multiple files found!')
-        else:
-            raise Exception('no file found!')
-    return cube
-
-
 def load_fx_(fxdir, dn):
     """
     Purpose: load fx cubes 'sftlf' & 'areacella' required by rgMean_cube()
@@ -263,39 +234,6 @@ def load_fx_(fxdir, dn):
         return rgm_opts
     else:
         return [load_fx_(fxdir, i) for i in dn]
-
-
-def en_mm_(ddir, dns, cfg, rmp=True, rmpm=None, ref=None):
-    """
-    Purpose: ensemble cube from a direcory over different datasets
-    """
-    if ref:
-        dns = valueEqFront_(dns, ref)
-    if rmp and rmpm is None:
-        rmpm = iris.analysis.Linear(extrapolation_mode='mask')
-    cubeL = []
-    for i, dn in enumerate(dns):
-        cube = load_res_(ddir, cfg['v'], dn, cfg['rn'], cfg['sub_r'])
-        cube.attributes = {}
-        if i == 0:
-            tmp = cube.copy()
-            new_coord = iris.coords.AuxCoord(np.int32(i),
-                                             long_name='realization',
-                                             units='no_unit')
-            tmp.add_aux_coord(new_coord)
-            a = tmp.copy()
-        else:
-            if tmp.shape != cube.shape:
-                if rmp:
-                    cube = iris_regrid_(tmp, cube, rmpm)
-                else:
-                    raise Exception('unmatched cubes!')
-            a = tmp.copy(cube.data)
-            a.coord('realization').points = np.int32(i)
-        cubeL.append(a)
-    cubeL = iris.cube.CubeList(cubeL)
-    eCube = cubeL.merge_cube()
-    return eCube
 
 
 def bi_cmip5_info_(root, o_o='list'):
@@ -632,8 +570,6 @@ def get_ts_clmidx_(cubeLL, dL, sc, fxdir=None, poly=None, rgD=None,
             a = [np.ma.asarray([rgMean_cube(i, rgD=rgD, **ii).data * sc
                              for i, ii in zip(cubeL, o)]) for cubeL in cubeLL]
         return a
-    else:
-        return None
 
 
 def pure_ts_dn_(ts, dn):
@@ -661,8 +597,6 @@ def get_ts_eval_(cubeL, dL, sc, fxdir=None, poly=None, rgD=None):
             if i :
                 i.data *= sc
         return a
-    else:
-        return None
 
 
 def get_clm_clmidx_(cubeLL, sc, cref=None):
@@ -677,30 +611,30 @@ def get_clm_clmidx_(cubeLL, sc, cref=None):
     return (am, ai, bm, bi)
 
 
-def get_clm_eval_(cubeL, sc):
+def get_clm_eval_(cubeL, sc, cref=None):
+    warnings.filterwarnings("ignore", category=UserWarning)
     if len(cubeL) > 2:
         a = [i.collapsed('time', iris.analysis.MEAN) if i else None
              for i in cubeL]
         for i in a:
             if i:
                 i.data *= sc
-        ec = en_mm_cubeL_(a[:-2])
+        ec = en_mm_cubeL_(a[:-2], cref=cref)
         aa = [en_mean_(ec), en_iqr_(ec)]
         return (a, aa)
-    else:
-        return None
 
 
-def en_pmean_cubeL_(cubeL, cref=None):
+def en_pmean_cubeL_(cubeL, cref=None, period=None):
     warnings.filterwarnings("ignore", category=UserWarning)
-    cl = [c.collapsed('time', iris.analysis.MEAN) for c in cubeL]
+    def _c(c):
+        return extract_period_cube(c, *period) if period else c
+    cl = [_c(c).collapsed('time', iris.analysis.MEAN) for c in cubeL]
     o = en_mm_cubeL_(cl, cref=cref)
     rm_sc_cube(o)
     return o
 
 
 def map_sim_(dn):
-    import re
     gd = {'CCCma-CanESM2': 'a',
           'CNRM-CERFACS-CNRM-CM5': 'b',
           'ICHEC-EC-EARTH': 'c',
@@ -731,7 +665,6 @@ def map_sim_(dn):
 
 
 def map_sim_cmip5_(dn):
-    import re
     gd = {'ACCESS1-0': 'A',
           'ACCESS1-3': 'B',
           'BNU-ESM': 'C',
@@ -777,3 +710,88 @@ def map_sim_cmip5_(dn):
         return ndn
     else:
         return [map_sim_cmip5_(i) for i in dn]
+
+
+def load_h248_(idir, var='hwmid', txn='tx', m='', freq='', y0y1=None):
+    def _hist(ifn):
+        return re.sub(r'_v\d[a-zA-Z]?(?=_)', '_v*',
+                      re.sub(r'_\d{4}-\d{4}', '_[1-9]*-[1-9]*',
+                             ifn.replace(idir_, 'historical')))
+    ss = ('djf', 'mam', 'jja', 'son', 'mjja', 'ndjf')
+    tmp = idir.split('/')
+    idir_ = tmp[-1] if tmp[-1] else tmp[-2]
+    m = '_{}_'.format(m) if m else m
+    fn = schF_keys_(idir, '-'.join((var, txn)), m)
+    freq = '' if freq == 'year' else freq
+    if freq:
+        fn = slctStrL_(fn, incl='_{}'.format(freq))
+    else:
+        fn = slctStrL_(fn, excl=ss)
+    if fn:
+        fn.sort(key=lambda x: x.upper())
+        fn_ = pure_fn_(fn)
+        if idir_[:3] == 'rcp':
+            fn = [[_hist(i), i] for i in fn]
+        o = [iris.load(i) for i in fn]
+        o = [i[0] if len(i) == 1 else concat_cube_(i) for i in o]
+        if y0y1:
+            o = [extract_period_cube(i, *y0y1) for i in o]
+        return (o, fn_)
+
+
+def get_ts_h248_(cubeL, fnL, folder, fxdir=None, poly=None, reD=None):
+    ind = 3 if folder == 'cordex' else 1
+    d = [i.split('_')[ind] for i in fnL]
+    if fxdir:
+        o = load_fx_(fxdir, d)
+    else:
+        o = [{}] * len(dL)
+    if poly:
+        a = [rgMean_poly_cube(i, poly, **ii) if i else None
+             for i, ii in zip(cubeL, o)]
+    else:
+        a = [rgMean_cube(i, rgD=rgD, **ii) if i else None
+             for i, ii in zip(cubeL, o)]
+    return a
+
+
+def gp_(gwl, rcp, gcm, rip, folder='cordex'):
+    if folder == 'cmip5':
+        yf = _here_ + 'gcm_gwls_.yml'
+    elif folder == 'cordex':
+        yf = _here_ + 'gcm_gwls.yml'
+    else:
+        raise Exception("unknown folder: {!r}".format(folder))
+    with open(yf, 'r') as ymlfile:
+        gg = yaml.safe_load(ymlfile)
+    try:
+        y0 = gg[gwl][rcp][gcm][rip]
+    except KeyError:
+        y0 = None
+    return [y0, y0 + 29] if y0 else None
+
+
+def _periodL(fnL, period, folder='cordex', rcp=None):
+    if (isinstance(period, str)
+        and period[:3] == 'gwl'
+        and rcp in ('rcp26', 'rcp45', 'rcp85')
+        and folder in ('cordex', 'cmip5')):
+        tmp = [i.split('_')[1:3] for i in fnL]
+        pL = [gp_(period, rcp, i[0], i[1]) for i in tmp]
+    elif (isMyIter_(period)
+          and len(period) == 2
+          and all([isinstance(i, int) for i in period])):
+        pL = (period,) * len(fnL)
+    else:
+        pL = None
+    return pL
+
+
+def get_period_h248_(cubeL, fnL, period, folder='cordex', rcp=None):
+    pL = _periodL(fnL, period, folder=folder, rcp=rcp)
+    def _c(c, p):
+        return extract_period_cube(c, *p) if p else None
+    if pL:
+        tmp = [_c(i, ii) for i, ii in zip(cubeL, ps)]
+        ind = [i for i, ii in enumerate(tmp) if ii]
+        return (l_ind_(tmp, ind), l_ind_(fnL))

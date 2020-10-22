@@ -14,12 +14,14 @@ from time import localtime, strftime
 from typing import Iterable
 
 from climi.uuuu import *
-from climi.pppp import *
+from .pppp import *
+
+
+_here_ = get_path_(__file__)
 
 
 def _shps():
-    shp = gpd_read('/home/sm_chali/wks/heat-wave-2018/pppp/'                   
-                   'swe_districts/distriktsanalys_polygon.shp')                 
+    shp = gpd_read(_here_ + 'swe_districts/distriktsanalys_polygon.shp')                 
     shp_ = shp.to_crs(epsg=4326)                                                
     idd = shp.ID.copy()                                                         
     idd.loc[:] = 0.                                                             
@@ -70,7 +72,7 @@ def ts__(cubeL, dn, unit, odir, var, freq, xx_='ts'):
         return yrs
             
     cs = plt.get_cmap('Set2').colors
-    fig = init_fig_(top=0.8)
+    fig = init_fig_(t=.8)
     ax_opt = {'ylabel': var + ' (' + unit + ')'}
     ax = fig.add_subplot(1, 1, 1, **ax_opt)
     ndn = dn.copy()
@@ -101,7 +103,7 @@ def ts__(cubeL, dn, unit, odir, var, freq, xx_='ts'):
 
 
 def bp__(cubeL, dn, unit, odir, var, freq, xx_='bp'):
-    fig = init_fig_(left=0.05, right=.95, top=0.8)
+    fig = init_fig_(l=.05, r=.95, t=.8)
     ax_opt = {'ylabel': var + ' (' + unit + ')'}
     ax = fig.add_subplot(1, 1, 1, **ax_opt)
     h_ = bp_cubeL_eval_(ax, cubeL)
@@ -127,7 +129,7 @@ def _map(shp0, dn, unit, odir, var, freq):
     min1, max1 = _minmax_df(shp0.loc[:, 'iqr'])
     cmp0, _ = _cmp01(unit, var)
 
-    fig = init_fig_(top=.925, bottom=.025, left=.025, right=.9, wspace=.25)
+    fig = init_fig_(t=.925, b=.025, l=.025, r=.9, w=.25)
     pch_dict.update({'vmin': min0, 'vmax': max0, 'cmap': cmp0})
     axs = []
     for i, ii in enumerate(ids):
@@ -159,7 +161,7 @@ def map0__(cubeL, dn, unit, rg_dict, odir, var, freq):
     nn, xx = minmax_cube_(cL, rg=rg_dict)
     cmp0, _ = _cmp01(unit, var)
 
-    fig = init_fig_(top=.925, right=.9, hspace=0.15)
+    fig = init_fig_(t=.925, r=.9, h=.15)
     if len(ndn) <= 5:
         nrow, ncol = 1, len(ndn)
     else:
@@ -193,7 +195,7 @@ def map1__(cubeL, dn, unit, rg_dict, odir, var, freq):
     min1, max1 = minmax_cube_(cL[-1], rg=rg_dict)
     cmp0, _ = _cmp01(unit, var)
 
-    fig = init_fig_(top=.925, bottom=.025, left=.025, right=.9, wspace=.25)
+    fig = init_fig_(t=.925, b=.025, l=.025, r=.9, w=.25)
     pch_dict.update({'vmin': min0, 'vmax': max0, 'cmap': cmp0})
     axs, pchs = [], []
     for i, ii in enumerate(dns[:-1]):
@@ -247,8 +249,7 @@ def main():
 
     mpl.style.use('seaborn')
 
-    ne50 = gpd_read('/home/sm_chali/wks/heat-wave-2018/pppp/ne_50m/'
-                    'ne_50m_admin_0_countries.shp')
+    ne50 = gpd_read(_here_ + 'ne_50m/ne_50m_admin_0_countries.shp')
     sv = poly_to_path_(list(ne50.loc[ne50.NAME=='Sweden', 'geometry']))
     shp, shp_ = _shps()
     r24 = os.environ.get('r24')                                                 

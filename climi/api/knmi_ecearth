@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
 
 import iris
-from uuuu import *
+from climi.uuuu import concat_cube_, cubesv_
 
-def _to_o(i): 
+def _to_o(i, var): 
     o = iris.load('/nobackup/rossby22/sm_chali/DATA/ECEARTH23/'
-                  'tasmin_day_ECEARTH23_rcp85_r{}i1p1_*nc'.format(i)) 
+                  '{}_day_ECEARTH23_rcp85_r{}i1p1_*nc'.format(var, i)) 
     o0 = concat_cube_(o) 
     nc = iris.coords.AuxCoord(i, long_name='realization', units='no_unit') 
     o0.add_aux_coord(nc) 
     cubesv_(o0, '/nobackup/rossby22/sm_chali/DATA/hw2018/iii/other/'
-                'eEC-EARTH/tasmin_ECEARTH23_RCP85_r_{}_cube.nc'.format(i),
+                'eEC-EARTH/{}_ECEARTH23_RCP85_r_{}_cube.nc'.format(var, i),
             zlib=True, complevel=6)
 
 
 def main():
-    for i in range(1, 17):
-        _to_o(i)
+    for var in ('pr',):
+        for i in range(8,17):
+            _to_o(i, var)
 
 
 if __name__ == '__main__':

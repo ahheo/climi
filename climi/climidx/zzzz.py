@@ -75,8 +75,9 @@ def thr_(t_ref, doy_ref, ax_t, pctl=90):
     t_thr = extract_byAxes_(t_ref, ax_t, doy)
 
     t0 = l__('running thr_')
-    _mp = np.product(t_thr.shape) > 5e6
+    _mp = np.prod(t_thr.shape) > 5e6
     if _mp:
+        ll_('multiprocessing over spatial grids')
         ax_fn_mp_(t_ref, ax_t, _pctl, t_thr, pctl, doy_ref, doy)
     else:
         for i in doy:
@@ -346,8 +347,8 @@ def get_t_period_(pn, dict_p, cube, yr_0, doy_0, ax_t):
         t_p, yr_p, doy_p = cube.data, yr_0, doy_0
         y0, y1 = min(yr_0), max(yr_0)
     else:
-        y0, y1 = dict_p[pn][0], dict_p[pn][-1]
-        ind = ind_inRange_(yr_0, y0, y1)
+        y0, y1 = dict_p[pn]
+        ind = ind_inRange_(yr_0, *dict_p[pn])
         t_p = extract_byAxes_(cube, ax_t, ind).data
         yr_p = yr_0[ind]
         doy_p = doy_0[ind]

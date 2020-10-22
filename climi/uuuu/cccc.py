@@ -21,6 +21,7 @@
 * f_allD_cube           : iris analysis func over all dims of cube(L) (each)
 * getGridAL_cube        : grid_land_area
 * getGridA_cube         : grid_area from file or calc with basic assumption
+* get_gwl_y0_           : first year of 30-year window of global warming level
 * get_lon_lat_dimcoords_: modified _get_lon_lat_coords from iris
 * get_x_y_dimcoords_    : horizontal spatial dim coords
 * get_xyd_cube          : cube axes of xy dims
@@ -29,7 +30,9 @@
 * inpolygons_cube       : points if inside polygons
 * intersection_         : cube intersection with lon/lat range
 * iris_regrid_          : using iris.cube.Cube.regrid but keeping aux_coords
-* isMyIter_             : if tuple/list/CubeL
+* isGI_                 : if Iterator
+* isIter__              : if Iterable but not str or bytes
+* isMyIter_             : if Iterable but not cube ndarray str or bytes
 * kde_cube              : kernal distribution estimation over all cube data
 * lccs_m2km_            : change LambfortComfort unit
 * maskLS_cube           : mask land or sea area
@@ -37,6 +40,7 @@
 * maskPOLY_cube         : mask area in respect of polygons
 * max_cube              : max of cube(L) data (each)
 * max_cube_             : max of cube(L) data (all)
+* merge_cube_           : robust cube merger
 * min_cube              : min of cube(L) data (each)
 * min_cube_             : min of cube(L) data (all)
 * minmax_cube           : minmax of cube(L) data (each)
@@ -76,7 +80,7 @@ from iris.experimental.equalise_cubes import equalise_attributes
 import cf_units
 import warnings
 from datetime import datetime
-from typing import Iterable
+from typing import Iterable, Iterator
 
 from .ffff import *
 
@@ -100,14 +104,17 @@ __all__ = ['alng_axis_',
            'f_allD_cube',
            'getGridAL_cube',
            'getGridA_cube',
-           'get_xyd_cube',
+           'get_gwl_y0_',
            'get_lon_lat_dimcoords_',
            'get_x_y_dimcoords_',
+           'get_xyd_cube',
            'guessBnds_cube',
            'initAnnualCube_',
            'inpolygons_cube',
            'intersection_',
            'iris_regrid_',
+           'isGI_',
+           'isIter_',
            'isMyIter_',
            'kde_cube',
            'lccs_m2km_',
@@ -116,6 +123,7 @@ __all__ = ['alng_axis_',
            'maskPOLY_cube',
            'max_cube',
            'max_cube_',
+           'merge_cube_',
            'min_cube',
            'min_cube_',
            'minmax_cube',
@@ -213,19 +221,35 @@ def extract_byAxes_(cnd, axis, sl_i, *vArg):
     return cnd[inds]
 
 
+def isGI_(x):
+    return isinstance(x, Iterator)
+
+
+def isIter_(x, xi=None, XI=(str, bytes)):
+    o = isinstance(x, Iterable) and not isinstance(x, XI)
+    if xi and o:
+        if not isGI_(x):
+            o = o and all([isinstance(i, xi) or i is None for i in x])
+        else:
+            warnings.warn("xi ignored for Iterator or Generator!")
+    return o
+
+
 def isMyIter_(x):
-    return isinstance(x, (tuple, list, iris.cube.CubeList))  
+    return isIter_(x,
+                   xi=(np.ndarray, iris.cube.Cube),
+                   XI=(np.ndarray, iris.cube.Cube, str, bytes))
 
 
 def pst_(cube, name=None, units=None, var_name=None):                            
-    if not isMyIter_(cube):                                                        
+    if isinstance(cube, iris.cube.Cube):                                                        
         if name:                                                                
             cube.rename(name)                                                    
         if units:                                                               
             cube.units = units                                                   
         if var_name:                                                            
             cube.var_name = var_name                                             
-    else:                                                                       
+    elif isMyIter_(cube):                                                                       
         for i in cube:                                                           
             pst_(i, name=name, units=units, var_name=var_name)
 
@@ -246,19 +270,23 @@ def nTslice_cube(cube, n):
                 step = int(np.ceil(shp[i] / n))
                 return [extract_byAxes_(cube, i, np.s_[ii:(ii + step)])
                         for ii in range(0, shp[i], step)]
-            else:
-                continue
 
 
 def y0y1_of_cube(cube):
-    ccs = [i.name() for i in cube.coords()]
-    if 'year' in ccs:
-        return list(cube.coord('year').points[[0, -1]])
-    elif 'seasonyr' in ccs:
-        return list(cube.coord('seasonyr').points[[0, -1]])
+    if isinstance(cube, iris.cube.Cube):
+        ccs = [i.name() for i in cube.coords()]
+        if 'year' in ccs:
+            return list(cube.coord('year').points[[0, -1]])
+        elif 'seasonyr' in ccs:
+            return list(cube.coord('seasonyr').points[[0, -1]])
+        else:
+            cat.add_year(cube, 'time', name='year')
+            return list(cube.coord('year').points[[0, -1]])
+    elif isMyIter_(cube):
+        yy = np.array([y0y1_of_cube(i) for i in cube])
+        return [np.max(yy[:, 0]), np.min(yy[:, 1])]
     else:
-        cat.add_year(cube, 'time', name='year')
-        return list(cube.coord('year').points[[0, -1]])
+        raise TypeError("unknown type!")
 
 
 def extract_period_cube(cube, y0, y1, yy=False):
@@ -575,7 +603,7 @@ def rm_t_aux_cube(cube, keep=None):
         for i in cube.aux_coords:
             if keep is None:
                 isTaux = any([ii in i.name() for ii in tauxL])
-            elif isinstance(keep, (list, tuple, set)):
+            elif isIter_(keep):
                 isTaux = any([ii in i.name() for ii in tauxL])\
                          and i.name() not in keep
             else:
@@ -837,6 +865,31 @@ def rgMean_cube(cubeD, sftlf=None, areacella=None, rgD=None):
         return cubeD.collapsed([xc, yc], iris.analysis.MEAN, weights=ga)
 
 
+def get_gwl_y0_(cube, gwl, pref=[1861, 1890]):
+    c = pSTAT_cube(cube if cube.ndim == 1 else rgMean_cube(cube),
+                  'MEAN', 'year')
+    tref = extract_period_cube(c, *pref)
+    tref = tref.collapsed('time', iris.analysis.MEAN).data
+    def _G_tR(G, tR):
+        if not isIter_(G):
+            ind = np.where(rMEAN1d_(c.data, 30) >= G + tR)[0][0]
+            return c.coord('year').points[ind]
+        else:
+            return [_G_tR(i, tR) for i in G]
+    if c.ndim == 1:
+        return _G_tR(gwl, tref)
+    else:
+        o = np.empty(tref.shape + np.array(gwl).shape)
+        ax = c.coord_dims('year')[0]
+        for i in range(nSlice_(c.shape, ax)):                                 
+            ind = ind_shape_i_(c.shape, i, ax)    
+            ind_ = ind_shape_i_(tref.shape, i, axis=None)                            
+            ind__ = ind_shape_i_(o.shape, i,
+                                 axis=-1 if np.array(gwl).shape else None)
+            o[ind__] = np.array(_G_tR(gwl, tref[ind]))
+        return o
+
+
 def _inpolygons(poly, points, **kwArgs):
     if not isinstance(poly, (list, tuple, set)):
         ind = poly.contains_points(points, **kwArgs)
@@ -1036,6 +1089,30 @@ def concat_cube_(cubeL, thr=1e-10):
     return o
 
 
+def merge_cube_(cubeL, thr=1e-10):
+    purefy_cubeL_(cubeL)
+    try:
+        o = cubeL.merge_cube()
+    except iris.exceptions.ConcatenateError as ce_:
+        if any(['Data types' in i for i in ce_.args[0]]):
+            _unify_dtype(cubeL)
+        if any(['Cube metadata' in i for i in ce_.args[0]]):
+            _unify_cellmethods(cubeL)
+        if any(['coordinates metadata differ' in i for i in ce_.args[0]]):
+            if any(['height' in i for i in ce_.args[0]]):
+                ll_("cccc: set COORD 'height' points to those of cubeL[0]")
+                _unify_1coord_points(cubeL, 'height', thr=10)
+            else:
+                _unify_coord_attrs(cubeL)
+        try:
+            o = cubeL.merge_cube()
+        except iris.exceptions.ConcatenateError as ce_:
+            if any(['Expected only a single cube' in i for i in ce_.args[0]]):
+                _unify_xycoord_points(cubeL, thr=thr)
+            o = cubeL.merge_cube()
+    return o
+
+
 def en_mean_(eCube, **kwArgs):
     """
     ... ensemble mean of a cube (along dimcoord 'realization') ...
@@ -1186,7 +1263,6 @@ def ax_fn_mp_(arr, ax, func, out, *args, npr=32, **kwargs):
                                 o0[_i(i, sl_=np.s_[0,])], args, kwargs))
                                 for i in range(nSlice_(arr[0].shape, ax))])
     XX = X.get()
-    #XX = P.starmap(_func, [(func, i) for i in aaakkk])
     P.close()
 
     _sb(XX, out, ax)
@@ -1219,7 +1295,6 @@ def _isb(i, o, c, ax):
         if not isinstance(o, np.ndarray):
             o = np.asarray(o)
         slice_back_(c, o, i, _get_nax(o))
-
 
 
 def alng_axis_(arrs, ax, func, out, *args, **kwargs):
@@ -1353,26 +1428,27 @@ def repair_cs_(cube):
                 _repair_cs_cube(i)
 
 
+def _repair_lccs_cube(c):
+    cs = c.coord_system('CoordSystem')
+    if isinstance(cs, iris.coord_systems.LambertConformal):
+        if (cs.false_easting is None or
+            isinstance(cs.false_easting, np.ndarray)):
+            cs.false_easting = ''
+        if (cs.false_northing is None or
+            isinstance(cs.false_northing, np.ndarray)):
+            cs.false_northing = ''
+        for coord in c.coords():
+            if coord.coord_system is not None:
+                coord.coord_system = cs
+                coord.convert_units('m')
+
+
 def repair_lccs_(cube):
-    def _repair_lccs_cube(c):
-        cs = c.coord_system('CoordSystem')
-        if isinstance(cs, iris.coord_systems.LambertConformal):
-            if (cs.false_easting is None or
-                isinstance(cs.false_easting, np.ndarray)):
-                cs.false_easting = ''
-            if (cs.false_northing is None or
-                isinstance(cs.false_northing, np.ndarray)):
-                cs.false_northing = ''
-            for coord in c.coords():
-                if coord.coord_system is not None:
-                    coord.coord_system = cs
-                    coord.convert_units('m')
     if isinstance(cube, iris.cube.Cube):
         _repair_lccs_cube(cube)
     elif isMyIter_(cube):
         for i in cube:
-            if isinstance(i, iris.cube.Cube):
-                _repair_lccs_cube(i)
+            _repair_lccs_cube(i)
 
 
 def lccs_m2km_(cube):
@@ -1392,7 +1468,7 @@ def cubesv_(cube, filename, netcdf_format='NETCDF4', local_keys=None,
             zlib=True, complevel=4, shuffle=True, fletcher32=False,
             contiguous=False, chunksizes=None, endian='native',
             least_significant_digit=None, packing=None, fill_value=None):
-    if not isMyIter_(cube):
+    if isinstance(cube, iris.cube.Cube):
         repair_lccs_(cube)
         dms = [i.name() for i in cube.dim_coords]
         udm = ('time',) if 'time' in dms else None
@@ -1403,7 +1479,7 @@ def cubesv_(cube, filename, netcdf_format='NETCDF4', local_keys=None,
                   least_significant_digit=least_significant_digit,
                   packing=packing, fill_value=fill_value,
                   unlimited_dimensions=udm)
-    else:
+    elif isMyIter_(cube):
         for i, ii in enumerate(cube):
             cubesv_(ii, filename.replace(ext_(filename),
                                          '_{}{}'.format(i, ext_(filename))))
