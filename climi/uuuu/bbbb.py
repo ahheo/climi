@@ -174,7 +174,8 @@ def cmip5_dir_cubeL(idir, var='*', freq='*', gcm='*', exp='*', realz='*',
         except:
             ll_('bbbb: cmip5_dir_cubeL: concat_cube_ error,'
                 ' return None instead')
-            return None
+            return {'cube': None,
+                    'p': '-'.join((p[0].split('-')[0], p[-1].split('-')[-1]))}
     else:
         return {'cube': cubeL, 'p': info['p']}
 
@@ -209,7 +210,8 @@ def cordex_dir_cubeL(idir, var='*', dm='*', gcm='*', exp='*', rcm='*',
         except:
             ll_('bbbb: cordex_dir_cubeL : concat_cube_ error,'
                 ' return None instead')
-            return None
+            return {'cube': None,
+                    'p': '-'.join((p[0].split('-')[0], p[-1].split('-')[-1]))}
     else:
         return {'cube': cubeL, 'p': info['p']}
 

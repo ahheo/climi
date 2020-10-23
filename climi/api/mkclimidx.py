@@ -209,18 +209,27 @@ def _xyz(il_, tint, pi_, dn, gwl, y0y1, po_, reg_d, folder='cordex'):
             t000 = l__("rf__(): {} variables".format(len(vd[1].keys())))
             ll_(', '.join(vd[1].keys()))
             ll_(', '.join(vd[0]))
-            tmp = []
+            tmp, tmp_, tmp__ = [], [], []
             for kk in vd[1].keys():
                 if y0y1:
-                    cc = rf__(pi_, tint, var=vd[1][kk], period=y0y1,
-                              reg_d=reg_d, folder=folder)
+                    cc, ee = rf__(pi_, tint, var=vd[1][kk], period=y0y1,
+                                  reg_d=reg_d, folder=folder)
                 else:
-                    cc = rf__(pi_, tint, var=vd[1][kk], reg_d=reg_d,
+                    cc, ee = rf__(pi_, tint, var=vd[1][kk], reg_d=reg_d,
                               folder=folder)
                 if cc:
                     tmp.append(kk)
+                if ee == 'cce':
+                    tmp_.append(kk)
+                elif ee == 'yye':
+                    tmp__.append(kk)
                 ccc.update({kk: cc})
-            ll_(', '.join(tmp))
+            if len(tmp__) > 0:
+                ll_('YYE: {}'.format(', '.join(tmp__)))
+            if len(tmp_) > 0:
+                ll_('CCE: {}'.format(', '.join(tmp_)))
+            if len(tmp) > 0:
+                ll_(', '.join(tmp))
             ll_("rf__()", t000)
             f__(il_=vd[0], **ka0, **ccc)
         elif isinstance(vd, list):
@@ -260,7 +269,7 @@ def _mclimidx(c_pr=None, c_et=None, c_prsn=None, c_ro=None, c_sd=None,
             _sv(v_, o, freq=freq)
 
     def _m0(v_, cube, fA_=(), fK_={}, pK_=None, freq=None):
-        if isMyIter_(v_):
+        if isIter_(v_):
             vk_ = v_[0]
             lmsg = '/'.join(('{}',) * len(v_)) + ' {}'
             vids = [i__[i][0] for i in v_]
@@ -274,7 +283,7 @@ def _mclimidx(c_pr=None, c_et=None, c_prsn=None, c_ro=None, c_sd=None,
         o = i__[vk_][3](*cc, freq, *fA_, **fK_)
         if pK_:
             pst_(o, **pK_)
-        if not isMyIter_(v_) or len(v_) == 1:
+        if not isIter_(v_) or len(v_) == 1:
             _sv(vk_, o, freq=freq)
         else:
             for i, ii in zip(v_, o):
@@ -344,7 +353,7 @@ def _dclimidx(c_pr=None, c_t=None, c_tx=None, c_tn=None, c_wsgs=None,
             ll_(v_, t000)
 
     def _d0(v_, cube, fA_=(), fK_={}, pK_=None, freq=None):
-        if isMyIter_(v_):
+        if isIter_(v_):
             vk_ = v_[0]
             lmsg = '/'.join(('{}',) * len(v_)) + ' {}'
             vids = [i__[i][0] for i in v_]
@@ -358,7 +367,7 @@ def _dclimidx(c_pr=None, c_t=None, c_tx=None, c_tn=None, c_wsgs=None,
         o = i__[vk_][3](*cc, freq, *fA_, **fK_)
         if pK_:
             pst_(o, **pK_)
-        if not isMyIter_(v_) or len(v_) == 1:
+        if not isIter_(v_) or len(v_) == 1:
             _sv(vk_, o, freq=freq)
         else:
             for i, ii in zip(v_, o):
@@ -382,7 +391,7 @@ def _dclimidx(c_pr=None, c_t=None, c_tx=None, c_tn=None, c_wsgs=None,
         def _inic(icK_):
             return initAnnualCube_(cube[0] if isMyIter_(cube) else cube,
                                    y_y_, **icK_)
-        if isMyIter_(v_):
+        if isIter_(v_):
             vk_ = v_[0]
             lmsg = '/'.join(('{}',) * len(v_)) + ' {}'
             vids = [i__[i][0] for i in v_]
@@ -400,7 +409,7 @@ def _dclimidx(c_pr=None, c_t=None, c_tx=None, c_tn=None, c_wsgs=None,
             o = iris.cube.CubeList([_inic(i) for i in cK_])
         o_ = _afm_n(cube, ax_t, i__[vk_][3], o, *fA_, **fK_)
         o = o_ if o_ else o
-        if not isMyIter_(v_) or len(v_) == 1:
+        if not isIter_(v_) or len(v_) == 1:
             _sv(vk_, o, freq=freq)
         else:
             for i, ii in zip(v_, o):
@@ -794,19 +803,24 @@ def rf__(pi_, freq, folder='cordex', reg_d=None, **kwargs):
     freqs = ['mon', 'day', '6hr', '3hr']
     _rf = eval('{}_dir_cubeL'.format(folder))
     o = None
+    e = None
     for f_ in freqs[freqs.index(freq):]:
         p_ = _xx(pi_, f_)
         o = _rf(p_, ifconcat=True, **kwargs)
-        if o is not None:
+        if o:
             o = o['cube']
-            if reg_d is not None:
-                o = intersection_(o, **reg_d)
-            if 'period' in kwargs:
-                o = extract_period_cube(o, *kwargs['period'], yy=True)
-            break
-    if f_ != freq and o is not None:
+            if o:
+                if reg_d:
+                    o = intersection_(o, **reg_d)
+                if 'period' in kwargs:
+                    o = extract_period_cube(o, *kwargs['period'], yy=True)
+                    e = None if o else 'yye'
+                break
+            else:
+                e = 'cce'
+    if f_ != freq and isinstance(o, iris.cube.Cube):
         o = _xxx(o, f_, freq)
-    return o
+    return (o, e)
 
 
 def _gg(folder='cordex'):
@@ -861,6 +875,7 @@ def cmip5_imp_rcp_(il_, reg_d, reg_n, po_, sss=None, eee=None):
 def cmip5_imp_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
                   sss=None, eee=None):
     pp = _pp(_here_ + 'cmip5_import.yml')
+    #pp = _pp(_here_ + 'cmip5_import_cp.yml')
     gg = _gg('cmip5')
     ppp = pp['p_'][sss:eee]
     for p_ in ppp:
@@ -1081,15 +1096,16 @@ def main():
     parser.add_argument("-l", "--log",
                         type=str, help="exclusive log identifier")
     args = parser.parse_args()
-    il_ = list(i__.keys())
-    il_.remove('SIC')
-    il_.remove('SST')
-    il_.remove('hSuperCooledPR')
+    #il_ = list(i__.keys())
+    #il_.remove('SIC')
+    #il_.remove('SST')
+    #il_.remove('hSuperCooledPR')
     #il_.remove('SuperCooledPR')
     #il_.remove('FirstDayWithoutFrost')
     #il_.remove('SpringFrostDayEnd')
     #il_ = ['TAS', 'TX', 'TN', 'PR', 'PRmax']
-    il_ = ['SNWmax', 'R5OScw', 'R1OScw']
+    il_ = ['SIC', 'SST']
+    #il_ = ['SNWmax', 'R5OScw', 'R1OScw']
     #il_ = ['CalmDays975', 'ConCalmDays975', 'CalmDays925', 'ConCalmDays925']
     #       'Wind975toSfc', 'ColdRainDays', 'ColdRainGT10Days',
     #       'ColdRainGT20Days', 'WarmSnowDays', 'WarmSnowGT10Days',
@@ -1101,7 +1117,7 @@ def main():
     #reg_n = 'SWE'
     reg_d = None
     #reg_d = {'longitude': [-25.0, 45.0], 'latitude': [25.0, 75.0]}
-    reg_n = 'EUR'
+    reg_n = 'GLB'
     rxx = os.environ.get('r24')
     #rdir = '/nobackup/rossby22/sm_chali/DATA/energi/res/'
     rdir = '{}DATA/energi/res/'.format(rxx)
@@ -1111,7 +1127,7 @@ def main():
     pcmp = rdir + 'h248/cmip5/' + reg_n + '/'
     po__ = rdir + 'gwls/' + reg_n + '/'
     po___ = rdir + 'obs/' + reg_n + '/'
-    po____ = rdir + 'cmip5/' + reg_n + '/'
+    po____ = rdir + 'gwls/' + reg_n + '/'
 
     logn = [reg_n, str(args.opt)]
     if args.gwl:

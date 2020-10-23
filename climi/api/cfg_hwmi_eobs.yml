@@ -2,7 +2,7 @@ experiment: hc
 proj: obs
 _d: True
 _sdi: True
-hORc: cold
+hORc: heat
 
 datasets: [EOBS20] # [STOCKHOLM-Corrected, STOCKHOLM-Homogenized] # [EOBS]
 
@@ -10,7 +10,7 @@ idir: /nobackup/rossby22/sm_chali/DATA/hw2018/iii/obs/
 ifn:
   STOCKHOLM-Corrected: STOCKHOLM/STOCKHOLM-Corrected.nc
   STOCKHOLM-Homogenized: STOCKHOLM/STOCKHOLM-Homogenized.nc
-  EOBS: EOBS19/tx_ens_mean_0.1deg_reg_v19.0e.nc
+  EOBS: EOBS19/tn_ens_mean_0.1deg_reg_v19.0e.nc
   EOBS20: EOBS20/tn_ens_mean_0.1deg_reg_v20.0e.nc
 
 f_opts:
@@ -39,7 +39,7 @@ p_:
 #  hist: [1951, 2018]
 
 #season
-#season: mjja
+season: mjja
 
 #output
 root: /nobackup/rossby22/sm_chali/DATA/
@@ -51,7 +51,7 @@ minL: 3
 data4kde_mtd: 'ymax'
 
 #thr_() option
-thr_pctl: 10
+thr_pctl: 90
 
 #kde_ option
 kde_opts:

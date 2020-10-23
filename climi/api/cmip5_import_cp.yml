@@ -1,0 +1,7 @@
+root: '/nobackup/rossby22/sm_chali/DATA/CMIP5/'
+p_: [
+     'CSIRO-Mk3-6-0/rcp85/r1i1p1/input/',
+     'EC-EARTH/rcp45/r2i1p1/input/',
+     'HadGEM2-ES/rcp45/r1i1p1/input/',
+     'HadGEM2-ES/rcp85/r1i1p1/input/'
+    ]
