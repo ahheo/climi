@@ -3,7 +3,7 @@ experiment: hc
 proj: cordex                                                                       
 _d: True                                                                       
 _sdi: True                                                                      
-hORc: cold
+hORc: heat
 
 ehr: evaluation
 
@@ -14,11 +14,10 @@ ldir: /nobackup/rossby22/sm_chali/DATA/fx/ # sftlf dir
 
 #gcms: ['ICHEC-EC-EARTH', 'MOHC-HadGEM2-ES', 'MPI-M-MPI-ESM-LR',
 #       'IPSL-IPSL-CM5A-MR', 'CCCma-CanESM2', 'NCC-NorESM1-M']
-rcms: ['CLMcom-CCLM4-8-17', 'DMI-HIRHAM5', 'KNMI-RACMO22E',
-       'MPI-CSC-REMO2009', 'GERICS-REMO2015', 'SMHI-RCA4']                     
-gcms: ['ECMWF-ERAINT']
-#rcms: ['KNMI-RACMO22E',
+#rcms: ['CLMcom-CCLM4-8-17', 'DMI-HIRHAM5', 'KNMI-RACMO22E',
 #       'MPI-CSC-REMO2009', 'GERICS-REMO2015', 'SMHI-RCA4']                     
+gcms: ['ECMWF-ERAINT']
+rcms: ['DMI-HIRHAM5']
 
 rip:
   ICHEC-EC-EARTH: r12i1p1
@@ -27,7 +26,7 @@ r_v:
   SMHI-RCA4: v1
 
 f_opts:
-  var: tasmin
+  var: tasmax
   freq: day
 
 #2nd loop on regions
@@ -42,7 +41,7 @@ sub_r:
     latitude: [35.0, 72.0] 
 
 #3rd loop on periods
-#periods: [hist] # [hist, rcp]
+periods: [hist] # [hist, rcp]
 p_:
   ref: [1989, 2008]
   hist: [1989, 2010]
@@ -61,7 +60,7 @@ minL: 3
 data4kde_mtd: 'ymax'
 
 #thr_() option
-thr_pctl: 10
+thr_pctl: 90
 
 #kde_ option
 kde_opts:

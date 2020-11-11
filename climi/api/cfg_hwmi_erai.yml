@@ -2,7 +2,7 @@ experiment: hc
 proj: obs
 _d: True
 _sdi: True
-hORc: cold
+hORc: heat
 
 datasets: [ERA-Interim] # [STOCKHOLM-Corrected, STOCKHOLM-Homogenized] # [EOBS]
 
@@ -11,10 +11,10 @@ idir: /nobackup/rossby22/sm_chali/DATA/hw2018/iii/obs/ERAI/
 #  STOCKHOLM-Corrected: STOCKHOLM/STOCKHOLM-Corrected.nc
 #  STOCKHOLM-Homogenized: STOCKHOLM/STOCKHOLM-Homogenized.nc
 #  EOBS: EOBS19/tx_ens_mean_0.1deg_reg_v19.0e.nc
-#  EOBS20: EOBS20/tn_ens_mean_0.1deg_reg_v20.0e.nc
+#  EOBS20: EOBS20/tx_ens_mean_0.1deg_reg_v20.0e.nc
 
 f_opts:
-  var: tasmin
+  var: tasmax
   freq: day
 
 #2nd loop on regions
@@ -34,7 +34,7 @@ sub_r:
 #  - hist
 p_:
 #  ref: [1756, 2005]
-  ref: [1989, 2008]
+  ref: [1981, 2010]
 #  hist: [1951, 2018]
 
 #season
@@ -50,7 +50,7 @@ minL: 3
 data4kde_mtd: 'ymax'
 
 #thr_() option
-thr_pctl: 10
+thr_pctl: 90
 
 #kde_ option
 kde_opts:

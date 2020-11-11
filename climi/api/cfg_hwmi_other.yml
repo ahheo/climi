@@ -6,7 +6,8 @@ _sdi: True
 hORc: heat
 
 #datasets: [eCanSISE, eEC-EARTH, eEC-EARTH-LENS]
-datasets: [eCanSISE, eEC-EARTH]
+datasets: [eEC-EARTH-LENS]
+#datasets: [eCanSISE, eEC-EARTH]
 
 idir: /nobackup/rossby22/sm_chali/DATA/hw2018/iii/other/
 
@@ -29,7 +30,7 @@ sub_r:
 #  - hist
 
 p_:
-  ref: [1971, 2000]
+  ref: [1981, 2010]
 
 #season
 season: ndjf

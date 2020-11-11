@@ -17,6 +17,8 @@
 * ind_win_              : indices of a window in cylinder axis
 * inds_ss_              : extraction indices (n axes)
 * intsect_              : intersection of lists
+* isGI_                 : if Iterator
+* isIter_               : if Iterable but not str or bytes
 * ismono_               : check if ismononic
 * iter_str_             : string elements
 * kde_                  : kernel distribution estimate
@@ -53,7 +55,7 @@
       Date created: 02.09.2019
 Date last modified: 24.09.2020
           comments: add func dgt_, prg_;
-                    fix rMEAN1d_ issue with mode 'full' and 'same' 
+                    fix rMEAN1d_ issue with mode 'full' and 'same'
 """
 
 
@@ -64,7 +66,7 @@ import logging
 import re
 import glob
 from itertools import permutations, combinations
-from typing import Iterable
+from typing import Iterable, Iterator
 #import math
 
 
@@ -83,6 +85,8 @@ __all__ = ['b2l_endian_',
            'ind_win_',
            'inds_ss_',
            'intsect_',
+           'isGI_',
+           'isIter_',
            'ismono_',
            'iter_str_',
            'kde_',
@@ -138,8 +142,8 @@ def cyl_(x, rb=2*np.pi, lb=0):
     if lb >= rb:
          raise ValueError('left bound should not greater than right bound!')
 
-    if isinstance(x, (list, tuple)):
-        x = np.array(x)
+    if isIter_(x):
+        x = np.asarray(x)
         if not np.issubdtype(x.dtype, np.number):
             raise Exception('data not interpretable')
 
@@ -262,17 +266,12 @@ def nSlice_(shape, axis=-1):
         shp = shape
     else:
         axis = cyl_(axis, len(shape))
-        if isinstance(axis, Iterable):
-            if len(axis) > 1 and np.all(np.diff(axis) == 1):
-                shp = shape[:min(axis)] + shape[max(axis)+1:]
-            else:
-                raise Exception('axis unknown!')
-        else:
-            shp = shape[:axis] + shape[axis+1:]
+        axis = (axis,) if not isIter_(axis) else axis
+        shp = [ii for i, ii in enumerate(shape) if i not in axis]
     return int(np.prod(shp))
 
 
-def ind_shape_i_(shape, i, axis=-1, sl_=np.s_[:,]):
+def ind_shape_i_(shape, i, axis=-1, sl_=np.s_[:]):
     """
     ... get indices of CUBE/ARRAY for #i slice along axis ...
 
@@ -288,20 +287,13 @@ def ind_shape_i_(shape, i, axis=-1, sl_=np.s_[:,]):
         return np.unravel_index(i, shape)
     else:
         axis = cyl_(axis, len(shape))
-        if isinstance(axis, Iterable):
-            if ((len(axis) > 1 and np.all(np.diff(axis) == 1)) or
-                (len(axis) == 1)):
-                Ni, Nk = shape[:min(axis)], shape[max(axis)+1:]
-                iikk = np.unravel_index(i, (Ni + Nk))
-                ii, kk = iikk[:min(axis)], iikk[min(axis):]
-                return ii + sl_*len(axis) + kk
-            else:
-                raise Exception('axis unknown!')
-        else:
-            Ni, Nk = shape[:axis], shape[axis+1:]
-            iikk = np.unravel_index(i, (Ni + Nk))
-            ii, kk = iikk[:axis], iikk[axis:]
-            return ii + sl_ + kk
+        axis = (axis,) if not isIter_(axis) else axis
+        shp = [ii for i, ii in enumerate(shape) if i not in axis]
+        tmp = [i for i in range(len(shape)) if i not in axis]
+        shpa = {ii: i for i, ii in enumerate(tmp)}
+        iikk = np.unravel_index(i, shp)
+        return tuple(iikk[shpa[i]] if i in tmp else sl_
+                     for i in range(len(shape)))
 
 
 def ind_s_(ndim, axis, sl_i):
@@ -351,15 +343,29 @@ def inds_ss_(ndim, axis, sl_i, *vArg):
     return tuple(inds)
 
 
-def ind_inRange_(y, y0, y1, included=True):
+def ind_inRange_(y, y0, y1, side='both', i_=False, r_=None):
     """
     ... boolen as y0 <= y <= y1 if included is true (defalut)
         otherwise y0 < y < y1 ...
     """
-    if included:
-        return np.logical_and((y >= y0), (y <= y1))
+    if r_ is None:
+        if side in (0, 'i', 'inner'):
+            ind = np.logical_and((y > y0), (y < y1))
+        elif side in (-1, 'l', 'left'):
+            ind = np.logical_and((y >= y0), (y < y1))
+        elif side in (1, 'r', 'right'):
+            ind = np.logical_and((y > y0), (y <= y1))
+        elif side in (2, 'b', 'both'):
+            ind = np.logical_and((y >= y0), (y <= y1))
+        else:
+            raise ValueError("unknow value of side!")
+        return np.where(ind) if i_ else ind
     else:
-        return np.logical_and((y > y0), (y < y1))
+        if y0 > y1 and y0 - y1 < r_ / 2:
+            y0, y1 = y1, y0 
+        else:
+            y1 = cyl_(y1, y0 + r_, y0)
+        return ind_inRange_(cyl_(y, y0 + r_, y0), y0, y1, side=side, i_=i_)
 
 
 def ind_win_(doy, d, w, rb=366, lb=1):
@@ -371,8 +377,9 @@ def nanMask_(data):
     """
     ... give nan where masked ...
     """
-    if isinstance(data, np.ma.core.MaskedArray):
-        data.data[data.mask] = np.nan
+    if np.ma.isMaskedArray(data):
+        if np.ma.is_masked(data):
+            data.data[data.mask] = np.nan
         data = data.data
     return data
 
@@ -472,7 +479,7 @@ def find_patt_(p, s):
     """
     if isinstance(s, str):
         return s if re.search(p, s) else None
-    else:
+    elif isIter_(s, xi=str):
         return [i for i in s if find_patt_(p, i)]
 
 
@@ -484,7 +491,7 @@ def pure_fn_(s):
         tmp = re.search(r'((?<=[\\/])[^\\/]*$)|(^[^\\/]+$)', s)
         fn = tmp.group() if tmp else tmp
         return re.sub(r'\.\w+$', '', fn) if fn else fn
-    else:
+    elif isIter_(s, str):
         return [pure_fn_(i) for i in s]
 
 
@@ -640,7 +647,8 @@ def robust_bc2_(data, shape, axes=None, fw=False):
     data = data.squeeze()
     dshp = data.shape
     if axes:
-        axes = list(axes)
+        axes = cyl_(axes, len(shape))
+        axes = (axes,) if not isIter_(axes) else axes
         if len(axes) != len(dshp):
             raise ValueError("len(axes) != len(data.squeeze().shape)")
         if (len(np.unique(axes)) != len(axes) or
@@ -659,21 +667,22 @@ def intsect_(*l):
         return ll
     elif len(l) == 1:
         return l[0]
-    else:
-        return None
 
 
 def l_ind_(l, ind):
-    ind = cyl_(ind, len(l))
-    return [l[i] for i in ind]
+    if isIter_(ind, xi=(bool, np.bool, np.bool_)):
+        return [i for i, ii in zip(l, ind) if ii]
+    elif isIter_(ind, xi=(int, np.integer)):
+        ind = cyl_(ind, len(l))
+        return [l[i] for i in ind]
 
 
 def dgt_(n):
     return int(np.floor(np.log10(n)) + 1)
 
 
-def prg_(i, n):
-    ss = '#{:0' + r'{:d}'.format(dgt_(n)) + r'd}/{:d}'
+def prg_(i, n=None):
+    ss = '#{:0' + r'{:d}'.format(dgt_(n)) + r'd}/{:d}' if n else '#{:d}/--'
     return ss.format(i, n)
 
 
@@ -683,3 +692,17 @@ def b2l_endian_(x):
 
 def l2b_endian_(x):
     return x.astype(np.dtype(x.dtype.str.replace('<', '>')))
+
+
+def isGI_(x):
+    return isinstance(x, Iterator)
+
+
+def isIter_(x, xi=None, XI=(str, bytes)):
+    o = isinstance(x, Iterable) and not isinstance(x, XI)
+    if xi and o:
+        if not isGI_(x):
+            o = o and all([isinstance(i, xi) or i is None for i in x])
+        else:
+            warnings.warn("xi ignored for Iterator or Generator!")
+    return o

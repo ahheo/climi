@@ -75,7 +75,7 @@ def thr_(t_ref, doy_ref, ax_t, pctl=90):
     t_thr = extract_byAxes_(t_ref, ax_t, doy)
 
     t0 = l__('running thr_')
-    _mp = np.prod(t_thr.shape) > 5e6
+    _mp = t_thr.size > 5e6
     if _mp:
         ll_('multiprocessing over spatial grids')
         ax_fn_mp_(t_ref, ax_t, _pctl, t_thr, pctl, doy_ref, doy)

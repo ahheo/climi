@@ -1,11 +1,15 @@
-experiment: hw2018
+experiment: hc
 
 proj: cmip5
-hORc: cold
+_d: True
+_sdi: True
+hORc: heat
+
+ehr: rcp85
 #idir: /nobackup/rossby22/sm_chali/DATA/CMIP5
-rdir: /nobackup/rossby22/sm_chali/DATA/hw2018/iii/cmip5/hist/
-ddir: /nobackup/rossby22/sm_chali/DATA/hw2018/iii/cmip5/hist/
-ldir: /nobackup/rossby22/sm_chali/DATA/CMIP5/fx/
+rdir0: /nobackup/rossby22/sm_chali/DATA/hw2018/iii/cmip5/hist/
+ddir0: /nobackup/rossby22/sm_chali/DATA/hw2018/iii/cmip5/rcp85/
+ldir: /nobackup/rossby22/sm_chali/DATA/fx/
 
 #1st loop on gcms
 gcms: ['ACCESS1-3', 'bcc-csm1-1', 'bcc-csm1-1-m',
@@ -14,40 +18,37 @@ gcms: ['ACCESS1-3', 'bcc-csm1-1', 'bcc-csm1-1-m',
        'IPSL-CM5A-MR', 'IPSL-CM5B-LR', 'MIROC5',
        'MIROC-ESM-CHEM', 'MPI-ESM-LR', 'NorESM1-M']
 
+rip:
+  EC-EARTH: r12i1p1
+
 f_opts:
   var: tasmin
   freq: day
 
 #2nd loop on regions
 regions:
-  - SWE # [SWE, NSWE, SSWE, EU, GLOBAL]
+  - ALL # [SWE, NSWE, SSWE, EU, GLOBAL]
 sub_r:
-  lon:
-    SWE: [10.0, 23.0]
-    EU: [-15.0, 60.0]
-  lat:
-    SWE: [55.0, 69.0]
-    EU: [35.0, 72.0]
+  SWE:
+    longitude: [10.0, 23.0]
+    latitude: [55.0, 69.0]
+  EUR:
+    longitude: [-15.0, 60.0]
+    latitude: [35.0, 72.0]
 
 #3rd loop on periods
 periods:
-  - hist # [hist, rcp]
+  - rcp # [hist, rcp]
 p_:
-  ref: [1971, 2000]
+  ref: [1981, 2010]
   hist: [1951, 2005]
   rcp: [2006, 2100]
 
 #season
-season: mjja
+season: ndjf
 
 #output
-root: /home/sm_chali/wks/
-med: med/10_ymax/
-res: res/cmip5/hist/10_ymax/
-fn_thr: thr.nc
-fn_hwmi: cwmi.nc
-fn_wsdi: csdi.nc
-fn_kde: kde.npz
+root: /nobackup/rossby22/sm_chali/DATA/
 
 #subH_() option
 minL: 3
@@ -56,7 +57,7 @@ minL: 3
 data4kde_mtd: 'ymax'
 
 #thr_() option
-thr_pctl: 10
+thr_pctl: 90
 
 #kde_ option
 kde_opts:

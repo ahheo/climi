@@ -16,6 +16,7 @@ Date last modified: 19.10.2020
 import warnings
 import glob
 import os
+import yaml
 import iris
 import numpy as np
 import re
@@ -40,7 +41,7 @@ __all__ = ['bi_cmip5_info_',
            'get_ts_clmidx_',
            'get_ts_eval_',
            'get_ts_h248_',
-           'gp_',
+           'gwl_p_',
            'load_clmidx_',
            'load_clmidx_eval_',
            'load_fx_',
@@ -221,7 +222,7 @@ def load_fx_(fxdir, dn):
     Purpose: load fx cubes 'sftlf' & 'areacella' required by rgMean_cube()
     """
     warnings.filterwarnings("ignore", category=UserWarning)
-    if not isinstance(dn, (set, tuple, list)):
+    if isinstance(dn, str):
         rgm_opts = {}
         fn = schF_keys_(fxdir, '_{}_'.format(dn), 'sftlf')
         if len(fn) > 0:
@@ -234,7 +235,7 @@ def load_fx_(fxdir, dn):
             repair_lccs_(o)
             rgm_opts.update({'areacella': o})
         return rgm_opts
-    else:
+    elif isIter_(dn, xi=str):
         return [load_fx_(fxdir, i) for i in dn]
 
 
@@ -662,7 +663,7 @@ def map_sim_(dn):
         rip = re.split('[rip]', c)[1]
         ndn = ''.join((aa, rip, rd[d], e[1:]))
         return ndn
-    else:
+    elif isIter_(dn, xi=str):
         return [map_sim_(i) for i in dn]
 
 
@@ -710,29 +711,26 @@ def map_sim_cmip5_(dn):
         p_ = '' if p_ == '1' else 'p' + p_
         ndn = ''.join((gd[a], b[3:], r_, i_, p_))
         return ndn
-    else:
+    elif isIter_(dn, xi=str):
         return [map_sim_cmip5_(i) for i in dn]
 
 
-def load_h248_(idir, var='hwmid', txn='tx', m='', freq='', y0y1=None):
-    def _hist(ifn):
-        return re.sub(r'_v\d[a-zA-Z]?(?=_)', '_v*',
-                      re.sub(r'_\d{4}-\d{4}', '_[1-9]*-[1-9]*',
-                             ifn.replace(idir_, 'historical')))
-    ss = ('djf', 'mam', 'jja', 'son', 'mjja', 'ndjf')
-    tmp = idir.split('/')
-    idir_ = tmp[-1] if tmp[-1] else tmp[-2]
+def load_h248_(idir, var='hwmid-tx', m='', rcp='', ref='', freq='j-d',
+               y0y1=None):
+    def _hist(ifn): ########################concatenate historical and rcp runs
+        fnh = re.sub(r'_\d{4}-\d{4}', '_[1-9]*-[1-9]*', ############data period 
+                     ifn.replace(rcp, 'historical')) #######################rcp
+        if len(glob.glob(fnh)) == 0:
+            fnh = re.sub(r'_v\d[a-zA-Z]?(?=_)', '_v*', fnh) ########rcm version
+        return fnh
     m = '_{}_'.format(m) if m else m
-    fn = schF_keys_(idir, '-'.join((var, txn)), m)
-    freq = '' if freq == 'year' else freq
-    if freq:
-        fn = slctStrL_(fn, incl='_{}'.format(freq))
-    else:
-        fn = slctStrL_(fn, excl=ss)
+    freq = 'j-d' if freq == '' else freq
+    fn = schF_keys_(idir, var, m, rcp,
+                    'ref{}-{}'.format(*ref) if ref else '', freq)
     if fn:
         fn.sort(key=lambda x: x.upper())
         fn_ = pure_fn_(fn)
-        if idir_[:3] == 'rcp':
+        if rcp[:3] == 'rcp':
             fn = [[_hist(i), i] for i in fn]
         o = [iris.load(i) for i in fn]
         o = [i[0] if len(i) == 1 else concat_cube_(i) for i in o]
@@ -757,40 +755,42 @@ def get_ts_h248_(cubeL, fnL, folder, fxdir=None, poly=None, reD=None):
     return a
 
 
-def gp_(gwl, rcp, gcm, rip, folder='cordex'):
-    if folder == 'cmip5':
-        yf = _here_ + 'gcm_gwls_.yml'
-    elif folder == 'cordex':
-        yf = _here_ + 'gcm_gwls.yml'
-    else:
-        raise Exception("unknown folder: {!r}".format(folder))
-    with open(yf, 'r') as ymlfile:
+def _lly(yfn):
+    with open(_here_ + yfn, 'r') as ymlfile:
         gg = yaml.safe_load(ymlfile)
+    return gg
+
+
+gg_ = _lly('gcm_gwls_.yml')
+gg = _lly('gcm_gwls.yml')
+
+
+def gwl_p_(gwl, rcp, gcm, rip):
     try:
         y0 = gg[gwl][rcp][gcm][rip]
     except KeyError:
-        y0 = None
+        try:
+            y0 = gg_[gwl][rcp][gcm][rip]
+        except KeyError:
+            y0 = None
     return [y0, y0 + 29] if y0 else None
 
 
-def _periodL(fnL, period, folder='cordex', rcp=None):
+def _periodL(fnL, period, rcp=None):
     if (isinstance(period, str)
         and period[:3] == 'gwl'
-        and rcp in ('rcp26', 'rcp45', 'rcp85')
-        and folder in ('cordex', 'cmip5')):
+        and rcp in ('rcp26', 'rcp45', 'rcp85')):
         tmp = [i.split('_')[1:3] for i in fnL]
-        pL = [gp_(period, rcp, i[0], i[1]) for i in tmp]
-    elif (isMyIter_(period)
-          and len(period) == 2
-          and all([isinstance(i, int) for i in period])):
+        pL = [gwl_p_(period, rcp, i[0], i[1]) for i in tmp]
+    elif (isIter_(period, xi=int) and len(period) == 2):
         pL = (period,) * len(fnL)
     else:
         pL = None
     return pL
 
 
-def get_period_h248_(cubeL, fnL, period, folder='cordex', rcp=None):
-    pL = _periodL(fnL, period, folder=folder, rcp=rcp)
+def get_period_h248_(cubeL, fnL, period, rcp=None):
+    pL = _periodL(fnL, period, rcp=rcp)
     def _c(c, p):
         return extract_period_cube(c, *p) if p else None
     if pL:

@@ -23,16 +23,14 @@
 * getGridA_cube         : grid_area from file or calc with basic assumption
 * get_gwl_y0_           : first year of 30-year window of global warming level
 * get_lon_lat_dimcoords_: modified _get_lon_lat_coords from iris
-* get_x_y_dimcoords_    : horizontal spatial dim coords
+* get_xy_dim_           : horizontal spatial dim coords
 * get_xyd_cube          : cube axes of xy dims
 * guessBnds_cube        : bounds of dims points
+* half_grid_            : points between grids
 * initAnnualCube_       : initiate annual cube
 * inpolygons_cube       : points if inside polygons
 * intersection_         : cube intersection with lon/lat range
-* iris_regrid_          : using iris.cube.Cube.regrid but keeping aux_coords
-* isGI_                 : if Iterator
-* isIter__              : if Iterable but not str or bytes
-* isMyIter_             : if Iterable but not cube ndarray str or bytes
+* isMyIter_             : Iterable with items as cube/ndarray
 * kde_cube              : kernal distribution estimation over all cube data
 * lccs_m2km_            : change LambfortComfort unit
 * maskLS_cube           : mask land or sea area
@@ -47,10 +45,9 @@
 * minmax_cube_          : minmax of cube(L) data (all)
 * nTslice_cube          : slices along a no-time axis
 * pSTAT_cube            : period statistic (month, season, year)
-* pst_                  : post-rename/reunits cube(L) 
+* pst_                  : post-rename/reunits cube(L)
 * pp_cube               : pth and 100-pth of cube(L) data (each)
 * purefy_cubeL_         : prepare for concat or merge
-* remap_ll_             : remap cube
 * repair_cs_            : bug fix for save cube to nc
 * repair_lccs_          : bug fix for save cube to nc (LamgfortComfort)
 * rgMean_cube           : regional mean
@@ -68,8 +65,8 @@
             Author: Changgui Lin
             E-mail: changgui.lin@smhi.se
       Date created: 06.09.2019
-Date last modified: 24.09.2020
-           comment: add func nTslice_cube for slicing cube along a no-Time axis
+Date last modified: 11.11.2020
+           comment: add function half_grid_, move remaping functions to rgd.py
 """
 
 import numpy as np
@@ -80,7 +77,6 @@ from iris.experimental.equalise_cubes import equalise_attributes
 import cf_units
 import warnings
 from datetime import datetime
-from typing import Iterable, Iterator
 
 from .ffff import *
 
@@ -106,15 +102,13 @@ __all__ = ['alng_axis_',
            'getGridA_cube',
            'get_gwl_y0_',
            'get_lon_lat_dimcoords_',
-           'get_x_y_dimcoords_',
+           'get_xy_dim_',
            'get_xyd_cube',
            'guessBnds_cube',
+           'half_grid_',
            'initAnnualCube_',
            'inpolygons_cube',
            'intersection_',
-           'iris_regrid_',
-           'isGI_',
-           'isIter_',
            'isMyIter_',
            'kde_cube',
            'lccs_m2km_',
@@ -133,7 +127,6 @@ __all__ = ['alng_axis_',
            'pst_',
            'pp_cube',
            'purefy_cubeL_',
-           'remap_ll_',
            'repair_cs_',
            'repair_lccs_',
            'rgMean_cube',
@@ -170,7 +163,8 @@ def slice_back_(cnd, c1d, ii, axis):
                             'along axis {}'.format(axis))
     else:
         axis = cyl_(axis, len(cnd.shape))
-        if isinstance(axis, Iterable) and not np.all(np.diff(axis) == 1):
+        if (isIter_(axis, xi=(int, np.integer)) and
+            not np.all(np.diff(axis) == 1)):
             raise Exception("unknown axis!")
         if not np.all(np.asarray(cnd.shape)[axis] == np.asarray(c1d.shape)):
             raise Exception('slice NOT matched its parent '
@@ -211,28 +205,15 @@ def extract_byAxes_(cnd, axis, sl_i, *vArg):
         sl = [sl_i]
 
     if isinstance(cnd, iris.cube.Cube):
-        ax = [cnd.coord_dims(ii)[0] if isinstance(ii, str) else ii
-              for ii in ax]
+        ax = [cnd.coord_dims(i)[0]
+              if isinstance(i, (str, iris.coords.DimCoord)) else i
+              for i in ax]
 
-    nArg = [(ii, jj) for ii, jj in zip(ax, sl)]
-    nArg = tuple(jj for ii in nArg for jj in ii)
+    nArg = [(i, j) for i, j in zip(ax, sl)]
+    nArg = tuple(j for i in nArg for j in i)
     inds = inds_ss_(cnd.ndim, *nArg)
 
     return cnd[inds]
-
-
-def isGI_(x):
-    return isinstance(x, Iterator)
-
-
-def isIter_(x, xi=None, XI=(str, bytes)):
-    o = isinstance(x, Iterable) and not isinstance(x, XI)
-    if xi and o:
-        if not isGI_(x):
-            o = o and all([isinstance(i, xi) or i is None for i in x])
-        else:
-            warnings.warn("xi ignored for Iterator or Generator!")
-    return o
 
 
 def isMyIter_(x):
@@ -241,22 +222,25 @@ def isMyIter_(x):
                    XI=(np.ndarray, iris.cube.Cube, str, bytes))
 
 
-def pst_(cube, name=None, units=None, var_name=None):                            
-    if isinstance(cube, iris.cube.Cube):                                                        
-        if name:                                                                
-            cube.rename(name)                                                    
-        if units:                                                               
-            cube.units = units                                                   
-        if var_name:                                                            
-            cube.var_name = var_name                                             
-    elif isMyIter_(cube):                                                                       
-        for i in cube:                                                           
+def pst_(cube, name=None, units=None, var_name=None):
+    if isinstance(cube, iris.cube.Cube):
+        if name:
+            cube.rename(name)
+        if units:
+            cube.units = units
+        if var_name:
+            cube.var_name = var_name
+    elif isMyIter_(cube):
+        for i in cube:
             pst_(i, name=name, units=units, var_name=var_name)
 
 
 def axT_cube(cube):
-    tmp = cube.coord_dims('time')
-    return None if len(tmp) == 0 else tmp[0]
+    try:
+        tc = cube.coord(axis='T', dimcoords=True)
+        return cube.coord_dims(tc)[0]
+    except:
+        return None
 
 
 def nTslice_cube(cube, n):
@@ -446,14 +430,18 @@ def minmax_cube_(cube, rg=None, p=None):
 
 
 def get_xyd_cube(cube):
-    xc, yc = get_x_y_dimcoords_(cube)
+    xc, yc = get_xy_dim_(cube)
+    if xc is None or yc is None:
+        raise Exception("missing 'x' or 'y' dimcoord.")
     xyd = list(cube.coord_dims(xc) + cube.coord_dims(yc))
     xyd.sort()
     return xyd
 
 
 def _get_xy_lim(cube, lol=None, lal=None):
-    xc, yc = get_x_y_dimcoords_(cube)
+    xc, yc = get_xy_dim_(cube)
+    if xc is None or yc is None:
+        raise Exception("missing 'x' or 'y' dimcoord.")
     lo, la = cube.coord('longitude'), cube.coord('latitude')
     if lol is None:
         lol = [lo.points.min(), lo.points.max()]
@@ -466,12 +454,7 @@ def _get_xy_lim(cube, lol=None, lal=None):
                  np.intersect1d(cube.coord_dims(lo), cube.coord_dims(xc)))
         yd = cube.coord_dims(lo).index(
                  np.intersect1d(cube.coord_dims(lo), cube.coord_dims(yc)))
-        if np.all(lo.points >= 0) and np.any(np.asarray(lol) < 0):
-            a_ = ind_inRange_(cyl_(lo.points, 180, -180), *lol)
-        elif np.all(lo.points <= 180) and np.any(np.asarray(lol) > 180):
-            a_ = ind_inRange_(cyl_(lo.points, 360, 0), *lol)
-        else:
-            a_ = ind_inRange_(lo.points, *lol)
+        a_ = ind_inRange_(lo.points, *lol, r_=360)
         b_ = ind_inRange_(la.points, *lal)
         c_ = np.logical_and(a_, b_)
         xi, yi = np.where(np.any(c_, axis=yd)), np.where(np.any(c_, axis=xd))
@@ -502,12 +485,7 @@ def _get_ind_lolalim(cube, lol=None, lal=None):
         lal = [la.min(), la.max()]
     if lo.ndim == 1:
         lo, la = np.meshgrid(lo, la)
-    if np.all(lo >= 0) and np.any(np.asarray(lol) < 0):
-        a_ = ind_inRange_(cyl_(lo, 180, -180), *lol)
-    elif np.all(lo <= 180) and np.any(np.asarray(lol) > 180):
-        a_ = ind_inRange_(cyl_(lo, 360, 0), *lol)
-    else:
-        a_ = ind_inRange_(lo, *lol)
+    a_ = ind_inRange_(lo, *lol, r_=360)
     b_ = ind_inRange_(la, *lal)
     c_ = np.logical_and(a_, b_)
     return robust_bc2_(c_, cube.shape, xyd)
@@ -529,19 +507,6 @@ def intersection_(cube, **kwArgs):
             return cube.intersection(**xyl)
         else:
             return  extract_byAxes_(cube, *xyl)
-        #else:
-        #    longitude = kwArgs['longitude']
-        #    latitude = kwArgs['latitude']
-        #    lo = ind_inRange_(cube.coord('longitude').points.data,
-        #                      longitude[0], longitude[-1])
-        #    la = ind_inRange_(cube.coord('latitude').points.data,
-        #                      latitude[0], latitude[-1])
-        #ii = np.logical_and(lo, la)
-        #minii = np.min(np.argwhere(ii), axis=0)
-        #maxii = np.max(np.argwhere(ii), axis=0)
-        #cube_i = extract_byAxes_(cube, -2, np.s_[minii[0]:maxii[0]+1],
-        #                         -1, np.s_[minii[-1]:maxii[-1]+1])
-        #return cube_i
 
 
 def seasonyr_cube(cube, mmm):
@@ -658,23 +623,12 @@ def get_lon_lat_dimcoords_(cube):
     return (lon_coord, lat_coord)
 
 
-def get_x_y_dimcoords_(cube):
-    """
-    ... get x and y coords (dimcoords only) ...
-    """
-    ycn = ['latitude', 'y_coord', 'y-coord', 'y coord', 'second']
-    xcn = ['longitude', 'x_coord', 'x-coord', 'x coord', 'first']
-    y_coords = [coord for coord in cube.dim_coords
-                if any([i in coord.name() for i in ycn])]
-    x_coords = [coord for coord in cube.dim_coords
-                if any([i in coord.name() for i in xcn])]
-    if len(y_coords) > 1 or len(x_coords) > 1:
-        raise ValueError(
-            "Calling `get_x_y_dimcoords_` with multiple x or y coords"
-            " is currently disallowed")
-    y_coord = y_coords[0]
-    x_coord = x_coords[0]
-    return (x_coord, y_coord)
+def get_xy_dim_(cube):                                                          
+    try:                                                                        
+        return (cube.coord(axis='X', dim_coords=True),                          
+                cube.coord(axis='Y', dim_coords=True))                          
+    except:                                                                     
+        return (None, None)
 
 
 def area_weights_(cube, normalize=False):
@@ -765,20 +719,17 @@ def cut_as_cube(cube0, cube1):
     """
     ... cut cube1 with the domain of cube0 ...
     """
-    xc, yc = get_x_y_dimcoords_(cube1)
-    xn = xc.name()
-    yn = yc.name()
-    xe = np.min(np.abs(np.diff(cube1.coord(xn).points)))/2
-    ye = np.min(np.abs(np.diff(cube1.coord(yn).points)))/2
-    x0 = np.min(cube0.coord(xn).points)
-    x1 = np.max(cube0.coord(xn).points)
-    y0 = np.min(cube0.coord(yn).points)
-    y1 = np.max(cube0.coord(yn).points)
+    xc1, yc1 = get_xy_dim_(cube1)
+    xc0, yc0 = get_xy_dim_(cube0)
+    xe = np.min(np.abs(np.diff(xc1.points)))/2
+    ye = np.min(np.abs(np.diff(yc1.points)))/2
+    x0, x1 = np.min(xc0.points), np.max(xc0.points)
+    y0, y1 = np.min(yc0.points), np.max(yc0.points)
     cube_ = extract_byAxes_(cube1,
-                            xn, ind_inRange_(cube1.coord(xn).points,
-                                             x0 - xe, x1 + xe, False),
-                            yn, ind_inRange_(cube1.coord(yn).points,
-                                             y0 - ye, y1 + ye, False))
+                            xn, ind_inRange_(xc1.points,
+                                             x0 - xe, x1 + xe, side=0),
+                            yn, ind_inRange_(yc1.points,
+                                             y0 - ye, y1 + ye, side=0))
     return cube_
 
 
@@ -858,7 +809,7 @@ def rgMean_cube(cubeD, sftlf=None, areacella=None, rgD=None):
             ga = ind * np.ones(ind.shape)
         else:
             ga *= ind
-    xc, yc = get_x_y_dimcoords_(cubeD)
+    xc, yc = get_xy_dim_(cubeD)
     if ga is None:
         return cubeD.collapsed([xc, yc], iris.analysis.MEAN)
     else:
@@ -881,9 +832,9 @@ def get_gwl_y0_(cube, gwl, pref=[1861, 1890]):
     else:
         o = np.empty(tref.shape + np.array(gwl).shape)
         ax = c.coord_dims('year')[0]
-        for i in range(nSlice_(c.shape, ax)):                                 
-            ind = ind_shape_i_(c.shape, i, ax)    
-            ind_ = ind_shape_i_(tref.shape, i, axis=None)                            
+        for i in range(nSlice_(c.shape, ax)):
+            ind = ind_shape_i_(c.shape, i, ax)
+            ind_ = ind_shape_i_(tref.shape, i, axis=None)
             ind__ = ind_shape_i_(o.shape, i,
                                  axis=-1 if np.array(gwl).shape else None)
             o[ind__] = np.array(_G_tR(gwl, tref[ind]))
@@ -933,7 +884,7 @@ def rgMean_poly_cube(cubeD, poly, sftlf=None, areacella=None, **kwArgs):
     warnings.filterwarnings("ignore", category=UserWarning)
     ga = getGridAL_cube(cubeD, sftlf, areacella)
     ind = inpolygons_cube(poly, cubeD, **kwArgs)
-    xc, yc = get_x_y_dimcoords_(cubeD)
+    xc, yc = get_xy_dim_(cubeD)
     if ga is None:
         ga = ind * np.ones(ind.shape)
     else:
@@ -1170,6 +1121,7 @@ def en_rip_(cubeL):
 
 
 def en_mm_cubeL_(cubeL, opt=0, cref=None):
+    from .rgd import rgd_scipy_, rgd_iris_, rgd_li_opt0_
     tmpD = {}
     cl = []
     for i, c in enumerate(cubeL):
@@ -1179,14 +1131,11 @@ def en_mm_cubeL_(cubeL, opt=0, cref=None):
         else:
             cref.attributes = {}
         if opt == 0:
-            try:
-                tmp = iris_regrid_(cref, c, rmpm)
-            except:
-                tmp = remap_ll_(cref, c)
+            tmp = rgd_li_opt0_(c, cref)
         elif opt == 1:
-            tmp = iris_regrid_(cref, c, rmpm)
+            tmp = rgd_iris_(c, cref)
         elif opt == 2:
-            tmp = remap_ll_(cref, c)
+            tmp = rgd_scipy_(c, cref)
         else:
             raise ValueError('opt should be one of (0, 1, 2)!')
         a0 = tmpD.setdefault('a0', tmp)
@@ -1257,10 +1206,10 @@ def ax_fn_mp_(arr, ax, func, out, *args, npr=32, **kwargs):
         arr = (arr,)
 
     P = mp.Pool(nproc)
-    def _i(i, sl_=np.s_[:,]):
+    def _i(i, sl_=np.s_[:]):
         return ind_shape_i_(arr[0].shape, i, ax, sl_)
     X = P.starmap_async(_func, [(func, (i, tuple([ii[_i(i)] for ii in arr]),
-                                o0[_i(i, sl_=np.s_[0,])], args, kwargs))
+                                o0[_i(i, sl_=0)], args, kwargs))
                                 for i in range(nSlice_(arr[0].shape, ax))])
     XX = X.get()
     P.close()
@@ -1485,118 +1434,36 @@ def cubesv_(cube, filename, netcdf_format='NETCDF4', local_keys=None,
                                          '_{}{}'.format(i, ext_(filename))))
 
 
-def remap_ll_(cref, cdata, method='linear', fill_value=None, rescale=False):
-    #from scipy.interpolate import griddata
-
-    lo0, la0 = cref.coord('longitude'), cref.coord('latitude')
-    lo1, la1 = cdata.coord('longitude'), cdata.coord('latitude')
-    for i in (lo0, la0, lo1, la1):
-        i.convert_units('degrees')
-    if lo0.ndim == 1:
-        x0, y0 = np.meshgrid(lo0.points, la0.points)
+def half_grid_(x, side='i', axis=-1, loa=None, rb=360):
+    dx = np.diff(x, axis=axis)
+    if loa == 'lo':
+        lb = rb - 360
+        dx = cyl_(dx, 180, -180)
+    tmp = extract_byAxes_(x, axis, np.s_[:-1]) + dx * .5
+    if side in (0, 'i', 'inner'):
+        o = tmp
+    elif side in (-1, 'l', 'left'):
+        o = np.concatenate((extract_byAxes_(x, axis, np.s_[:1]) -
+                            extract_byAxes_(dx, axis, np.s_[:1]) * .5,
+                            tmp),
+                           axis=axis)
+    elif side in (1, 'r', 'right'):
+        o = np.concatenate((tmp,
+                            extract_byAxes_(x, axis, np.s_[-1:]) +
+                            extract_byAxes_(dx, axis, np.s_[-1:]) * .5),
+                           axis=axis)
+    elif side in (2, 'b', 'both'):
+        o = np.concatenate((extract_byAxes_(x, axis, np.s_[:1]) -
+                            extract_byAxes_(dx, axis, np.s_[:1]) * .5,
+                            tmp,
+                            extract_byAxes_(x, axis, np.s_[-1:]) +
+                            extract_byAxes_(dx, axis, np.s_[-1:]) * .5),
+                           axis=axis)
     else:
-        x0, y0 = lo0.points, la0.points
-    if lo1.ndim == 1:
-        x1, y1 = np.meshgrid(lo1.points, la1.points)
-    else:
-        x1, y1 = lo1.points, la1.points
-    if np.all(x0 >= 0) and np.any(x1 < 0):
-        x1 = cyl_(x1, 360)
-    if np.all(x0 <= 180) and np.any(x1 > 180):
-        x1 = cyl_(x1, 180, -180)
-
-    sh0, sh1 = np.asarray(cref.shape), np.asarray(cdata.shape)
-    xydim0 = cref.coord_dims(lo0) + cref.coord_dims(la0)
-    xydim1 = cdata.coord_dims(lo1) + cdata.coord_dims(la1)
-
-    nsh = sh1.copy()
-    dmap = {}
-    for i, ii in zip(xydim0, xydim1):
-         nsh[ii] = sh0[i]
-         dmap.update({i: ii})
-    nsh = tuple(nsh)
-    data = np.empty(nsh)
-
-    data1 = nanMask_(cdata.data)
-    data0 = nanMask_(cref.data)
-    ind__ = np.isnan(data0[ind_shape_i_(cref.shape, 0, xydim0)])
-    
-    #for i in range(nSlice_(cdata.shape, xydim1)):
-    #    ind = ind_shape_i_(cdata.shape, i, xydim1)
-    #    dd = data1[ind]
-    #    ind_ = ~np.isnan(dd)
-    #    tmp = griddata((x1[ind_], y1[ind_]), dd[ind_],
-    #                   (x0.ravel(), y0.ravel()), method=method,
-    #                   fill_value=fill_value, rescale=rescale)
-    #    tmp = tmp.reshape(x0.shape)
-    #    tmp[ind__] = np.nan
-    #    slice_back_(data, tmp, i, xydim1)
-    ax_fn_mp_(data1, xydim1, _regrid_slice, data, x1, y1, x0, y0, ind__,
-              method, np.nan, rescale)
-
-    nmsk = np.isnan(data)
-    fill_value = fill_value if fill_value\
-                 else (cdata.data.fill_value
-                       if hasattr(cdata.data, 'fill_value') else 1e+20)
-    data[nmsk] = fill_value
-    data = np.ma.MaskedArray(data, nmsk)
-
-    dimc_dim = []
-    for c in cdata.dim_coords:
-        dim = cdata.coord_dims(c)[0]
-        if dim not in xydim1:
-            dimc_dim.append((c, dim))
-    xc0, yc0 = get_x_y_dimcoords_(cref)
-    xc1, yc1 = get_x_y_dimcoords_(cdata)
-    dimc_dim.append((xc0, cdata.coord_dims(xc1)[0]))
-    dimc_dim.append((yc0, cdata.coord_dims(yc1)[0]))
-
-    auxc_dim = []
-    for c in cdata.aux_coords:
-        dim = cdata.coord_dims(c)
-        if not any([dim_ in xydim1 for dim_ in dim]):
-            auxc_dim.append((c, dim))
-    for c in cref.aux_coords:
-        dim = cref.coord_dims(c)
-        if dim and all([dim_ in xydim0 for dim_ in dim]):
-            auxc_dim.append((c, tuple(dmap[dim_] for dim_ in dim)))
-
-    return iris.cube.Cube(data, standard_name=cdata.standard_name,
-                          long_name=cdata.long_name,
-                          var_name=cdata.var_name, units=cdata.units,
-                          attributes=cdata.attributes,
-                          cell_methods=cdata.cell_methods,
-                          dim_coords_and_dims=dimc_dim,
-                          aux_coords_and_dims=auxc_dim,
-                          aux_factories=None,
-                          cell_measures_and_dims=None)
-
-
-def _regrid_slice(dd, x1, y1, x0, y0, ind__, method, fill_value, rescale): 
-    from scipy.interpolate import griddata
-    ind_ = ~np.isnan(dd)
-    tmp = griddata((x1[ind_], y1[ind_]), dd[ind_],
-                   (x0.ravel(), y0.ravel()), method=method,
-                   fill_value=fill_value, rescale=rescale)
-    tmp = tmp.reshape(x0.shape)
-    tmp[ind__] = np.nan
-    return tmp
-
-
-def _dmap(cref, cdata):
-    x0, y0 = get_x_y_dimcoords_(cref)
-    x1, y1 = get_x_y_dimcoords_(cdata)
-    return {cref.coord_dims(x0)[0]: cdata.coord_dims(x1)[0],
-            cref.coord_dims(y0)[0]: cdata.coord_dims(y1)[0]}
-
-
-def iris_regrid_(cref, cdata, scheme=None):
-    scheme = scheme if scheme else\
-             iris.analysis.Linear(extrapolation_mode='mask')
-    tmp = cdata.regrid(cref, scheme)
-    dmap = _dmap(cref, cdata)
-    for c in cref.aux_coords:
-        dim = cref.coord_dims(c)
-        if dim and all([dim_ in dmap.keys() for dim_ in dim]):
-            tmp.add_aux_coord(c, tuple(dmap[dim_] for dim_ in dim))
-    return tmp
+        raise ValueError("unknow value of side!")
+    if loa == 'lo':
+        o = cyl_(o, rb, lb)
+    if loa == 'la':
+        o = np.where(o > 90, 90, o)  
+        o = np.where(o < -90, -90, o)
+    return o

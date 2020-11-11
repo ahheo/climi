@@ -35,11 +35,12 @@ sub_r:
 p_:
 #  ref: [1756, 2005]
 #  ref: [1971, 2000]
-  ref: [1989, 2008]
+  ref: [1981, 2010]
+#  ref: [1989, 2008]
 #  hist: [1951, 2018]
 
 #season
-season: mjja
+season: ndjf
 
 #output
 root: /nobackup/rossby22/sm_chali/DATA/

@@ -2,16 +2,10 @@
 >--#¤&#¤%/%&(¤%¤#%"¤#"#¤%&¤#!"#%#%&()/=?=()/&%¤%&/()/£$€¥{[}]()=?=)(/&¤%&/()--<
 >--------------------------Heat Wave Magnitude Index---application interface--<
 >--#¤&&()/=?=()/&#¤%&/(=)(/&$€¥{[]}]\±$¡$£€@"#%¤#¤&/("#¤!&/(%&"#¤"¤%&#%/)/*#--<
-* get_cube_obs_     : cube with yr & doy & ax_t     --> hwmi_obs_
 * hwmi_obs_         : hwmi for observational data
-* get_cube_m_       : cube with yr & doy & ax_t     --> hwmi_cmip5_
-                                                        hwmi_cordex_
-* get_cube0_m_      : cubes of ref. & inv.          --> hwmi_cmip5_
-                                                        hwmi_cordex_
-* inloop_rg_hwmi_m_ : care for model data           --> hwmi_cmip5_
-                                                        hwmi_cordex_
 * hwmi_cmip5_       : hwmi for cmip5 data
 * hwmi_cordex_      : hwmi for cordex data
+* hwmi_other_       : hwmi for other data sets
 
 * main              : with controlfile
                     : >>> cube >>> _
@@ -50,8 +44,8 @@ __all__ = ['hwmi_obs_',
 _here_ = get_path_(__file__)
 
 
-def dictdict_(cfg, fn_):
-    dd__ = {}
+def _dictdict(cfg, fn_):
+    dd = {}
     mdir = '{}{}/med/'.format(cfg['root'], cfg['experiment'])
     rref = rPeriod_(cfg['p_']['ref'])
     minL = cfg['minL'] if 'minL' in cfg else 3
@@ -60,7 +54,7 @@ def dictdict_(cfg, fn_):
     mtd = cfg['data4kde_mtd'] if 'data4kde_mtd' in cfg else 'ymax'
     fnkde = '{}_{}_{}_{}-{}.npz'.format('kde', fn_, rref, pctl, mtd)
     kdeo = cfg['kde_opts'] if 'kde_opts' in cfg else {}
-    dd__.update({'dict_p': cfg['p_'],
+    dd.update({'dict_p': cfg['p_'],
                  'mdir': mdir,
                  'rref': rref,
                  'minL': minL,
@@ -70,10 +64,10 @@ def dictdict_(cfg, fn_):
                  'rCube': (),
                  'pn': 'data'})
     if not cfg['_d']:
-        dd__.update({'mtd': mtd,
+        dd.update({'mtd': mtd,
                      'fnkde': fnkde,
                      'kdeo': kdeo})
-    return dd__
+    return dd
 
 
 def _cmip5_dirs(cfg, gcm, rip):
@@ -98,8 +92,6 @@ def _cmip5_dirs(cfg, gcm, rip):
             else:
                 raise Exception("{!r} invalid for 'ehr'".format(cfg['ehr']))
             return o1
-        else:
-            return None
 
 
 def _cmip5_dir(incl, dL=None):
@@ -111,7 +103,7 @@ def _cmip5_dir(incl, dL=None):
         return (None, None)
     else:
         tmp = path2cmip5_info_(out[-1])
-        fn = '_'.join([tmp['gcm'], tmp['rip']])
+        fn = '_'.join([tmp['gcm'], tmp['rcp'], tmp['rip']])
         return (out[0], fn)
 
 
@@ -157,7 +149,8 @@ def _imp_dir(incl, dL=None):
         return (None, None)
     else:
         tmp = path2cordex_info_(out[-1])
-        fn = '_'.join([tmp['gcm'], tmp['rip'], tmp['rcm'], tmp['version']])
+        fn = '_'.join([tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
+                       tmp['version']])
         return (out[-1], fn)
 
 
@@ -171,7 +164,8 @@ def _smhi_dir(incl, sY=None):
         return (None, None)
     else:
         tmp = sY[out[-1]]
-        fn = '_'.join([tmp['gcm'], tmp['rip'], tmp['rcm'], tmp['version']])
+        fn = '_'.join([tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
+                       tmp['version']])
         return ('{}{}/netcdf/'.format(sY['root'], out[-1]), fn)
 
 
@@ -183,36 +177,36 @@ def _var(cfg, hORc):
     return out
 
 
-def mk_odir_(cfg):
+def _mk_odir(cfg):
     odir = '{}{}/res/{}/{}/'.format(cfg['root'], cfg['experiment'],
                                   cfg['proj'], cfg['thr_pctl'])
     if not cfg['_d']:
         mtd = cfg['data4kde_mtd'] if 'data4kde_mtd' in cfg else 'ymax'
         odir += '{}/'.format(mtd)
-    if 'ehr' in cfg:
-        odir += '{}/'.format(cfg['ehr'])
+    #if 'ehr' in cfg:
+    #    odir += '{}/'.format(cfg['ehr'])
     os.makedirs(odir, exist_ok=True)
     return odir
 
 
-def check_med_f_(dd__, _d=False):
+def _check_med_f(dd, _d=False):
     if _d:
         return False
-        #return os.path.isfile(dd__['mdir'] + dd__['fnthr'])
+        #return os.path.isfile(dd['mdir'] + dd['fnthr'])
     else:
-        return os.path.isfile(dd__['mdir'] + dd__['fnkde']) and \
-               os.path.isfile(dd__['mdir'] + dd__['fnthr'])
+        return os.path.isfile(dd['mdir'] + dd['fnkde']) and \
+               os.path.isfile(dd['mdir'] + dd['fnthr'])
 
 
-def inloop_func_(hORc, dd__, _d=False):
+def _inloop_func(hORc, dd, _d=False):
     f__ = hwmid__ if _d else hwmi__
     if hORc[:4] == 'heat':
-       return f__(**dd__)
+       return f__(**dd)
     elif hORc[:4] == 'cold':
-       return f__(**dd__, hw=False)
+       return f__(**dd, hw=False)
 
 
-def tof_(out, odir, fn__, hORc, _d=False, _sdi=True):
+def _tof(out, odir, fn__, hORc, _d=False, _sdi=True):
     var_ = 'hwmi' if hORc[:4] == 'heat' else 'cwmi'
     iris.save(out['hwmi'], '{}{}{}-{}.nc'.format(odir, var_, 'd' * _d, fn__))
     if _sdi:
@@ -220,35 +214,39 @@ def tof_(out, odir, fn__, hORc, _d=False, _sdi=True):
         iris.save(out['wsdi'], '{}{}-{}.nc'.format(odir, var_, fn__))
 
 
-def frf_(odir, fn__, hORc, _d=False, _sdi=True):
-    def _frf(vv, dd):
-        o0 = iris.load('{}{}{}-{}_*.nc'.format(odir, vv, 'd' * dd, fn__))
-        if len(o0) > 2:
-            purefy_cubeL_(o0)
-            try:
-                o0 = o0.merge_cube()
-            except:
+def _frf(odir, fn__, hORc, _d=False, _sdi=True):
+    def _v_vd(v, vd):
+        fns = schF_keys_(odir, '{}{}-{}_'.format(v, 'd' * vd, fn__))
+        if len(fns) > 2:
+            o0 = iris.load(fns)
+            if len(o0) > 2:
+                purefy_cubeL_(o0)
                 try:
-                    o0 = o0.concatenate_cube()
+                    o0 = o0.merge_cube()
                 except:
-                    ll_('merge_cube() or concatenate_cube() failure!')
-            iris.save(o0, '{}{}{}-{}.nc'.format(odir, vv, 'd' * dd, fn__))
-            for i in schF_keys_(odir, '{}{}-{}_'.format(vv, 'd' * dd, fn__)):
+                    try:
+                        o0 = o0.concatenate_cube()
+                    except:
+                        ll_('merge_cube() or concatenate_cube() failure!')
+            else:
+                o0 = o0[0]
+            iris.save(o0, '{}{}{}-{}.nc'.format(odir, v, 'd' * vd, fn__))
+            for i in fns:
                 os.remove(i)
     var_ = 'hwmi' if hORc[:4] == 'heat' else 'cwmi'
-    _frf(var_, _d)
+    _v_vd(var_, _d)
     if _sdi:
         var_ = 'wsdi' if hORc[:4] == 'heat' else 'csdi'
-        _frf(var_, False)
+        _v_vd(var_, False)
 
 
-def k_get_(cfg, hORc):
+def _k_get(cfg, hORc):
     kGet = {'season': cfg['season']} if 'season' in cfg else {}
     kGet.update({'hORc': hORc})
     return kGet
 
 
-def get_cube_obs_(idir, dn, rn, dict_rg, *fn, season=None, hORc='heat',
+def _get_cube_obs(idir, dn, rn, dict_rg, *fn, season=None, hORc='heat',
                   keys=[]):
     from iris.experimental.equalise_cubes import equalise_attributes
 
@@ -304,7 +302,7 @@ def hwmi_obs_(cfg):
     """
     Purpose: hwmi for observational data
     """
-    odir = mk_odir_(cfg)
+    odir = _mk_odir(cfg)
     hORc = cfg['hORc'] if 'hORc' in cfg else 'heat'
     _d = cfg['_d'] if '_d' in cfg else False
     var = _var(cfg, hORc)
@@ -312,7 +310,7 @@ def hwmi_obs_(cfg):
         logging.info(' >>>>>>> {}'.format(dn))
         for rn in cfg['regions']:
             fn_ = '_'.join((var, dn, rn))
-            dd__ = dictdict_(cfg, fn_)
+            dd = _dictdict(cfg, fn_)
             #file name(s)
             if 'ifn' in cfg:
                 if isinstance(cfg['ifn'][dn], Hashable):
@@ -322,40 +320,40 @@ def hwmi_obs_(cfg):
             else:
                 fnL = ()
             #taking care of season
-            kGet = k_get_(cfg, hORc)
+            kGet = _k_get(cfg, hORc)
             kGet_ = dict(keys=cfg['f_opts'].values()) if 'f_opts' in cfg\
                     else dict()
             #reading dCube
             try:
-                dCube = get_cube_obs_(cfg['idir'], dn, rn, cfg['sub_r'],
+                dCube = _get_cube_obs(cfg['idir'], dn, rn, cfg['sub_r'],
                                       *fnL, **kGet, **kGet_)
             except:
                 continue
             #reading rCube
-            if check_med_f_(dd__, _d):
+            if _check_med_f(dd, _d):
                 rCube = ()
             else:
-                rCube = get_cube_obs_(cfg['idir'], dn, rn, cfg['sub_r'],
+                rCube = _get_cube_obs(cfg['idir'], dn, rn, cfg['sub_r'],
                                       *fnL, **kGet_)
-            #updating dd__
-            dd__.update({'dCube': dCube, 'rCube': rCube})
+            #updating dd
+            dd.update({'dCube': dCube, 'rCube': rCube})
             #preparing output names
-            fn__ = '_'.join((fn_, 'ref{}'.format(rPeriod_(cfg['p_']['ref']))))
-            if 'season' in cfg:
-                 fn__ += '_{}'.format(cfg['season'])
+            fn__ = '{}_ref{}-{}_{}'.format(fn_, *cfg['p_']['ref'],
+                                           cfg['season'] if 'season' in cfg
+                                           else 'j-d')
             if 'periods' in cfg:
                 for pn in cfg['periods']:
-                    dd__.update({'pn': pn})
-                    out = inloop_func_(hORc, dd__, _d)
-                    tof_(out, odir, '_'.join((fn__, rPeriod_(cfg['p_'][pn]))),
+                    dd.update({'pn': pn})
+                    out = _inloop_func(hORc, dd, _d)
+                    _tof(out, odir, '{}_{}-{}'.format(fn__, *cfg['p_'][pn]),
                          hORc, _d, cfg['_sdi'])
             else:
-                out = inloop_func_(hORc, dd__, _d)
-                tof_(out, odir, fn__, hORc, _d, cfg['_sdi'])
+                out = _inloop_func(hORc, dd, _d)
+                _tof(out, odir, fn__, hORc, _d, cfg['_sdi'])
         logging.info(' {} <<<<<<<'.format(dn))
 
 
-def get_cube_m_(cube0, rn, dict_rg, *sftlf, season=None, hORc='heat'):
+def _get_cube_m(cube0, rn, dict_rg, *sftlf, season=None, hORc='heat'):
     t0 = l__('precube')
     intersect_it = False if rn.upper() in ['GLOBAL', 'ALL'] \
                    or rn not in dict_rg else True
@@ -382,7 +380,7 @@ def get_cube_m_(cube0, rn, dict_rg, *sftlf, season=None, hORc='heat'):
     return (cube, yr_0, doy_0, ax_t)
 
 
-def dir_cubeL(mm, *Args, **kArgs):
+def _dir_cubeL(mm, *Args, **kArgs):
     """
     Purpose: select function to load model data
     """
@@ -394,7 +392,7 @@ def dir_cubeL(mm, *Args, **kArgs):
        raise Exception('unknown dataset name!')
 
 
-def get_cube0_m_(cfg, mdict):
+def _get_cube0_m(cfg, mdict):
     """
     Purpose: load model data
     """
@@ -403,68 +401,67 @@ def get_cube0_m_(cfg, mdict):
         if cfg['rdir'] == cfg['ddir']:
             p0 = min(flt_l(cfg['p_'].values()))
             p1 = max(flt_l(cfg['p_'].values()))
-            tmp = dir_cubeL(cfg['proj'], cfg['ddir'], **cfg['f_opts'],
-                            **mdict, period=[p0, p1], ifconcat=True)
+            tmp = _dir_cubeL(cfg['proj'], cfg['ddir'], **cfg['f_opts'],
+                             **mdict, period=[p0, p1], ifconcat=True)
             dcube0 = tmp['cube']
             rcube0 = dcube0
         else:
-            tmp = dir_cubeL(cfg['proj'], cfg['rdir'], **cfg['f_opts'],
-                            **mdict, period=cfg['p_']['ref'], ifconcat=True)
+            tmp = _dir_cubeL(cfg['proj'], cfg['rdir'], **cfg['f_opts'],
+                             **mdict, period=cfg['p_']['ref'], ifconcat=True)
             rcube0 = tmp['cube']
             pL = [i for i in cfg['p_'].values()]
             p0 = min(flt_l(pL[1:]))
             p1 = max(flt_l(pL[1:]))
-            tmp = dir_cubeL(cfg['proj'], cfg['ddir'], **cfg['f_opts'],
-                            **mdict, period=[p0, p1], ifconcat=True)
+            tmp = _dir_cubeL(cfg['proj'], cfg['ddir'], **cfg['f_opts'],
+                             **mdict, period=[p0, p1], ifconcat=True)
             dcube0 = tmp['cube']
     else:
-        tmp = dir_cubeL(cfg['proj'], cfg['rdir'], **cfg['f_opts'], **mdict,
-                        period=cfg['p_']['ref'], ifconcat=True)
+        tmp = _dir_cubeL(cfg['proj'], cfg['rdir'], **cfg['f_opts'], **mdict,
+                         period=cfg['p_']['ref'], ifconcat=True)
         rcube0 = tmp['cube'] if tmp else tmp
-        #tmp = dir_cubeL(cfg['proj'], cfg['ddir'], **cfg['f_opts'], **mdict)
-        tmp = dir_cubeL(cfg['proj'], cfg['ddir'], **cfg['f_opts'], **mdict,
-                        ifconcat=True)
+        #tmp = _dir_cubeL(cfg['proj'], cfg['ddir'], **cfg['f_opts'], **mdict)
+        tmp = _dir_cubeL(cfg['proj'], cfg['ddir'], **cfg['f_opts'], **mdict,
+                         ifconcat=True)
         dcube0 = tmp['cube'] if tmp else tmp
     ll_('loading cube0', t0)
     return (rcube0, dcube0)
 
 
-def inloop_rg_hwmi_m_(cfg, hORc, rcube0, dcube0, rn, odir, fn_, _d, *sftlf):
+def _inloop_rg_hwmi_m(cfg, hORc, rcube0, dcube0, rn, odir, fn_, _d, *sftlf):
     """
     Purpose: in loop region-loop calculate and save results
     """
-    kGet = k_get_(cfg, hORc)
-    fn__ = '_'.join((fn_, 'ref{}'.format(rPeriod_(cfg['p_']['ref']))))
-    if 'season' in cfg:
-         fn__ += '_{}'.format(cfg['season'])
+    kGet = _k_get(cfg, hORc)
+    fn__ = '{}_ref{}-{}_{}'.format(fn_, *cfg['p_']['ref'],
+                                   cfg['season'] if 'season' in cfg else 'j-d')
     t0 = l__(fn__)
-    dd__ = dictdict_(cfg, fn_)
-    if check_med_f_(dd__, _d):
+    dd = _dictdict(cfg, fn_)
+    if _check_med_f(dd, _d):
         rCube = ()
     else:
-        rCube = get_cube_m_(rcube0, rn, cfg['sub_r'], *sftlf)
-    dd__.update({'rCube': rCube})
+        rCube = _get_cube_m(rcube0, rn, cfg['sub_r'], *sftlf)
+    dd.update({'rCube': rCube})
     if 'periods' in cfg:
-        dCube = get_cube_m_(dcube0, rn, cfg['sub_r'], *sftlf, **kGet)
-        dd__.update({'dCube': dCube})
+        dCube = _get_cube_m(dcube0, rn, cfg['sub_r'], *sftlf, **kGet)
+        dd.update({'dCube': dCube})
         for pn in cfg['periods']:
-            dd__.update({'pn': pn})
-            out = inloop_func_(hORc, dd__, _d)
-            tof_(out, odir, '_'.join((fn__, rPeriod_(cfg['p_'][pn]))),
+            dd.update({'pn': pn})
+            out = _inloop_func(hORc, dd, _d)
+            _tof(out, odir, '_'.join((fn__, rPeriod_(cfg['p_'][pn]))),
                  hORc, _d, cfg['_sdi'])
     elif isinstance(dcube0, iris.cube.Cube):
-        dCube = get_cube_m_(dcube0, rn, cfg['sub_r'], *sftlf, **kGet)
-        dd__.update({'dCube': dCube})
-        out = inloop_func_(hORc, dd__, _d)
-        tof_(out, odir, fn__, hORc, _d, cfg['_sdi'])
+        dCube = _get_cube_m(dcube0, rn, cfg['sub_r'], *sftlf, **kGet)
+        dd.update({'dCube': dCube})
+        out = _inloop_func(hORc, dd, _d)
+        _tof(out, odir, fn__, hORc, _d, cfg['_sdi'])
     else:
         c_h = []
         c_w = []
         for i, cc in enumerate(dcube0):
             t00 = l__(prg_(i, len(dcube0)))
-            dCube = get_cube_m_(cc, rn, cfg['sub_r'], *sftlf, **kGet)
-            dd__.update({'dCube': dCube})
-            tmp = inloop_func_(hORc, dd__, _d)
+            dCube = _get_cube_m(cc, rn, cfg['sub_r'], *sftlf, **kGet)
+            dd.update({'dCube': dCube})
+            tmp = _inloop_func(hORc, dd, _d)
             c_h.append(tmp['hwmi'])
             c_w.append(tmp['wsdi'])
             ll_(prg_(i, len(dcube0)), t00)
@@ -473,14 +470,14 @@ def inloop_rg_hwmi_m_(cfg, hORc, rcube0, dcube0, rn, odir, fn_, _d, *sftlf):
         c_w = iris.cube.CubeList(c_w)
         c_w = concat_cube_(c_w)
         out = {'hwmi': c_h, 'wsdi': c_w}
-        tof_(out, odir, fn__, hORc, _d, cfg['_sdi'])
+        _tof(out, odir, fn__, hORc, _d, cfg['_sdi'])
     ll_(fn__, t0)
 
 def hwmi_cmip5_(cfg):
     """
     Purpose: hwmi for cmip5 data
     """
-    odir = mk_odir_(cfg)
+    odir = _mk_odir(cfg)
     hORc = cfg['hORc'] if 'hORc' in cfg else 'heat'
     _d = cfg['_d'] if '_d' in cfg else False
     var = _var(cfg, hORc)
@@ -497,7 +494,7 @@ def hwmi_cmip5_(cfg):
             if fn0 is None:
                 ll_(' XXX {}_{}'.format(gcm, rip))
                 continue
-            rcube0, dcube0 = get_cube0_m_(cfg, dict(gcm=gcm, realz=rip))
+            rcube0, dcube0 = _get_cube0_m(cfg, dict(gcm=gcm, realz=rip))
             if rcube0 is None or dcube0 is None:
                 ll_(' XXX {}_{}'.format(gcm, rip))
                 continue
@@ -512,7 +509,7 @@ def hwmi_cmip5_(cfg):
                 sftlf = ()
             for rn in cfg['regions']:
                 fn_ =  '_'.join((var, fn0, rn))
-                inloop_rg_hwmi_m_(cfg, hORc, rcube0, dcube0, rn, odir, fn_,
+                _inloop_rg_hwmi_m(cfg, hORc, rcube0, dcube0, rn, odir, fn_,
                                   _d, *sftlf)
             logging.info(' {}_{} <<<<<<<'.format(gcm, rip))
 
@@ -521,7 +518,7 @@ def hwmi_cordex_(cfg):
     """
     Purpose: hwmi for cordex data
     """
-    odir = mk_odir_(cfg)
+    odir = _mk_odir(cfg)
     hORc = cfg['hORc'] if 'hORc' in cfg else 'heat'
     _d = cfg['_d'] if '_d' in cfg else False
     var = _var(cfg, hORc)
@@ -541,7 +538,7 @@ def hwmi_cordex_(cfg):
                 if fn0 is None:
                     ll_(' XXX {}_{}_{}'.format(gcm, rip, rcm))
                     continue
-                rcube0, dcube0 = get_cube0_m_(cfg, dict(gcm=gcm, rcm=rcm,
+                rcube0, dcube0 = _get_cube0_m(cfg, dict(gcm=gcm, rcm=rcm,
                                                         realz=rip))
                 if rcube0 is None or dcube0 is None:
                     ll_(' XXX {}_{}'.format(gcm, rip))
@@ -557,7 +554,7 @@ def hwmi_cordex_(cfg):
                     sftlf = ()
                 for rn in cfg['regions']:
                     fn_ =  '_'.join((var, fn0, rn))
-                    inloop_rg_hwmi_m_(cfg, hORc, rcube0, dcube0, rn, odir,
+                    _inloop_rg_hwmi_m(cfg, hORc, rcube0, dcube0, rn, odir,
                                       fn_, _d, *sftlf)
                 ll_(' {} <<<<<'.format(rip), t0___)
             ll_(' {} <<<<<<<'.format(gcm), t0__)
@@ -574,13 +571,13 @@ def _realzL(cube):
         return cube
 
 
-def get_cube0_o_(cfg, dn):
+def _get_cube0_o(cfg, dn):
     """
     Purpose: load 'other' data
     """
     warnings.filterwarnings("ignore", message="Missing CF-netCDF ")
 
-    logging.debug('get_cube0_o_')
+    logging.debug('_get_cube0_o')
     t0 = l__('loading cube0')
     keys = (cfg['f_opts']['var'] + '_',)\
            if 'f_opts' in cfg and 'var' in cfg['f_opts'] else\
@@ -606,43 +603,43 @@ def get_cube0_o_(cfg, dn):
     return (out0, out1, out2)
 
 
-def cubeORcubeL_hwmi_(cfg, odir, hORc, o0, rn, fn_, _d, pn='data'):
+def _cubeORcubeL_hwmi(cfg, odir, hORc, o0, rn, fn_, _d, pn='data'):
     from iris.experimental.equalise_cubes import equalise_attributes
-    kGet = k_get_(cfg, hORc)
-    if 'season' in cfg:
-        fn__ = '{}_{}'.format(fn_, cfg['season'])
-    else:
-        fn__ = fn_
+    kGet = _k_get(cfg, hORc)
+    fn__ = '{}_ref{}-{}_{}'.format(fn_, *cfg['p_']['ref'],
+                                   cfg['season'] if 'season' in cfg else 'j-d')
+    if pn != 'data':
+        fn__ += '_{}-{}'.format(*cfg['p_'][pn])
     t0 = l__(fn__)
     if isinstance(o0[0], iris.cube.Cube):
-        dd__ = dictdict_(cfg, fn_)
-        if check_med_f_(dd__, _d):
+        dd = _dictdict(cfg, fn_)
+        if _check_med_f(dd, _d):
             rCube = ()
         else:
-            rCube = get_cube_m_(o0[0], rn, cfg['sub_r'], *o0[1])
-        dCube = get_cube_m_(o0[0], rn, cfg['sub_r'], *o0[1], **kGet)
-        dd__.update({'dCube': dCube, 'rCube': rCube, 'pn': pn})
-        out = inloop_func_(hORc, dd__, _d)
-        tof_(out, odir, fn__, hORc, _d, cfg['_sdi'])
+            rCube = _get_cube_m(o0[0], rn, cfg['sub_r'], *o0[1])
+        dCube = _get_cube_m(o0[0], rn, cfg['sub_r'], *o0[1], **kGet)
+        dd.update({'dCube': dCube, 'rCube': rCube, 'pn': pn})
+        out = _inloop_func(hORc, dd, _d)
+        _tof(out, odir, fn__, hORc, _d, cfg['_sdi'])
     else:
         #c_h = []
         #c_w = []
         for i, cc in enumerate(o0[0]):
-            #if i :#QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ
+            #if i < 28:#QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ
             #    continue
-            t00 = l__(prg_(i, len(o0[0])))
+            t00 = l__(prg_(i, None if isGI_(o0[0]) else len(o0[0])))
             o02 = o0[2][i] if o0[2] else '{}'.format(i)
-            dd__ = dictdict_(cfg, '_'.join((fn_, o02)))
-            if check_med_f_(dd__, _d):
+            dd = _dictdict(cfg, '_'.join((fn_, o02)))
+            if _check_med_f(dd, _d):
                 rCube = ()
             else:
-                rCube = get_cube_m_(cc.copy(), rn, cfg['sub_r'], *o0[1])
-            dCube = get_cube_m_(cc.copy(), rn, cfg['sub_r'], *o0[1], **kGet)
-            dd__.update({'dCube': dCube, 'rCube': rCube, 'pn': pn})
-            tmp = inloop_func_(hORc, dd__, _d)
-            tof_(tmp, odir, '_'.join((fn__, o02)), hORc, _d, cfg['_sdi'])
-            ll_(prg_(i, len(o0[0])), t00)
-        frf_(odir, fn__, hORc, _d, cfg['_sdi'])
+                rCube = _get_cube_m(cc.copy(), rn, cfg['sub_r'], *o0[1])
+            dCube = _get_cube_m(cc.copy(), rn, cfg['sub_r'], *o0[1], **kGet)
+            dd.update({'dCube': dCube, 'rCube': rCube, 'pn': pn})
+            tmp = _inloop_func(hORc, dd, _d)
+            _tof(tmp, odir, '_'.join((fn__, o02)), hORc, _d, cfg['_sdi'])
+            ll_(prg_(i, None if isGI_(o0[0]) else len(o0[0])), t00)
+        _frf(odir, fn__, hORc, _d, cfg['_sdi'])
         #    c_h.append(tmp['hwmi'])
         #    c_w.append(tmp['wsdi'])
         #    ll_(prg_(i, len(o0[0])), t00)
@@ -660,7 +657,7 @@ def cubeORcubeL_hwmi_(cfg, odir, hORc, o0, rn, fn_, _d, pn='data'):
         #    except:
         #        ll_(' merge_cube() or concatenate_cube() failure!')
         #out = {'hwmi': c_h, 'wsdi': c_w}
-        #tof_(out, odir, fn__, hORc, _d, cfg['_sdi'])
+        #_tof(out, odir, fn__, hORc, _d, cfg['_sdi'])
     ll_(fn__)
 
 
@@ -668,26 +665,24 @@ def hwmi_other_(cfg):
     """
     Purpose: hwmi for cordex data
     """
-    odir = mk_odir_(cfg)
+    odir = _mk_odir(cfg)
     hORc = cfg['hORc'] if 'hORc' in cfg else 'heat'
     _d = cfg['_d'] if '_d' in cfg else False
     var = _var(cfg, hORc)
     for dn in cfg['datasets']:
         logging.info(' >>>>>>> {}'.format(dn))
-        o0 = get_cube0_o_(cfg, dn)
+        o0 = _get_cube0_o(cfg, dn)
         if o0[0] is None:
             continue
         for rn in cfg['regions']:
-            fn_ = '_'.join((var, dn, rn, 'ref' + rPeriod_(cfg['p_']['ref'])))
+            fn_ = '_'.join((var, dn, rn))
             if 'periods' in cfg:
                 if isGI_(o0[0]) and len(cfg['periods']) > 1:
                     o0 = (list(o0[0]), *o0[1:])
                 for pn in cfg['periods']:
-                    fn__ = '_'.join((fn_, rPeriod_(cfg['p_'][pn])))
-                    cubeORcubeL_hwmi_(cfg, odir, hORc, o0, rn, fn__, _d,
-                                      pn=pn)
+                    _cubeORcubeL_hwmi(cfg, odir, hORc, o0, rn, fn_, _d, pn=pn)
             else:
-                cubeORcubeL_hwmi_(cfg, odir, hORc, o0, rn, fn_, _d)
+                _cubeORcubeL_hwmi(cfg, odir, hORc, o0, rn, fn_, _d)
         logging.info(' {} <<<<<<<'.format(dn))
 
 

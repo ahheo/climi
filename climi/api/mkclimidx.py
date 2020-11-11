@@ -734,9 +734,9 @@ def _hclimidx(c_pr=None, c_ps=None, c_t=None, c_t925=None, c_t850=None,
 
 def _szG(cL):
     if not isMyIter_(cL):
-        return np.product(cL.shape) * 8 / 1.e9
+        return cL.size * 8 * 1.e-9
     else:
-        return np.product(cL[0].shape) * len(cL) * 8 / 1.e9
+        return cL[0].size * len(cL) * 8 * 1.e-9
 
 
 def _afm_n(cL, ax, func, out, *args, npr=32, xm=160, **kwargs):
