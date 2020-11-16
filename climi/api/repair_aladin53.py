@@ -5,8 +5,9 @@ import glob
 
 
 def main():
-    idir = '/nobackup/rossby24/users/sm_chali/DATA/energi/res/h248/'\
-           'cordex/EUR11/grp1/'
+    #idir = '/nobackup/rossby24/users/sm_chali/DATA/energi/res/h248/'\
+    #       'cordex/EUR11/grp1/'
+    idir = '/nobackup/rossby22/sm_chali/DATA/fx/'
     fn = glob.glob(idir + '*_*_CNRM-ALADIN53_*.nc')
     epochs = {}
     for i, ifn in enumerate(fn):
@@ -40,7 +41,7 @@ def main():
         o.remove_coord('projection_y_coordinate')
         o.add_dim_coord(cxx, cxd)
         o.add_dim_coord(cyy, cyd)
-        iris.save(o, ifn.replace(idir, idir.replace('grp1/','')))
+        iris.save(o, ifn.replace('.nc', '_0.nc'))
 
 
 if __name__ == '__main__':

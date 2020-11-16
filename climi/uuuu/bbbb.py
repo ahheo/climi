@@ -52,6 +52,7 @@ __all__ = ['bi_cmip5_info_',
            'path2cmip5_info_',
            'path2cordex_info_',
            'pure_ts_dn_',
+           'rgd_poly_mm_',
            'sc_unit_clmidx_',
            'slct_cubeLL_dnL_',
            'version_up_',
@@ -797,3 +798,20 @@ def get_period_h248_(cubeL, fnL, period, rcp=None):
         tmp = [_c(i, ii) for i, ii in zip(cubeL, ps)]
         ind = [i for i, ii in enumerate(tmp) if ii]
         return (l_ind_(tmp, ind), l_ind_(fnL))
+
+
+def rgd_poly_mm_(src_cube, src_m, target_m, region='GLB', target_cube=None):
+    import pickle
+    from .rgd import POLYrgd
+    pdir = '{}../regriders/'.format(_here_)
+    pfile = pdir + '_'.join((src_m, target_m, region))
+    if os.path.isfile(pfile):
+        with open(pfile, 'rb') as pf:
+            rgder = pickle.load(pf)
+        return rgder(src_cube)
+    elif target_cube:
+        rgder = POLYrgd(src_cube, target_cube)
+        rgder._info()
+        with open(pfile, 'wb') as pf:
+            pickle.dump(rgder, pf)
+        return rgder(src_cube)

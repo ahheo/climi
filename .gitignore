@@ -5,4 +5,6 @@
 *.#
 *.sh
 *.swp
+*.nc
+*.p
 *.egg-info

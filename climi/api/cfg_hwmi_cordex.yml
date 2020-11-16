@@ -28,7 +28,7 @@ r_v:
   SMHI-RCA4: v1
 
 f_opts:
-  var: tasmin
+  var: tasmax
   freq: day
 
 #2nd loop on regions
@@ -45,12 +45,13 @@ sub_r:
 #3rd loop on periods
 #periods: [hist] # [hist, rcp]
 p_:
-  ref: [1971, 2000]
+  #ref: [1971, 2000]
+  ref: [1981, 2010]
   hist: [1989, 2010]
 #  rcp: [2006, 2099]
 
 #season
-season: ndjf
+#season: ndjf
 
 #output
 root: /nobackup/rossby22/sm_chali/DATA/

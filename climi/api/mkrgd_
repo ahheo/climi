@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+
+import climi.uuuu as u
+import iris
+import pickle
+
+
+def main():
+    ldir = '/nobackup/rossby22/sm_chali/DATA/fx/'
+    odir = '/home/sm_chali/wks/heat-wave-2018/climi/regriders/'
+    fns = u.schF_keys_(ldir, 'ECMWF-ERAINT_evaluation')[:8]
+    fn0 = '/nobackup/rossby22/sm_chali/DATA/fx/' \
+          'sftlf_fx_ECMWF-ERAINT_rean_r0i0p0.nc'
+    rd = {'longitude': [-10., 30.], 'latitude': [35., 70.]}
+    o0 = u.intersection_(iris.load_cube(fn0), **rd)
+    mdl0 = u.pure_fn_(fn0).split('_')[2]
+    print(len(fns))
+    for i, fn in enumerate(fns):
+        print(u.prg_(i+1, len(fns)), fn)
+        mdl = u.pure_fn_(fn).split('_')[5]
+        o = iris.load_cube(fn)
+        regrider = u.POLYrgd(o, o0)
+        regrider._info()
+        fn_ = '{}{}-{}_EUR.p'.format(odir, mdl, mdl0)
+        print('save to', fn_)
+        with open(fn_, 'wb') as f:
+            pickle.dump(regrider, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+if __name__ == '__main__':
+    main()

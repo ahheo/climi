@@ -2,7 +2,7 @@ experiment: hc
 proj: obs
 _d: True
 _sdi: True
-hORc: heat
+hORc: cold
 
 datasets: [EOBS20] # [STOCKHOLM-Corrected, STOCKHOLM-Homogenized] # [EOBS]
 
@@ -35,12 +35,12 @@ sub_r:
 p_:
 #  ref: [1756, 2005]
 #  ref: [1971, 2000]
-  ref: [1981, 2010]
-#  ref: [1989, 2008]
+#  ref: [1981, 2010]
+  ref: [1989, 2008]
 #  hist: [1951, 2018]
 
 #season
-season: ndjf
+season: mjja
 
 #output
 root: /nobackup/rossby22/sm_chali/DATA/
@@ -52,7 +52,7 @@ minL: 3
 data4kde_mtd: 'ymax'
 
 #thr_() option
-thr_pctl: 90
+thr_pctl: 10
 
 #kde_ option
 kde_opts:

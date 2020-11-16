@@ -20,7 +20,7 @@ from shapely.geometry import Polygon
 from scipy.sparse import csc_matrix, diags
 
 from .ffff import *
-from .cccc import ax_fn_mp_, half_grid_
+from .cccc import ax_fn_mp_, extract_byAxes_, get_loa_, get_xy_dim_, half_grid_
 
 
 __all__ = ['rgd_scipy_',
@@ -30,49 +30,69 @@ __all__ = ['rgd_scipy_',
            'POLYrgd']
 
 
-def _get_xy_dim(cube):
-    try:
-        return (cube.coord(axis='X', dim_coords=True),
-                cube.coord(axis='Y', dim_coords=True))
-    except:
-        return (None, None)
-
-
-def _get_loa(cube):
-    try:
-        lo, la = cube.coord('longitude'), cube.coord('latitude')
-        lo.convert_units('degrees')
-        la.convert_units('degrees')
-        return (lo, la)
-    except:
-        return (None, None)
-
-
 def _lo_rb(lo):
     return 180 if np.any(lo < 0) else 360
+
+
+def _get_ll_pnts(lo, la, isyx):
+    if lo.ndim == 1:
+        if isyx:
+            x, y = np.meshgrid(lo.points, la.points)
+        else:
+            y, x = np.meshgrid(la.points, lo.points)
+    if lo.ndim == 2:
+        if isyx:
+            x, y = lo.points, la.points
+        else:
+            x, y = lo.points.T, la.points.T
+    return (x, y)
+
+
+def _isyx(lod, lad):
+    return lad[0] < lod[0] if len(lod) == 1 else lod[0] < lod[1]
+
+
+def _lr(x2d, isyx, rb=180):
+    def _crcl(xx):
+        if np.any(np.abs(np.diff(xx)) > 180):
+            return cyl_(xx, xx.max() - 180, xx.max() - 540)
+        else:
+            return xx
+    if isyx:
+        l, r = _crcl(x2d[:, 0]).min(), _crcl(x2d[:, -1]).max()
+    else:
+        l, r = _crcl(x2d[0, :]).min(), _crcl(x2d[-1, 0]).max()
+    return tuple(cyl_(i, rb, rb - 360) for i in (l, r))
+
+
+def _lld(x2d):
+    return max(np.max(np.abs(cyl_(np.diff(x2d, axis=1), 180, -180))),
+               np.max(np.abs(cyl_(np.diff(x2d, axis=0), 180, -180))))
+
+
+def _is_crcl(x2d, isyx):
+    return np.diff(_lr(x2d, isyx)) < _lld(x2d) * 1.5
 
 
 def rgd_scipy_(src_cube, target_cube,
               method='linear', fill_value=None, rescale=False):
     #from scipy.interpolate import griddata
     dmap = _dmap(src_cube, target_cube)
-    loT, laT = _get_loa(target_cube)
-    loS, laS = _get_loa(src_cube)
+    loT, laT = get_loa_(target_cube)
+    loS, laS = get_loa_(src_cube)
     if loT is None or loS is None:
         raise Exception("missing longitude/latitude coords.")
-
-    if loT.ndim == 1: #make 2D if not
-        xT, yT = np.meshgrid(loT.points, laT.points)
-    else:
-        xT, yT = loT.points, laT.points
-    if loS.ndim == 1: #make 2D if not
-        xS, yS = np.meshgrid(loS.points, laS.points)
-    else:
-        xS, yS = loS.points, laS.points
-    if np.all(xT >= 0) and np.any(xS < 0):
-        xS = cyl_(xS, 360)
-    if np.any(xT < 0) and np.any(xS > 180):
-        xS = cyl_(xS, 180, -180)
+    isyxT = _isyx(target_cube.coord_dims(loT), target_cube.coord_dims(laT))
+    isyxS = _isyx(target_cube.coord_dims(loS), target_cube.coord_dims(laS))
+    #2d longitude/latitude points
+    xT, yT = _get_ll_pnts(loT, laT, isyxT)
+    xS, yS = _get_ll_pnts(loS, laS, isyxS)
+    lT, rT = _lr(xT, isyxT)
+    xT = cyl_(xT, lT + 360, lT)
+    xS = cyl_(xS, lT + 360, lT)
+    if _is_crcl(xS, isyxS):
+        rb = lT + 180
+        xS = (cyl_(xS, rb, rb -360), cyl_(xS, rb + 360, rb))
 
     shT, shS = np.asarray(target_cube.shape), np.asarray(src_cube.shape)
     xydimT = tuple(dmap.keys())
@@ -84,7 +104,7 @@ def rgd_scipy_(src_cube, target_cube,
     nsh = tuple(nsh)
     data = np.empty(nsh)
     dataS = nanMask_(src_cube.data)
-    if nSlice_(shS, xydimS) > 30:
+    if nSlice_(shS, xydimS) > 20:
         ax_fn_mp_(dataS, xydimS, _regrid_slice, data, xS, yS, xT, yT,
                   method, np.nan, rescale)
     else:
@@ -116,19 +136,15 @@ def rgd_scipy_(src_cube, target_cube,
 
 def _get_dimc_dim(src_cube, target_cube):
     dimc_dim = []
-    xcT, ycT = _get_xy_dim(target_cube)
-    xcS, ycS = _get_xy_dim(src_cube)
+    xcT, ycT = get_xy_dim_(target_cube)
+    xcS, ycS = get_xy_dim_(src_cube)
     xydimS = src_cube.coord_dims(xcS) + src_cube.coord_dims(ycS)
     for c in src_cube.dim_coords:
         dim = src_cube.coord_dims(c)[0]
         if dim not in xydimS:
-            dimc_dim.append((c, dim))
-    dimc_dim.append((xcT, src_cube.coord_dims(xcS)[0]))
-    dimc_dim.append((ycT, src_cube.coord_dims(ycS)[0]))
-    scac = _get_scac(src_cube)
-    for c in scac:
-        if isinstance(c, iris.coords.DimCoord):
-            dimc_dim.append((c, ()))
+            dimc_dim.append((c, (dim,)))
+    dimc_dim.append((xcT, src_cube.coord_dims(xcS)))
+    dimc_dim.append((ycT, src_cube.coord_dims(ycS)))
     return dimc_dim
 
 
@@ -155,10 +171,16 @@ def _get_scac(cube):
     return [c for c in cube.coords(dimensions=())]
 
 
-def _regrid_slice(dd, xS, yS, xT, yT, method, fill_value, rescale):
+def _regrid_slice(data, xS, yS, xT, yT, method, fill_value, rescale):
     from scipy.interpolate import griddata
-    ind_ = ~np.isnan(dd)
-    tmp = griddata((xS[ind_], yS[ind_]), dd[ind_],
+    ind_ = ~np.isnan(data)
+    if isinstance(xS, tuple) and len(xS) == 2:
+        xx = np.hstack((xS[0][ind_], xS[1][ind_]))
+        yy = np.hstack((yS[ind_], yS[ind_]))
+        dd = np.hstack((data[ind_], data[ind_]))
+    else:
+        xx, yy, dd = xS[ind_], yS[ind_], data[ind_]
+    tmp = griddata((xx, yy), dd,
                    (xT.ravel(), yT.ravel()), method=method,
                    fill_value=fill_value, rescale=rescale)
     tmp = tmp.reshape(xT.shape)
@@ -166,8 +188,8 @@ def _regrid_slice(dd, xS, yS, xT, yT, method, fill_value, rescale):
 
 
 def _dmap(src_cube, target_cube):
-    xT, yT = _get_xy_dim(target_cube)
-    xS, yS = _get_xy_dim(src_cube)
+    xT, yT = get_xy_dim_(target_cube)
+    xS, yS = get_xy_dim_(src_cube)
     if xT is None or xS is None:
         raise Exception("missing 'x'/'y' dimcoord")
     return {target_cube.coord_dims(yT)[0]: src_cube.coord_dims(yS)[0],
@@ -208,65 +230,67 @@ def _bnds_2d_3d(bounds, shp, ax):
                      for i in range(bounds.shape[-1])], axis=-1)
 
 
-def _bnds_2p_4p(bounds):
-    return np.stack([extract_byAxes_(bounds, -1, i) for i in (0, 0, 1, 1)],
+def _bnds_2p_4p(bounds, isX_=True):
+    p4_ = (0, 0, 1, 1) if isX_ else (0, 1, 1, 0)
+    return np.stack([extract_byAxes_(bounds, -1, i) for i in p4_],
                     axis=-1)
 
 
-def _get_ll_bnds(coord, shp, ax):
+def _slice_ll_bnds(coord, shp, ax):
+    isX_ = True if coord.name() == 'longitude' else False
     if coord.ndim == 1:
         if not coord.has_bounds():
             coord.guess_bounds()
-        bounds = _bnds_2d_3d(coord.bounds)
+        bounds = _bnds_2d_3d(coord.bounds, shp, ax)
         if bounds.shape[-1] == 2:
-            bounds = _bnds_2p_4p(bounds)
+            bounds = _bnds_2p_4p(bounds, isX_)
+        if isX_:
+            rb = _lo_rb(coord.points)
+            bounds = cyl_(bounds, rb=rb, lb=rb-360)
         return bounds
     else:
         if coord.has_bounds():
             bounds = coord.bounds
             if ax == (1, 0):
                 bounds = np.moveaxis(bounds, 0, 1)
+            if isX_:
+                rb = _lo_rb(coord.points)
+                bounds = cyl_(bounds, rb=rb, lb=rb-360)
             return bounds
         else:
-            if coord.name() == 'longitude':
+            if isX_:
                 hgKA = dict(loa='lo', rb=_lo_rb(coord.points))
-            elif coord.name() == 'latitude':
-                hgKA = dict(loa='la')
             else:
-                hgKA = {}
-            points = _get_ll_pnts(coord, shp, ax)
+                hgKA = dict(loa='la')
+            points = _slice_ll_pnts(coord, shp, ax)
             bounds = [_cnp(points, cn=i, **hgKA)
                       for i in ('lb', 'lu', 'ru', 'rb')]
             return np.stack(bounds, axis=-1)
 
 
-def _get_ll_pnts(coord, shp, ax, df_=False):
+def _slice_ll_pnts(coord, shp, ax, df_=False):
     points = coord.points
     if ax == (1, 0):
         points = points.T
     if coord.ndim == 1:
         points = robust_bc2_(coord.points, shp, ax)
     if df_:
-        return (points,
-                max((np.mean(np.abs(cyl_(np.diff(points, axis=1),
-                                         180, -180))),
-                     np.mean(np.abs(cyl_(np.diff(points, axis=0),
-                                         180, -180))))))
+        return (points, _lld(points))
     else:
         return points
 
 
-def _get_ll_bpd(cube_slice):
-    lo, la = _get_loa(cube_slice)
+def _slice_ll_bpd(cube_slice):
+    lo, la = get_loa_(cube_slice)
     shp = cube_slice.shape
     lo_d = cube_slice.coord_dims(lo)
     la_d = cube_slice.coord_dims(la)
-    po, do = _get_ll_pnts(lo, shp, lo_d, df_=True)
-    pa, da = _get_ll_pnts(la, shp, la_d, df_=True)
+    po, do = _slice_ll_pnts(lo, shp, lo_d, df_=True)
+    pa, da = _slice_ll_pnts(la, shp, la_d, df_=True)
     return dict(lop=po.flatten(),
                 lap=pa.flatten(),
-                lob=_get_ll_bnds(lo, shp, lo_d).reshape(-1, 4),
-                lab=_get_ll_bnds(la, shp, la_d).reshape(-1, 4),
+                lob=_slice_ll_bnds(lo, shp, lo_d).reshape(-1, 4),
+                lab=_slice_ll_bnds(la, shp, la_d).reshape(-1, 4),
                 lod=do,
                 lad=da)
 
@@ -315,8 +339,8 @@ def _weights(bpdT, bpdS, thr):
     nproc = min(mp.cpu_count(), 32)
 
     wght, rows, cols = [], [], []
-    loR = bpdT['lod'] + bpdS['lod']
-    laR = bpdT['lad'] + bpdS['lad']
+    loR = (bpdT['lod'] + bpdS['lod']) / 2 
+    laR = (bpdT['lad'] + bpdS['lad']) / 2
     if bpdT['lop'].size > 1e6:
         with mp.Pool(nproc) as P:
             tmp = P.starmap_async(_iwght, [(i, bpdT, bpdS, loR, laR)
@@ -337,8 +361,8 @@ def _weights(bpdT, bpdS, thr):
 
 
 def _rgd_poly_info(src_cube, target_cube, thr=.5):
-    bpdT = _get_ll_bpd(target_cube)
-    bpdS = _get_ll_bpd(src_cube)
+    bpdT = _slice_ll_bpd(target_cube)
+    bpdS = _slice_ll_bpd(src_cube)
     rbT = _lo_rb(bpdT['lop'])
     rbS = _lo_rb(bpdS['lop'])
     if rbS != rbT:
@@ -406,7 +430,7 @@ class POLYrgd:
         # Snapshot the state of the cubes to ensure that the regridder
         # is impervious to external changes to the original source cubes.
         self._src_cube = src_cube.copy()
-        xT, yT = _get_xy_dim(target_cube)
+        xT, yT = get_xy_dim_(target_cube)
         xydT = target_cube.coord_dims(xT) + target_cube.coord_dims(yT)
         self._target_cube = target_cube[ind_shape_i_(target_cube.shape,
                                                      0,
@@ -414,13 +438,24 @@ class POLYrgd:
         self._thr = thr
         self._regrid_info = None
 
+    def _info(self, out=False):
+        if self._regrid_info is None:
+            xS, yS = get_xy_dim_(self._src_cube)
+            _S = self._src_cube.coord_dims(xS) + self._src_cube.coord_dims(yS)
+            ind = ind_shape_i_(self._src_cube.shape, 0, axis=_S)
+            self._regrid_info = _rgd_poly_info(self._src_cube[ind],
+                                               self._target_cube,
+                                               self._thr)
+        if out:
+            return self._regrid_info
+
     def __call__(self, src):
         # Validity checks.
         if not isinstance(src, iris.cube.Cube):
             raise TypeError("'src' must be a Cube")
-        loG, laG = _get_loa(self._src_cube)
+        loG, laG = get_loa_(self._src_cube)
         src_grid = (loG.copy(), laG.copy())
-        loS, laS = _get_loa(src)
+        loS, laS = get_loa_(src)
         if (loS, laS) != src_grid:
             raise ValueError("The given cube is not defined on the same "
                              "source grid as this regridder.")
@@ -449,17 +484,10 @@ class POLYrgd:
                               aux_factories=None,
                               cell_measures_and_dims=None)
 
-        if self._regrid_info is None:
-            ind = ind_shape_i_(src.shape, 0, axis=xydS)
-            self._regrid_info = _rgd_poly_info(src[ind],
-                                             self._target_cube,
-                                             self._thr)
-        if nSlice_(src.shape, xydS):
-            ax_fn_mp_(src, xydS, _cn_rgd, cube, self._regrid_info, self._thr)
-        else:
-            for i, ii in enumerate(src.slice(_get_xy_dim(src))):
-                ind = ind_shape_i_(src.shape, i, axis=xydS)
-                cube.data[ind] = _cn_rgd(ii, self._regrid_info, self._thr)
+        self._info()
+        for i in range(nSlice_(src.shape, xydS)):
+            ind = ind_shape_i_(src.shape, i, axis=xydS)
+            cube.data[ind] = _cn_rgd(src[ind], self._regrid_info, self._thr)
         return cube
 
 

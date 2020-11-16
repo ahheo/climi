@@ -22,7 +22,8 @@
 * getGridAL_cube        : grid_land_area
 * getGridA_cube         : grid_area from file or calc with basic assumption
 * get_gwl_y0_           : first year of 30-year window of global warming level
-* get_lon_lat_dimcoords_: modified _get_lon_lat_coords from iris
+* get_loa_              : longitude/latitude coords of cube
+* get_loa_dim_          : modified _get_lon_lat_coords from iris
 * get_xy_dim_           : horizontal spatial dim coords
 * get_xyd_cube          : cube axes of xy dims
 * guessBnds_cube        : bounds of dims points
@@ -101,7 +102,8 @@ __all__ = ['alng_axis_',
            'getGridAL_cube',
            'getGridA_cube',
            'get_gwl_y0_',
-           'get_lon_lat_dimcoords_',
+           'get_loa_',
+           'get_loa_dim_',
            'get_xy_dim_',
            'get_xyd_cube',
            'guessBnds_cube',
@@ -146,7 +148,7 @@ def slice_back_(cnd, c1d, ii, axis):
 
     Parsed arguments:
          cnd: parent CUBE/ARRAY that has multiple dimensions
-         c1d: 1D CUBE/ARRAY slice
+         c1d: CUBE/ARRAY slice
           ii: slice # of c1d in iteration
         axis: axis of cnd to place c1d
     Returns:
@@ -157,25 +159,23 @@ def slice_back_(cnd, c1d, ii, axis):
         c1d = c1d.data
     if not isinstance(c1d, np.ndarray):
         c1d = np.asarray(c1d)
+    if ((isinstance(cnd, iris.cube.Cube) or np.ma.isMaskedArray(cnd))
+        and not np.ma.isMaskedArray(c1d)):
+        c1d = np.ma.masked_array(c1d, np.isnan(c1d))
+    emsg = "slice NOT matched its parent along axis({})."
     if axis is None:
         if c1d.size != 1:
-            raise Exception('slice NOT matched its parent '
-                            'along axis {}'.format(axis))
+            raise Exception(emsg.format(axis))
     else:
-        axis = cyl_(axis, len(cnd.shape))
-        if (isIter_(axis, xi=(int, np.integer)) and
-            not np.all(np.diff(axis) == 1)):
-            raise Exception("unknown axis!")
+        axis = cyl_(axis, cnd.ndim)
+        axis = sorted(axis) if isIter_(axis, xi=(int, np.integer)) else axis
         if not np.all(np.asarray(cnd.shape)[axis] == np.asarray(c1d.shape)):
-            raise Exception('slice NOT matched its parent '
-                            'along axis {}'.format(axis))
-
+            raise Exception(emsg.format(axis))
+    ind = ind_shape_i_(cnd.shape, ii, axis)
     if isinstance(cnd, iris.cube.Cube):
-        cnd.data[ind_shape_i_(cnd.shape, ii, axis)] =\
-            np.ma.masked_array(c1d, np.isnan(c1d))
-    elif isinstance(cnd, np.ma.masked_array):
-        cnd[ind_shape_i_(cnd.shape, ii, axis)] =\
-            np.ma.masked_array(c1d, np.isnan(c1d))
+        cnd.data[ind] = c1d
+    elif np.ma.isMaskedArray(cnd):
+        cnd[ind] = c1d
     else:
         cnd[ind_shape_i_(cnd.shape, ii, axis)] = c1d
 
@@ -431,9 +431,9 @@ def minmax_cube_(cube, rg=None, p=None):
 
 def get_xyd_cube(cube):
     xc, yc = get_xy_dim_(cube)
-    if xc is None or yc is None:
+    if xc is None:
         raise Exception("missing 'x' or 'y' dimcoord.")
-    xyd = list(cube.coord_dims(xc) + cube.coord_dims(yc))
+    xyd = list(cube.coord_dims(yc) + cube.coord_dims(xc))
     xyd.sort()
     return xyd
 
@@ -450,10 +450,10 @@ def _get_xy_lim(cube, lol=None, lal=None):
     if xc == lo and yc == la:
         xyl = {xc.name(): lol, yc.name(): lal}
     else:
-        xd = cube.coord_dims(lo).index(
-                 np.intersect1d(cube.coord_dims(lo), cube.coord_dims(xc)))
-        yd = cube.coord_dims(lo).index(
-                 np.intersect1d(cube.coord_dims(lo), cube.coord_dims(yc)))
+        xd = cube.coord_dims(lo).index(np.intersect1d(cube.coord_dims(lo),
+                                                      cube.coord_dims(xc)))
+        yd = cube.coord_dims(lo).index(np.intersect1d(cube.coord_dims(lo),
+                                                      cube.coord_dims(yc)))
         a_ = ind_inRange_(lo.points, *lol, r_=360)
         b_ = ind_inRange_(la.points, *lal)
         c_ = np.logical_and(a_, b_)
@@ -498,15 +498,13 @@ def intersection_(cube, **kwArgs):
     if cube.coord('latitude').ndim == 1:
         return cube.intersection(**kwArgs)
     else:
-        if 'longitude' not in kwArgs or 'latitude' not in kwArgs:
-            raise Exception("both 'longitude' and 'latitude'"
-                            "reqired when projection != lat/lon")
-        lol, lal = kwArgs['longitude'], kwArgs['latitude']
+        lol = kwArgs['longitude'] if 'longitude' in kwArgs else None
+        lal = kwArgs['latitude'] if 'latitude' in kwArgs else None
         xyl = _get_xy_lim(cube, lol, lal)
         if isinstance(xyl, dict):
             return cube.intersection(**xyl)
         else:
-            return  extract_byAxes_(cube, *xyl)
+            return extract_byAxes_(cube, *xyl)
 
 
 def seasonyr_cube(cube, mmm):
@@ -606,7 +604,7 @@ def guessBnds_cube(cube):
             pass
 
 
-def get_lon_lat_dimcoords_(cube):
+def get_loa_dim_(cube):
     """
     ... get lon and lat coords (dimcoords only) ...
     """
@@ -616,18 +614,28 @@ def get_lon_lat_dimcoords_(cube):
                   if "longitude" in coord.name()]
     if len(lat_coords) > 1 or len(lon_coords) > 1:
         raise ValueError(
-            "Calling `_get_lon_lat_coords` with multiple lat or lon coords"
+            "Calling `get_loa_dim_` with multiple lat or lon coords"
             " is currently disallowed")
     lat_coord = lat_coords[0]
     lon_coord = lon_coords[0]
     return (lon_coord, lat_coord)
 
 
-def get_xy_dim_(cube):                                                          
-    try:                                                                        
-        return (cube.coord(axis='X', dim_coords=True),                          
-                cube.coord(axis='Y', dim_coords=True))                          
-    except:                                                                     
+def get_xy_dim_(cube):
+    try:
+        return (cube.coord(axis='X', dim_coords=True),
+                cube.coord(axis='Y', dim_coords=True))
+    except:
+        return (None, None)
+
+
+def get_loa_(cube):
+    try:
+        lo, la = cube.coord('longitude'), cube.coord('latitude')
+        lo.convert_units('degrees')
+        la.convert_units('degrees')
+        return (lo, la)
+    except:
         return (None, None)
 
 
@@ -656,7 +664,7 @@ def area_weights_(cube, normalize=False):
 
     # Get the lon and lat coords and axes
     try:
-        lon, lat = get_lon_lat_dimcoords_(cube)
+        lon, lat = get_loa_dim_(cube)
     except IndexError:
         raise ValueError('Cannot get latitude/longitude '
                          'coordinates from cube {!r}.'.format(cube.name()))
@@ -721,16 +729,16 @@ def cut_as_cube(cube0, cube1):
     """
     xc1, yc1 = get_xy_dim_(cube1)
     xc0, yc0 = get_xy_dim_(cube0)
-    xe = np.min(np.abs(np.diff(xc1.points)))/2
-    ye = np.min(np.abs(np.diff(yc1.points)))/2
+    xn, yn = xc1.name(), yc1.name()
+    xe = np.min(np.abs(np.diff(xc1.points))) / 2
+    ye = np.min(np.abs(np.diff(yc1.points))) / 2
     x0, x1 = np.min(xc0.points), np.max(xc0.points)
     y0, y1 = np.min(yc0.points), np.max(yc0.points)
-    cube_ = extract_byAxes_(cube1,
-                            xn, ind_inRange_(xc1.points,
-                                             x0 - xe, x1 + xe, side=0),
-                            yn, ind_inRange_(yc1.points,
-                                             y0 - ye, y1 + ye, side=0))
-    return cube_
+    return extract_byAxes_(cube1,
+                           xn, ind_inRange_(xc1.points,
+                                            x0 - xe, x1 + xe, side=0),
+                           yn, ind_inRange_(yc1.points,
+                                            y0 - ye, y1 + ye, side=0))
 
 
 def maskLS_cube(cubeD, sftlf, LorS='S', thr=0):
@@ -842,7 +850,7 @@ def get_gwl_y0_(cube, gwl, pref=[1861, 1890]):
 
 
 def _inpolygons(poly, points, **kwArgs):
-    if not isinstance(poly, (list, tuple, set)):
+    if not isIter_(poly):
         ind = poly.contains_points(points, **kwArgs)
     elif len(poly) < 2:
         ind = poly[0].contains_points(points, **kwArgs)
@@ -1150,13 +1158,13 @@ def en_mm_cubeL_(cubeL, opt=0, cref=None):
 
 
 def _func(func, ak_):
-    i, arr, o0, args, kwargs = ak_
+    arr, o0, args, kwargs = ak_
     try:
         if o0.data.mask or o0.mask:
             return None
     except AttributeError:
         pass
-    return (i, func(*arr, *args, **kwargs))
+    return func(*arr, *args, **kwargs)
 
 
 def ax_fn_ray_(arr, ax, func, out, *args, npr=32, **kwargs):
@@ -1183,7 +1191,7 @@ def ax_fn_ray_(arr, ax, func, out, *args, npr=32, **kwargs):
         except AttributeError:
             pass
         aaa = tuple([ii[ind] for ii in arr])
-        return (i, func(*aaa, *args, **kwargs))
+        return func(*aaa, *args, **kwargs)
 
     arr_id = ray.put(arr)
     tmp = [f.remote(i, arr_id) for i in range(nSlice_(arr[0].shape, ax))]
@@ -1208,8 +1216,11 @@ def ax_fn_mp_(arr, ax, func, out, *args, npr=32, **kwargs):
     P = mp.Pool(nproc)
     def _i(i, sl_=np.s_[:]):
         return ind_shape_i_(arr[0].shape, i, ax, sl_)
-    X = P.starmap_async(_func, [(func, (i, tuple([ii[_i(i)] for ii in arr]),
-                                o0[_i(i, sl_=0)], args, kwargs))
+    X = P.starmap_async(_func, [(func, (
+                                        tuple(ii[_i(i)] for ii in arr),
+                                        o0[_i(i, sl_=0)],
+                                        args,
+                                        kwargs))
                                 for i in range(nSlice_(arr[0].shape, ax))])
     XX = X.get()
     P.close()
@@ -1217,33 +1228,29 @@ def ax_fn_mp_(arr, ax, func, out, *args, npr=32, **kwargs):
     _sb(XX, out, ax)
 
 
-def _sb(out, c, ax):
-    for sl in out:
-        if sl is not None:
-            i, o = sl[0], sl[1]
-            if o is not None:
-                _isb(i, o, c, ax)
+def _sb(XX, out, ax):
+    for i, o in enumerate(XX):
+        if o is not None:
+            _isb(i, o, out, ax)
 
 
-def _isb(i, o, c, ax):
+def _isb(i, o, out, ax):
     def _get_nax(x):
         if x.ndim == 0:
             nax = None
         else:
-            if isinstance(ax, int):
-                nax = np.arange(ax, ax + x.ndim)
-            else:
-                nax = np.arange(ax[0], ax[0] + x.ndim)
+            ax_ = tuple(ax) if isIter_(ax) else (ax,)
+            nax = tuple(np.arange(ax_[0], ax_[0] + x.ndim))
         return nax
-    if isinstance(c, (list, tuple, iris.cube.CubeList)):
-        for j, k in zip(c, o):
+    if isMyIter_(out):
+        for j, k in zip(out, o):
             if not isinstance(k, np.ndarray):
                 k = np.asarray(k)
             slice_back_(j, k, i, _get_nax(k))
     else:
         if not isinstance(o, np.ndarray):
             o = np.asarray(o)
-        slice_back_(c, o, i, _get_nax(o))
+        slice_back_(out, o, i, _get_nax(o))
 
 
 def alng_axis_(arrs, ax, func, out, *args, **kwargs):
@@ -1464,6 +1471,6 @@ def half_grid_(x, side='i', axis=-1, loa=None, rb=360):
     if loa == 'lo':
         o = cyl_(o, rb, lb)
     if loa == 'la':
-        o = np.where(o > 90, 90, o)  
+        o = np.where(o > 90, 90, o)
         o = np.where(o < -90, -90, o)
     return o
