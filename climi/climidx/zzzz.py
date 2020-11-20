@@ -118,20 +118,19 @@ def dt_thr_(y, doy_y, ax_t, t_thr, hw=True):
     doy_thr = np.arange(1, 367, dtype='int')
 
     t0 = l__('running dt_thr_')
+    t_thr = np.squeeze(t_thr) if t_thr.ndim > dy.ndim else t_thr
     #subtraction with respect to day-of-year
     for idoy in np.unique(doy_y):
         dy[ind_s_(y.ndim, ax_t, doy_y == idoy)] -= \
-            t_thr[ind_s_(t_thr.ndim, ax_t, doy_thr == idoy)]
-
+        t_thr[ind_s_(t_thr.ndim, ax_t, doy_thr == idoy)]
     ll_('running dt_thr_', t0)
-
     return dy if hw else -dy
 
 
 def md_(t, dt, p25, p75, hw=True):
     y = (t - p25) / (p75 - p25) if hw else (p75 - t) / (p75 - p25)
-    y[np.isnan(dt)] = np.nan
-    y[np.less(dt, 0, where=~np.isnan(dt))] = 0.
+    y[y < 0] = 0
+    y[np.less_equal(dt, 0, where=~np.isnan(dt))] = np.nan
     return y
 
 
@@ -344,14 +343,16 @@ def get_t_period_(pn, dict_p, cube, yr_0, doy_0, ax_t):
 
     t0 = l__('preparing ' + pn)
     if pn == 'data':
-        t_p, yr_p, doy_p = cube.data, yr_0, doy_0
         y0, y1 = min(yr_0), max(yr_0)
     else:
         y0, y1 = dict_p[pn]
-        ind = ind_inRange_(yr_0, *dict_p[pn])
-        t_p = extract_byAxes_(cube, ax_t, ind).data
-        yr_p = yr_0[ind]
-        doy_p = doy_0[ind]
+        y0, y1 = max(y0, min(yr_0)), min(y1, max(yr_0))
+    y0 = y0 + 1 if np.sum(yr_0 == y0 + 1) - np.sum(yr_0 == y0) > 5 else y0
+    y1 = y1 - 1 if np.sum(yr_0 == y1 - 1) - np.sum(yr_0 == y1) > 5 else y1
+    ind = ind_inRange_(yr_0, y0, y1)
+    t_p = extract_byAxes_(cube, ax_t, ind).data
+    yr_p = yr_0[ind]
+    doy_p = doy_0[ind]
     t_p = nanMask_(t_p)
     ll_('preparing ' + pn, t0)
 

@@ -1,8 +1,8 @@
 experiment: hc
 
-proj: cordex                                                                       
-_d: True                                                                       
-_sdi: True                                                                      
+proj: cordex
+_d: True
+_sdi: True
 hORc: heat
 
 ehr: historical
@@ -15,11 +15,11 @@ ldir: /nobackup/rossby22/sm_chali/DATA/fx/ # sftlf dir
 #gcms: ['ICHEC-EC-EARTH', 'MOHC-HadGEM2-ES', 'MPI-M-MPI-ESM-LR',
 #       'IPSL-IPSL-CM5A-MR', 'CCCma-CanESM2', 'NCC-NorESM1-M']
 #rcms: ['CLMcom-CCLM4-8-17', 'DMI-HIRHAM5', 'KNMI-RACMO22E',
-#       'MPI-CSC-REMO2009', 'GERICS-REMO2015', 'SMHI-RCA4']                     
+#       'MPI-CSC-REMO2009', 'GERICS-REMO2015', 'SMHI-RCA4']
 gcms: ['ICHEC-EC-EARTH', 'MOHC-HadGEM2-ES', 'MPI-M-MPI-ESM-LR',
        'IPSL-IPSL-CM5A-MR', 'CCCma-CanESM2', 'NCC-NorESM1-M']
 rcms: ['CLMcom-CCLM4-8-17', 'DMI-HIRHAM5', 'KNMI-RACMO22E',
-       'MPI-CSC-REMO2009', 'GERICS-REMO2015', 'SMHI-RCA4']                     
+       'MPI-CSC-REMO2009', 'GERICS-REMO2015', 'SMHI-RCA4']
 
 rip:
   ICHEC-EC-EARTH: r12i1p1
@@ -34,21 +34,21 @@ f_opts:
 #2nd loop on regions
 regions:
   - ALL # [SWE, NSWE, SSWE, EUR, GLOBAL]
-sub_r:                                                                          
-  SWE:                                                                          
-    longitude: [10.0, 23.0]                                                     
-    latitude: [55.0, 69.0]                                                      
-  EUR:                                                                          
-    longitude: [-15.0, 60.0]                                                    
-    latitude: [35.0, 72.0] 
+sub_r:
+  SWE:
+    longitude: [10.0, 23.0]
+    latitude: [55.0, 69.0]
+  EUR:
+    longitude: [-15.0, 60.0]
+    latitude: [35.0, 72.0]
 
 #3rd loop on periods
-#periods: [hist] # [hist, rcp]
+periods: [hist] # [hist, rcp]
 p_:
   #ref: [1971, 2000]
   ref: [1981, 2010]
-  hist: [1989, 2010]
-#  rcp: [2006, 2099]
+  hist: [1971, 2005]
+  rcp: [2006, 2100]
 
 #season
 #season: ndjf

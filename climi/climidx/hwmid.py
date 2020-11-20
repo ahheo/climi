@@ -30,7 +30,7 @@ __all__ = ['hwmid__']
 
 def pre__(dCube=None, rCube=None,
           dict_p=None, mdir=None, rref=None, fnthr=None,
-          minL=None, pctl=None, pn='data', hw=True):
+          minL=None, pctl=None, mm=None, pn='data', hw=True):
     """
     ... prepare data for calculating get_hwmi_() ...
 
@@ -53,8 +53,8 @@ def pre__(dCube=None, rCube=None,
     """
 
     if any([i is None for i in [dCube, rCube, dict_p, mdir, rref,
-                                fnthr, minL, pctl]]):
-        return (None,) * 6
+                                fnthr, minL, pctl, mm]]):
+        return (None,) * 5
 
     ax_t = dCube[3]
 
@@ -86,13 +86,15 @@ def pre__(dCube=None, rCube=None,
                              name=idn_[1],
                              units=1,
                              var_name=idn_[0],
-                             attrU=addattr_)
+                             attrU=addattr_,
+                             mm=mm)
     addattr_ = {'NOTE': 'Ref. period for ' + idn_[2] + ': {}'.format(rref)}
     c_wsdi = initAnnualCube_(dCube[0], [y0, y1],
                              name=idn_[3],
                              units='days',
                              var_name=idn_[2],
-                             attrU=addattr_)
+                             attrU=addattr_,
+                             mm=mm)
     rm_t_aux_cube(c_hwmi)
     rm_t_aux_cube(c_wsdi)
     logging.info(' data ready for get_hwmid_/get_cwmid ...')
@@ -169,5 +171,8 @@ def hwmid__(hw=True, **dd__):
     ... pre_hwmi_ & get_hwmi_ ...
     """
     tmp = pre__(hw=hw, **dd__)
-    out = get_hwmid_(*tmp)
-    return out
+    if tmp[0] is None:
+        return None
+    else:
+        out = get_hwmid_(*tmp)
+        return out

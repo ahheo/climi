@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from climi.uuuu import *
 from climi.climidx import *
 
@@ -54,7 +56,8 @@ i__ = {'ET': (1, 0, ['et'], None, ['year']),
        'VegSeasonDayStart-2': (31, 1, ['t'], dStartEndVegSeason_, ['year']),
        'VegSeasonLength-5': (32, 1, ['t'], dStartEndVegSeason_, ['year']),
        'VegSeasonLength-2': (33, 1, ['t'], dStartEndVegSeason_, ['year']),
-       'SfcWind': (34, 1, ['ws'], None, ['month', 'season', 'year']),
+       #'SfcWind': (34, 1, ['ws'], None, ['month', 'season', 'year']),
+       'SfcWind': (34, 1, ['ws'], None, ['month']),
        'WindGustMax': (35, 1, ['wsgs'], 'MAX', ['year']),
        'WindyDays': (36, 1, ['wsgs'], dWindyDays_, ['season', 'year']),
        'PRgt10Days': (37, 1, ['pr'], dExtrPrDays_, ['season', 'year']),
@@ -900,7 +903,7 @@ def eur11_imp_rcp_(il_, reg_d, reg_n, po_, sss=None, eee=None):
     for p_ in pp['p_'][sss:eee]:
         tmp = path2cordex_info_(p_)
         dn = '_'.join((tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
-                       tmp['version'], reg_n))
+                       tmp['ver'], reg_n))
         t0 = l__('>>>>>>>' + dn)
         pi_ = pp['root'] + p_
         tis = ['mon', 'day', '6hr']
@@ -911,12 +914,12 @@ def eur11_imp_rcp_(il_, reg_d, reg_n, po_, sss=None, eee=None):
 
 def eur11_imp_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
                   sss=None, eee=None):
-    pp = _pp(_here_ + 'eur-11_import_.yml')
+    pp = _pp(_here_ + 'eur-11_import.yml')
     gg = _gg()
     for p_ in pp['p_'][sss:eee]:
         tmp = path2cordex_info_(p_)
         dn = '_'.join((tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
-                       tmp['version'], reg_n))
+                       tmp['ver'], reg_n))
         y0y1, dn = _yy_dn(tmp, dn, gwl, gg, curr)
         if y0y1 is None:
             continue
@@ -937,7 +940,7 @@ def eur11_imp_eval(il_, reg_d, reg_n, po_, sss=None, eee=None):
     for p_ in pp['p_'][sss:eee]:
         tmp = path2cordex_info_(p_)
         dn = '_'.join((tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
-                       tmp['version'], reg_n))
+                       tmp['ver'], reg_n))
         t0 = l__('>>>>>>>' + dn)
         pi_ = pp['root'] + p_
         tis = ['mon', 'day', '6hr']
@@ -953,7 +956,7 @@ def eur11_imp_eval_dmi(il_, reg_d, reg_n, po_):
     for p_ in pp['p__']:
         tmp = path2cordex_info_(p_)
         dn = '_'.join((tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
-                       tmp['version'], reg_n))
+                       tmp['ver'], reg_n))
         t0 = l__('>>>>>>>' + dn)
         pi_ = pp['root'] + p_
         tis = ['mon', 'day', '6hr']
@@ -970,8 +973,8 @@ def eur11_smhi_eval(il_, reg_d, reg_n, po_):
     rcp = pp[pp['eval']]['rcp']
     rip = pp[pp['eval']]['rip']
     rcm = pp[pp['eval']]['rcm']
-    version = pp[pp['eval']]['version']
-    dn = '_'.join((gcm, rcp, rip, rcm, version, reg_n))
+    ver = pp[pp['eval']]['ver']
+    dn = '_'.join((gcm, rcp, rip, rcm, ver, reg_n))
     t0 = l__('>>>>>>>' + dn)
     tis = ['mon', 'day', '6hr']
     for tint in tis:
@@ -984,7 +987,7 @@ def eur11_smhi_rcp_(il_, reg_d, reg_n, po_, sss=None, eee=None):
     for ppi in pp['h248'][sss:eee]:
         pi_ = '{}{}/netcdf/'.format(pp['root'], ppi)
         dn = '_'.join((pp[ppi]['gcm'], pp[ppi]['rcp'], pp[ppi]['rip'],
-                       pp[ppi]['rcm'], pp[ppi]['version'], reg_n))
+                       pp[ppi]['rcm'], pp[ppi]['ver'], reg_n))
         t0 = l__('>>>>>>>' + dn)
         tis = ['mon', 'day', '6hr']
         for tint in tis:
@@ -1001,7 +1004,7 @@ def eur11_smhi_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
         pi0_, pi1_ = ('{}{}/netcdf/'.format(pp['root'], pi0),
                       '{}{}/netcdf/'.format(pp['root'], pi1))
         dn = '_'.join((pp[pi1]['gcm'], pp[pi1]['rcp'], pp[pi1]['rip'],
-                       pp[pi1]['rcm'], pp[pi1]['version'], reg_n))
+                       pp[pi1]['rcm'], pp[pi1]['ver'], reg_n))
         y0y1, dn = _yy_dn(pp[pi1], dn, gwl, gg, curr)
         if y0y1 is None:
             continue
@@ -1087,6 +1090,10 @@ def main():
     parser = argparse.ArgumentParser('RUN CLIMIDX')
     parser.add_argument("opt", type=int,
                         help="options for dataset on BI")
+    parser.add_argument("-x", "--indices",
+                        type=str, help="indices to be calculated")
+    parser.add_argument("-X", "--indices_excl",
+                        type=str, help="indices not to be calculated")
     parser.add_argument("-g", "--gwl",
                         type=str, help="warming levels")
     parser.add_argument("-s", "--start",
@@ -1096,6 +1103,20 @@ def main():
     parser.add_argument("-l", "--log",
                         type=str, help="exclusive log identifier")
     args = parser.parse_args()
+    
+    xi_ = args.indices
+    if xi_:
+        if os.path.isfile(xi_):
+            with open(xi_, 'r') as yf:
+                il_ = yaml.safe_load(yf)
+        else:
+            il_ = xi_.split(',')
+    else:
+        il_ = list(i__.keys())
+    if args.indices_excl:
+        el_ = args.indices_excl.split(',')
+        for i in el_:
+            il_.remove(i)
     #il_ = list(i__.keys())
     #il_.remove('SIC')
     #il_.remove('SST')
@@ -1104,7 +1125,8 @@ def main():
     #il_.remove('FirstDayWithoutFrost')
     #il_.remove('SpringFrostDayEnd')
     #il_ = ['TAS', 'TX', 'TN', 'PR', 'PRmax']
-    il_ = ['SIC', 'SST']
+    #il_ = ['TX']
+    #il_ = ['SIC', 'SST']
     #il_ = ['SNWmax', 'R5OScw', 'R1OScw']
     #il_ = ['CalmDays975', 'ConCalmDays975', 'CalmDays925', 'ConCalmDays925']
     #       'Wind975toSfc', 'ColdRainDays', 'ColdRainGT10Days',
@@ -1117,7 +1139,7 @@ def main():
     #reg_n = 'SWE'
     reg_d = None
     #reg_d = {'longitude': [-25.0, 45.0], 'latitude': [25.0, 75.0]}
-    reg_n = 'GLB'
+    reg_n = 'EUR'
     rxx = os.environ.get('r24')
     #rdir = '/nobackup/rossby22/sm_chali/DATA/energi/res/'
     rdir = '{}DATA/energi/res/'.format(rxx)

@@ -33,12 +33,12 @@ __all__ = ['aligned_cb_',
 
 
 def init_fig_(fx=12, fy=6,
-              h=0.075, w=0.075,                          
-              t=0.98, b=0.075, l=0.075, r=0.98):                  
-    fig = plt.figure(figsize=(fx, fy))                                          
-    fig.subplots_adjust(hspace=h, wspace=w,                           
-                        top=t, bottom=b,                                 
-                        left=l, right=r)                                 
+              h=0.075, w=0.075,
+              t=0.98, b=0.075, l=0.075, r=0.98):
+    fig = plt.figure(figsize=(fx, fy))
+    fig.subplots_adjust(hspace=h, wspace=w,
+                        top=t, bottom=b,
+                        left=l, right=r)
     return fig
 
 
@@ -103,21 +103,21 @@ def pch_swe_(fig, nrow, ncol, n, cube,
     elif clo_ == 'cs':
         clo = _get_clo(cube)
     else:
-        clo = _clo_ext(ext, h_=clo_) 
+        clo = _clo_ext(ext, h_=clo_)
     proj = ccrs.NorthPolarStereo(central_longitude=clo)
-    return pch_(fig, nrow, ncol, n, cube, proj, ext=ext, ti=ti, pcho=pcho) 
+    return pch_(fig, nrow, ncol, n, cube, proj, ext=ext, ti=ti, pcho=pcho)
 
 
 def pch_eur_(fig, nrow, ncol, n, cube, rg=None, ti=None, pcho={}):
     ext = _mapext(cube, rg=rg)
     proj = ccrs.EuroPP()
-    return pch_(fig, nrow, ncol, n, cube, proj, ext=ext, ti=ti, pcho=pcho) 
+    return pch_(fig, nrow, ncol, n, cube, proj, ext=ext, ti=ti, pcho=pcho)
 
 
 def pch_ll_(fig, nrow, ncol, n, cube, rg=None, ti=None, pcho={}):
     ext = _mapext(cube, rg=rg)
     proj = ccrs.PlateCarree()
-    return pch_(fig, nrow, ncol, n, cube, proj, ext=ext, ti=ti, pcho=pcho) 
+    return pch_(fig, nrow, ncol, n, cube, proj, ext=ext, ti=ti, pcho=pcho)
 
 
 def pch_(fig, nrow, ncol, n, cube, proj, ext=None, ti=None, pcho={}):
@@ -237,7 +237,7 @@ def _minmaxXYlm(ax):
         xmax = max([i.get_position().x1 for i in ax])
         ymax = max([i.get_position().y1 for i in ax])
     else:
-        xmin, ymin = ax.get_position().p0 
+        xmin, ymin = ax.get_position().p0
         xmax, ymax = ax.get_position().p1
     return (xmin, xmax, ymin, ymax)
 

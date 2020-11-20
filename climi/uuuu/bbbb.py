@@ -62,22 +62,21 @@ __all__ = ['bi_cmip5_info_',
 _here_ = get_path_(__file__)
 
 
-def cmip5_dir_finfo(idir, var='*', freq='*', gcm='*', exp='*', realz='*',
+def cmip5_dir_finfo(idir, var='*', freq='*', gcm='*', exp='*', rip='*',
                     p=None, ext='.nc'):
     """
     Purpose: get data info from a cmip5 data directory
     """
-    varL, freqL, gcmL, expL, realzL, pL = [[] for _ in range(6)]
+    varL, freqL, gcmL, expL, ripL, pL = [[] for _ in range(6)]
     s = '_'
     if isinstance(idir, str):
         idir = [idir]
     files = []
     for i in idir:
         if p is None:
-            tmp = glob.glob(i + s.join([var, freq, gcm, exp, realz]) +
-                            '*' + ext)
+            tmp = glob.glob(i + s.join([var, freq, gcm, exp, rip]) + '*' + ext)
         else:
-            tmp = glob.glob(i + s.join([var, freq, gcm, exp, realz, p]) + ext)
+            tmp = glob.glob(i + s.join([var, freq, gcm, exp, rip, p]) + ext)
         files += tmp
     files.sort()
     for f in files:
@@ -88,32 +87,32 @@ def cmip5_dir_finfo(idir, var='*', freq='*', gcm='*', exp='*', realz='*',
         freqL.append(s_s[1])
         gcmL.append(s_s[2])
         expL.append(s_s[3])
-        realzL.append(s_s[4])
+        ripL.append(s_s[4])
         if s_s[1].upper() != 'FX':
             pL.append(s_s[5])
     return {'var': ouniqL_(varL), 'freq': ouniqL_(freqL),
             'gcm': ouniqL_(gcmL), 'exp': ouniqL_(expL),
-            'realz': ouniqL_(realzL), 'p': ouniqL_(pL),
+            'rip': ouniqL_(ripL), 'p': ouniqL_(pL),
             'fn': files}
 
 
-def cordex_dir_finfo(idir, var='*', dm='*', gcm='*', exp='*', realz='*',
-                     rcm='*', V='*', freq='*', p=None, ext='.nc'):
+def cordex_dir_finfo(idir, var='*', dm='*', gcm='*', exp='*', rip='*',
+                     rcm='*', ver='*', freq='*', p=None, ext='.nc'):
     """
     Purpose: get data info from a cordex data directory
     """
-    varL, dmL, gcmL, expL, realzL, rcmL, VL, freqL, pL = [[]
-                                                          for _ in range(9)]
+    varL, dmL, gcmL, expL, ripL, rcmL, verL, freqL, pL = [[] for _ in range(9)]
     s = '_'
     if isinstance(idir, str):
         idir = [idir]
     files = []
     for i in idir:
         if p is None:
-            tmp = glob.glob(i + s.join([var, dm, gcm, exp, realz, rcm, V,
-                                        freq]) + '*' + ext)
+            tmp = glob.glob(i + 
+                            s.join([var, dm, gcm, exp, rip, rcm, ver, freq])
+                            + '*' + ext)
         else:
-            tmp = glob.glob(i + s.join([var, dm, gcm, exp, realz, rcm, V,
+            tmp = glob.glob(i + s.join([var, dm, gcm, exp, rip, rcm, ver,
                                         freq, p]) + ext)
         files += tmp
     files.sort()
@@ -125,16 +124,16 @@ def cordex_dir_finfo(idir, var='*', dm='*', gcm='*', exp='*', realz='*',
         dmL.append(s_s[1])
         gcmL.append(s_s[2])
         expL.append(s_s[3])
-        realzL.append(s_s[4])
+        ripL.append(s_s[4])
         rcmL.append(s_s[5])
-        VL.append(s_s[6])
+        verL.append(s_s[6])
         freqL.append(s_s[7])
         if s_s[7].upper() != 'FX':
             pL.append(s_s[8])
     return {'var': ouniqL_(varL), 'dm': ouniqL_(dmL),
             'gcm': ouniqL_(gcmL), 'exp': ouniqL_(expL),
-            'realz': ouniqL_(realzL), 'rcm': ouniqL_(rcmL),
-            'V': ouniqL_(VL), 'freq': ouniqL_(freqL),
+            'rip': ouniqL_(ripL), 'rcm': ouniqL_(rcmL),
+            'ver': ouniqL_(verL), 'freq': ouniqL_(freqL),
             'p': ouniqL_(pL), 'fn': files}
 
 
@@ -148,7 +147,7 @@ def min_fselect_(dir_finfo, period=None):
     dir_finfo.update({'p': pp, 'fn': fn})
 
 
-def cmip5_dir_cubeL(idir, var='*', freq='*', gcm='*', exp='*', realz='*',
+def cmip5_dir_cubeL(idir, var='*', freq='*', gcm='*', exp='*', rip='*',
                     p='*', ext='.nc', period=None, ifconcat=False):
     """
     Purpose: load cube list from a cmip5 data directory
@@ -156,9 +155,9 @@ def cmip5_dir_cubeL(idir, var='*', freq='*', gcm='*', exp='*', realz='*',
     warnings.filterwarnings("ignore", category=UserWarning)
     s = '_'
     info = cmip5_dir_finfo(idir, var=var, freq=freq, gcm=gcm, exp=exp,
-                           realz=realz, p=p, ext=ext)
+                           rip=rip, p=p, ext=ext)
     if (len(info['gcm']) * len(info['var']) * len(info['freq'])
-        * len(info['realz'])) not in [0, 1] and ifconcat:
+        * len(info['rip'])) > 1 and ifconcat:
         raise Exception("no idea how to organize kArgs!")
     min_fselect_(info, period)
     cubeL = iris.load(info['fn'])
@@ -183,7 +182,7 @@ def cmip5_dir_cubeL(idir, var='*', freq='*', gcm='*', exp='*', realz='*',
 
 
 def cordex_dir_cubeL(idir, var='*', dm='*', gcm='*', exp='*', rcm='*',
-                     freq='*', V='*', realz='*', p='*', ext='.nc',
+                     freq='*', ver='*', rip='*', p='*', ext='.nc',
                      period=None, ifconcat=False):
     """
     Purpose: load cube list from a cordex data directory
@@ -191,10 +190,10 @@ def cordex_dir_cubeL(idir, var='*', dm='*', gcm='*', exp='*', rcm='*',
     warnings.filterwarnings("ignore", category=UserWarning)
     s = '_'
     info = cordex_dir_finfo(idir, var=var, dm=dm, gcm=gcm, exp=exp,
-                            realz=realz, rcm=rcm, p=p, ext=ext)
-    if (len(info['dm']) * len(info['gcm']) * len(info['var'])
-        * len(info['rcm']) * len(info['freq'] * len(info['realz'])
-        * len(info['V']))) not in [0, 1] and ifconcat:
+                            rip=rip, rcm=rcm, p=p, ext=ext)
+    if ((len(info['dm']) * len(info['gcm']) * len(info['var'])
+         * len(info['rcm']) * len(info['freq']) * len(info['rip'])) > 1
+        and ifconcat):
         raise Exception("no idea how to organize kArgs!")
     min_fselect_(info, period)
     cubeL = iris.load(info['fn'])
@@ -287,8 +286,8 @@ def bi_cordex_info_(root, o_o='list'):
     for rr in rcms:
         if not os.path.isdir(root + rr):
             continue
-        versions = os.listdir(root + rr)
-        for vv in versions:
+        vers = os.listdir(root + rr)
+        for vv in vers:
             if not os.path.isdir(root + '/'.join((rr, vv))):
                 continue
             gcms = os.listdir(root + '/'.join((rr, vv)))
@@ -342,13 +341,13 @@ def path2cordex_info_(fn):
     terms = [i for i in fn.split('/') if i != '']
     if terms[-1] in ['fx', 'fx_i', '1hr', '3hr', '6hr', 'day', 'mon', 'mon_i',
                      'sem', 'sem_i']:
-        rcm, version, gcm, rip, rcp = terms[-7:-2]
+        rcm, ver, gcm, rip, rcp = terms[-7:-2]
         freq = terms[-1]
-        return {'rcm': rcm, 'version': version, 'gcm': gcm,
+        return {'rcm': rcm, 'ver': ver, 'gcm': gcm,
                 'rip': rip, 'rcp': rcp, 'freq': freq}
     else:
-        rcm, version, gcm, rip, rcp = terms[-6:-1]
-        return {'rcm': rcm, 'version': version, 'gcm': gcm,
+        rcm, ver, gcm, rip, rcp = terms[-6:-1]
+        return {'rcm': rcm, 'ver': ver, 'gcm': gcm,
                 'rip': rip, 'rcp': rcp}
 
 
@@ -392,9 +391,9 @@ def _clmidx_dn_rplrcp(dn, nrcp='historical'):
 
 def clmidx_finfo_(idir, var, gwls=['gwl15', 'gwl2'],
                   gcm='*', rcp='*', rip='*', rcm='*',
-                  version='*', rn='EUR', freq='year', newestV=False,
+                  ver='*', rn='EUR', freq='year', newestV=False,
                   addCurr=True):
-    files = glob.glob(idir + '_'.join((var, gcm, '*', rip, rcm, version,
+    files = glob.glob(idir + '_'.join((var, gcm, '*', rip, rcm, ver,
                                        rn, freq, '*.nc')))
     files.sort()
     fns = [[i for i in files if '{}.nc'.format(ii) in i] for ii in gwls]
@@ -429,8 +428,8 @@ def clmidx_finfo_cmip5_(idir, var, gwls=['gwl15', 'gwl2'],
 
 
 def clmidx_finfo_eval_(idir, var, gcm='*', rcp='*', rip='*', rcm='*',
-                        version='*', rn='EUR', freq='year'):
-    files = glob.glob(idir + '_'.join((var, gcm, rcp, rip, rcm, version,
+                       ver='*', rn='EUR', freq='year'):
+    files = glob.glob(idir + '_'.join((var, gcm, rcp, rip, rcm, ver,
                                        rn, freq, '*.nc')))
     files.sort()
     oi = [_clmidx_f2dn(i) for i in files]
@@ -725,7 +724,7 @@ def load_h248_(idir, var='hwmid-tx', m='', rcp='', ref='', freq='j-d',
             fnh = re.sub(r'_v\d[a-zA-Z]?(?=_)', '_v*', fnh) ########rcm version
         return fnh
     m = '_{}_'.format(m) if m else m
-    freq = 'j-d' if freq == '' else freq
+    freq = 'j-d' if freq in ('', None) else freq
     fn = schF_keys_(idir, var, m, rcp,
                     'ref{}-{}'.format(*ref) if ref else '', freq)
     if fn:

@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+
+from climi.uuuu.ffff import schF_keys_, cyl_, prg_, pure_fn_
+from climi.uuuu.cccc import _repair_lccs_cube as rlc_
+import iris
+from iris.fileformats.netcdf import UnknownCellMethodWarning
+import warnings
+import numpy as np
+import argparse
+import os
+
+
+def main():
+    warnings.filterwarnings("ignore", category=UnknownCellMethodWarning)
+    parser = argparse.ArgumentParser("repair l-c coordinate system")
+    parser.add_argument("fld", type=str,
+                        help="folder")
+    args = parser.parse_args()
+    fld = args.fld
+    idir = fld if fld[-1] == '/' else '{}/'.format(fld)
+    print(idir)
+    os.makedirs(idir + 'dddd', exist_ok=True)
+    fns = schF_keys_(idir)
+    print(len(fns))
+    for i, fn in enumerate(fns):
+        print(prg_(i + 1, len(fns)), fn)
+        if i < 22465:
+            continue
+        o = iris.load_cube(fn)
+        tmp = rlc_(o, True)
+        if tmp:
+            fn_ = '{}dddd/{}.nc'.format(idir, pure_fn_(fn))
+            print('save to', fn_)
+            iris.save(o, fn_)
+
+
+if __name__ == '__main__':
+    main()

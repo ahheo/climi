@@ -2,7 +2,7 @@ experiment: hc
 proj: obs
 _d: True
 _sdi: True
-hORc: cold
+hORc: heat
 
 datasets: [EOBS20] # [STOCKHOLM-Corrected, STOCKHOLM-Homogenized] # [EOBS]
 
@@ -52,7 +52,7 @@ minL: 3
 data4kde_mtd: 'ymax'
 
 #thr_() option
-thr_pctl: 10
+thr_pctl: 90
 
 #kde_ option
 kde_opts:

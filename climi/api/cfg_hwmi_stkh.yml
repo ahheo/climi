@@ -1,6 +1,6 @@
 experiment: hc
 proj: obs
-_d: False
+_d: True
 _sdi: True
 hORc: heat
 
@@ -40,7 +40,7 @@ p_:
 season: mjja
 
 #output
-root: /home/sm_chali/wks/
+root: /nobackup/rossby22/sm_chali/DATA/
 
 #subH_() option
 minL: 3

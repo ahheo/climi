@@ -342,10 +342,11 @@ def _weights(bpdT, bpdS, thr):
     loR = (bpdT['lod'] + bpdS['lod']) / 2 
     laR = (bpdT['lad'] + bpdS['lad']) / 2
     if bpdT['lop'].size > 1e6:
-        with mp.Pool(nproc) as P:
-            tmp = P.starmap_async(_iwght, [(i, bpdT, bpdS, loR, laR)
-                                           for i in range(bpdT['lop'].size)])
-            out = tmp.get()
+        P = mp.Pool(nproc)
+        tmp = P.starmap_async(_iwght, [(i, bpdT, bpdS, loR, laR)
+                                       for i in range(bpdT['lop'].size)])
+        out = tmp.get()
+        P.close()
     else:
         out = (_iwght(i, bpdT, bpdS, loR, laR)
                for i in range(bpdT['lop'].size))

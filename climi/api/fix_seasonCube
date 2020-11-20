@@ -1,0 +1,62 @@
+#!/usr/bin/env python3
+
+from climi.uuuu.ffff import schF_keys_, cyl_, prg_, pure_fn_
+from climi.uuuu.cccc import extract_byAxes_, y0y1_of_cube, rm_t_aux_cube
+import iris
+import cf_units
+from datetime import datetime
+import numpy as np
+import argparse
+import os
+
+
+def main():
+    parser = argparse.ArgumentParser("Repair time coord of season cubes")
+    parser.add_argument("fld", type=str,
+                        help="folder")
+    parser.add_argument("-m", "--mmm", type=str, default='djf',
+                        help="months of season (e.g., djf)")
+    args = parser.parse_args()
+    fld = args.fld
+    s = args.mmm
+    def _mm01(y0):                                                                
+        mns = 'jfmamjjasond' * 2                                                
+        n = mns.find(s)                                                        
+        if n == -1:                                                             
+            raise Exception("known 'mm' provided!")                           
+        m0 = n + 1                                                              
+        m1 = cyl_(m0 + len(s), 13, 1)                                          
+        y0_ = y0 if n + len(s) < 13 else y0 - 1                                
+        y0__ = y0 + 1 if m1 == 1 else y0                                        
+        return (m0, m1, y0_, y0__)
+    idir = fld if fld[-1] == '/' else '{}/'.format(fld)
+    print(idir)
+    os.makedirs(idir + 'dddd', exist_ok=True)
+    fns = schF_keys_(idir, '_{}_'.format(s))
+    print(len(fns))
+    for i, fn in enumerate(fns):
+        print(prg_(i+1, len(fns)), fn)
+        o = iris.load_cube(fn)
+        y0, y1 = y0y1_of_cube(o)
+        rm_t_aux_cube(o)
+        ny = y1 - y0 + 1
+        m0, m1, y0_, y0__ = _mm01(y0)
+        y0_h = [datetime(i, m0, 1) for i in range(y0_, y0_ + ny)]                   
+        y1_h = [datetime(i, m1, 1) for i in range(y0__, y0__ + ny)]                 
+        tbnds = np.empty((ny, 2))                                                   
+        tbnds[:, 0] = cf_units.date2num(y0_h,                                       
+                                        o.coord('time').units.origin,               
+                                        o.coord('time').units.calendar)             
+        tbnds[:, 1] = cf_units.date2num(y1_h,                                       
+                                        o.coord('time').units.origin,               
+                                        o.coord('time').units.calendar)             
+        tdata = np.mean(tbnds, axis=-1)                                             
+        o.coord('time').points = tdata                                              
+        o.coord('time').bounds = tbnds 
+        fn_ = '{}dddd/{}.nc'.format(idir, pure_fn_(fn))
+        print('save to', fn_)
+        iris.save(o, fn_)
+
+
+if __name__ == '__main__':
+    main()

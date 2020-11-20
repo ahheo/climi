@@ -256,16 +256,19 @@ def nTslice_cube(cube, n):
                         for ii in range(0, shp[i], step)]
 
 
-def y0y1_of_cube(cube):
+def y0y1_of_cube(cube, ccsn='year', mmm=None):
     if isinstance(cube, iris.cube.Cube):
         ccs = [i.name() for i in cube.coords()]
-        if 'year' in ccs:
-            return list(cube.coord('year').points[[0, -1]])
-        elif 'seasonyr' in ccs:
-            return list(cube.coord('seasonyr').points[[0, -1]])
-        else:
-            cat.add_year(cube, 'time', name='year')
-            return list(cube.coord('year').points[[0, -1]])
+        if ccsn not in ccs:
+            if 'season' in ccsn:
+                if mmm:
+                    seasonyr_cube(cube, mmm, ccsn=ccsn)
+                else:
+                    emsg = "'mmm' must not be None for adding coord {!r}!"
+                    raise ValueError(emsg.format(ccsn))
+            else:
+                cat.add_year(cube, 'time', name=ccsn)
+        return list(cube.coord(ccsn).points[[0, -1]])
     elif isMyIter_(cube):
         yy = np.array([y0y1_of_cube(i) for i in cube])
         return [np.max(yy[:, 0]), np.min(yy[:, 1])]
@@ -273,7 +276,7 @@ def y0y1_of_cube(cube):
         raise TypeError("unknown type!")
 
 
-def extract_period_cube(cube, y0, y1, yy=False):
+def extract_period_cube(cube, y0, y1, yy=False, ccsn='year', mmm=None):
     """
     ... extract a cube within the period from year y0 to year y1 ...
 
@@ -286,13 +289,17 @@ def extract_period_cube(cube, y0, y1, yy=False):
          c_y: a cube within the period
     """
     ccs = [i.name() for i in cube.coords()]
-    if 'year' in ccs:
-        cstr = iris.Constraint(year=lambda cell: y0 <= cell <= y1)
-    elif 'seasonyr' in ccs:
-        cstr = iris.Constraint(seasonyr=lambda cell: y0 <= cell <= y1)
-    else:
-        cat.add_year(cube, 'time', name='year')
-        cstr = iris.Constraint(year=lambda cell: y0 <= cell <= y1)
+    if ccsn not in ccs:
+        if 'season' in ccsn:
+            if mmm:
+                seasonyr_cube(cube, mmm, ccsn=ccsn)
+            else:
+                emsg = "'mmm' must not be None for adding coord {!r}!"
+                raise ValueError(emsg.format(ccsn))
+        else:
+            cat.add_year(cube, 'time', name=ccsn)
+    cstrD = {ccsn: lambda x: y0 <= x <= y1}
+    cstr = iris.Constraint(**cstrD)
     c_y = cube.extract(cstr)
     #c_y.remove_coord('year')
     return None if yy and y0y1_of_cube(c_y) != [y0, y1] else c_y
@@ -507,7 +514,7 @@ def intersection_(cube, **kwArgs):
             return extract_byAxes_(cube, *xyl)
 
 
-def seasonyr_cube(cube, mmm):
+def seasonyr_cube(cube, mmm, ccsn='seasonyr'):
     """
     ... add season_year auxcoords to a cube especially regarding
         specified season ...
@@ -517,12 +524,12 @@ def seasonyr_cube(cube, mmm):
     elif isinstance(mmm, (list, tuple)) and len(''.join(mmm)) == 12:
         seasons = mmm
     else:
-        raise Exception("unknown season '{}'!".format(mmm))
+        raise Exception("unknown seasons '{}'!".format(mmm))
     try:
-        cat.add_season_year(cube, 'time', name='seasonyr', seasons=seasons)
+        cat.add_season_year(cube, 'time', name=ccsn, seasons=seasons)
     except ValueError:
-        cube.remove_coord('seasonyr')
-        cat.add_season_year(cube, 'time', name='seasonyr', seasons=seasons)
+        cube.remove_coord(ccsn)
+        cat.add_season_year(cube, 'time', name=ccsn, seasons=seasons)
 
 
 def yr_doy_cube(cube):
@@ -1275,10 +1282,24 @@ def alng_axis_(arrs, ax, func, out, *args, **kwargs):
 
 
 def initAnnualCube_(c0, y0y1, name=None, units=None, var_name=None,
-                    long_name=None, attrU=None):
+                    long_name=None, attrU=None, mm='j-d'):
+    mm = 'jfmamjjasond' if mm == 'j-d' else mm
     y0, y1 = y0y1
-    c = extract_byAxes_(c0, 'time', np.s_[:(y1 - y0 + 1)])
+    ny = y1 - y0 + 1
+    c = extract_byAxes_(c0, 'time', np.s_[:ny])
     rm_t_aux_cube(c)
+
+    def _mm01():
+        mns = 'jfmamjjasond' * 2
+        n = mns.find(mm)
+        if n == -1:
+            raise Exception("unknown 'mm' provided!")
+        m0 = n + 1
+        m1 = cyl_(m0 + len(mm), 13, 1)
+        y0_ = y0 if n + len(mm) < 13 else y0 - 1
+        y0__ = y0 + 1 if m1 == 1 else y0
+        return (m0, m1, y0_, y0__)
+
     ##data and mask
     if isinstance(c.data, np.ma.core.MaskedArray):
         if c.data.mask.ndim == 0:
@@ -1291,19 +1312,17 @@ def initAnnualCube_(c0, y0y1, name=None, units=None, var_name=None,
     ##coord('time')
     c.coord('time').units = cf_units.Unit('days since 1850-1-1',
                                            calendar='gregorian')
-    y_ = [datetime(i, 7, 1) for i in np.arange(y0, y1 + 1, dtype='int')]
-    tdata = cf_units.date2num(y_,
-                              c.coord('time').units.origin,
-                              c.coord('time').units.calendar)
-    y0_h = [datetime(i, 1, 1) for i in np.arange(y0, y1 + 1, dtype='int')]
-    y1_h = [datetime(i, 12, 31) for i in np.arange(y0, y1 + 1, dtype='int')]
-    tbnds = np.empty(tdata.shape + (2,))
+    m0, m1, y0_, y0__ = _mm01()
+    y0_h = [datetime(i, m0, 1) for i in range(y0_, y0_ + ny)]
+    y1_h = [datetime(i, m1, 1) for i in range(y0__, y0__ + ny)]
+    tbnds = np.empty((ny, 2))
     tbnds[:, 0] = cf_units.date2num(y0_h,
                                     c.coord('time').units.origin,
                                     c.coord('time').units.calendar)
     tbnds[:, 1] = cf_units.date2num(y1_h,
                                     c.coord('time').units.origin,
                                     c.coord('time').units.calendar)
+    tdata = np.mean(tbnds, axis=-1)
     c.coord('time').points = tdata
     c.coord('time').bounds = tbnds
     ##var_name ...
@@ -1320,7 +1339,7 @@ def initAnnualCube_(c0, y0y1, name=None, units=None, var_name=None,
     return c
 
 
-def pSTAT_cube(cube, method, *freq, **method_otps):
+def pSTAT_cube(cube, method, *freq, valid_season=True, **method_otps):
     method = method.upper()
     if method not in ['MEAN', 'MAX', 'MIN', 'MEDIAN', 'SUM', 'PERCENTILE',
                       'PROPORTION', 'STD_DEV', 'RMS', 'VARIANCE', 'HMEAN',
@@ -1361,6 +1380,8 @@ def pSTAT_cube(cube, method, *freq, **method_otps):
     for ff in freq:
         tmp = cube.aggregated_by(d[ff], eval('iris.analysis.' + method),
                                  **method_otps)
+        if ff == 'season' and valid_season:
+            tmp = extract_byAxes_(tmp, 'time', np.s_[1:-1])
         rm_t_aux_cube(tmp, keep=d[ff])
         o += (tmp,)
     return o[0] if len(o) == 1 else o
@@ -1384,19 +1405,24 @@ def repair_cs_(cube):
                 _repair_cs_cube(i)
 
 
-def _repair_lccs_cube(c):
+def _repair_lccs_cube(c, out=False):
     cs = c.coord_system('CoordSystem')
+    o_ = 0
     if isinstance(cs, iris.coord_systems.LambertConformal):
         if (cs.false_easting is None or
             isinstance(cs.false_easting, np.ndarray)):
             cs.false_easting = ''
+            o_ += 1
         if (cs.false_northing is None or
             isinstance(cs.false_northing, np.ndarray)):
             cs.false_northing = ''
+            o_ += 1
         for coord in c.coords():
             if coord.coord_system is not None:
                 coord.coord_system = cs
                 coord.convert_units('m')
+    if out:
+        return o_
 
 
 def repair_lccs_(cube):

@@ -1,14 +1,22 @@
+#!/usr/bin/env python3
+
 import iris
 from iris.coords import DimCoord
 import numpy as np
 import glob
+import argparse
 
 
 def main():
+    parser = argparse.ArgumentParser("fix CNRM-ALADIN53 xy-dim coordinate")            
+    parser.add_argument("idir", type=str,                                        
+                        help="folder")                                          
+    args = parser.parse_args()                                                  
+    idir = args.idir if args.idir else './'
     #idir = '/nobackup/rossby24/users/sm_chali/DATA/energi/res/h248/'\
     #       'cordex/EUR11/grp1/'
-    idir = '/nobackup/rossby22/sm_chali/DATA/fx/'
-    fn = glob.glob(idir + '*_*_CNRM-ALADIN53_*.nc')
+    #idir = '/nobackup/rossby22/sm_chali/DATA/fx/'
+    fn = glob.glob(idir + '*_CNRM-ALADIN53_*.nc')
     epochs = {}
     for i, ifn in enumerate(fn):
         o = iris.load_cube(ifn)

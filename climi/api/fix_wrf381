@@ -1,24 +1,28 @@
 #!/usr/bin/env python3
 import iris
 from iris.coords import DimCoord
+from iris.fileformats.netcdf import UnknownCellMethodWarning
 import numpy as np
 import glob
 import warnings
+import argparse
 
 
 def main():
-    from iris.fileformats.netcdf import UnknownCellMethodWarning
     warnings.filterwarnings("ignore", category=UserWarning)
     warnings.filterwarnings("ignore", category=UnknownCellMethodWarning)
-    idir = '/nobackup/rossby22/sm_chali/DATA/energi/res/gwls/EUR/'
-    idir = '/nobackup/rossby24/users/sm_chali/DATA/energi/res/h248/'\
-           'cordex/EUR11/grp1/'
+    parser = argparse.ArgumentParser("fix IPSL-WRF381P xy-dim coordinate")     
+    parser.add_argument("idir", type=str,                                       
+                        help="folder")                                          
+    args = parser.parse_args()                                                  
+    idir = args.idir if args.idir else './'
     #fn = glob.glob(idir + 'DTR_*_DMI-HIRHAM5_v1_*.nc')
     #o0 = iris.load_cube(idir + 'SfcWind_ICHEC-EC-EARTH_historical_r3i1p1_' +
     #                    'DMI-HIRHAM5_v1_EUR_season_current.nc')
     fn = glob.glob(idir + '*_*_IPSL-WRF381P_v1_*.nc')
-    o0 = iris.load_cube(idir + 'PR_NCC-NorESM1-M_rcp85_r1i1p1_' +
-                               'IPSL-WRF381P_v1_EUR_month_.nc')
+    o0 = iris.load_cube('/nobackup/rossby22/sm_chali/DATA/fx/'
+                        'sftlf_EUR-11_ECMWF-ERAINT_evaluation_r0i0p0_'
+                        'IPSL-WRF381P_v1_fx.nc')
     cx = o0.coord('grid_longitude')
     cxd = o0.coord_dims(cx)
     cy = o0.coord('grid_latitude')
@@ -30,7 +34,7 @@ def main():
             print(ifn)
             o.add_dim_coord(cx, cxd)
             o.add_dim_coord(cy, cyd)
-            iris.save(o, ifn.replace(idir, idir.replace('grp1/','')))
+            iris.save(o, ifn.replace('.nc', '_0.nc'))
 
 
 if __name__ == '__main__':
