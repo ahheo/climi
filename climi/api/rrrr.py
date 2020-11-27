@@ -644,8 +644,8 @@ def _cubeORcubeL_hwmi(cfg, odir, hORc, o0, rn, fn_, _d, pn='data'):
         _tof(out, odir, fn__, hORc, _d, cfg['_sdi'])
     else:
         for i, cc in enumerate(o0[0]):
-            #if i < 49:#QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ
-            #    continue
+            if 'ii' in cfg and i < cfg['ii']:#QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ
+                continue
             t00 = l__(prg_(i + 1, None if isGI_(o0[0]) else len(o0[0])))
             o02 = o0[2][i] if o0[2] else '{}'.format(i)
             dd = _dictdict(cfg, '_'.join((fn_, o02)))

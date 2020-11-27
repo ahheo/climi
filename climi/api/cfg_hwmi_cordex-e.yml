@@ -14,10 +14,10 @@ ldir: /nobackup/rossby22/sm_chali/DATA/fx/ # sftlf dir
 
 #gcms: ['ICHEC-EC-EARTH', 'MOHC-HadGEM2-ES', 'MPI-M-MPI-ESM-LR',
 #       'IPSL-IPSL-CM5A-MR', 'CCCma-CanESM2', 'NCC-NorESM1-M']
-#rcms: ['CLMcom-CCLM4-8-17', 'DMI-HIRHAM5', 'KNMI-RACMO22E',
-#       'MPI-CSC-REMO2009', 'GERICS-REMO2015', 'SMHI-RCA4']                     
+rcms: ['CLMcom-CCLM4-8-17', 'DMI-HIRHAM5', 'KNMI-RACMO22E',
+       'MPI-CSC-REMO2009', 'GERICS-REMO2015', 'SMHI-RCA4']                     
 gcms: ['ECMWF-ERAINT']
-rcms: ['DMI-HIRHAM5']
+#rcms: ['DMI-HIRHAM5']
 
 rip:
   ICHEC-EC-EARTH: r12i1p1

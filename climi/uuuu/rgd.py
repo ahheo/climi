@@ -20,7 +20,8 @@ from shapely.geometry import Polygon
 from scipy.sparse import csc_matrix, diags
 
 from .ffff import *
-from .cccc import ax_fn_mp_, extract_byAxes_, get_loa_, get_xy_dim_, half_grid_
+from .cccc import ax_fn_mp_, extract_byAxes_, get_loa_, get_xy_dim_,\
+                  half_grid_, _isyx
 
 
 __all__ = ['rgd_scipy_',
@@ -46,10 +47,6 @@ def _get_ll_pnts(lo, la, isyx):
         else:
             x, y = lo.points.T, la.points.T
     return (x, y)
-
-
-def _isyx(lod, lad):
-    return lad[0] < lod[0] if len(lod) == 1 else lod[0] < lod[1]
 
 
 def _lr(x2d, isyx, rb=180):
@@ -82,8 +79,8 @@ def rgd_scipy_(src_cube, target_cube,
     loS, laS = get_loa_(src_cube)
     if loT is None or loS is None:
         raise Exception("missing longitude/latitude coords.")
-    isyxT = _isyx(target_cube.coord_dims(loT), target_cube.coord_dims(laT))
-    isyxS = _isyx(target_cube.coord_dims(loS), target_cube.coord_dims(laS))
+    isyxT = _isyx(target_cube)
+    isyxS = _isyx(src_cube)
     #2d longitude/latitude points
     xT, yT = _get_ll_pnts(loT, laT, isyxT)
     xS, yS = _get_ll_pnts(loS, laS, isyxS)

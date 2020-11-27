@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from climi.uuuu.ffff import schF_keys_, cyl_, prg_, pure_fn_
-from climi.uuuu.cccc import extract_byAxes_
+from climi.uuuu.cccc import extract_byAxes_, cubesv_
 import iris
 import numpy as np
 import argparse
@@ -27,7 +27,7 @@ def main():
         o = extract_byAxes_(o, 'time', np.s_[1:-1])
         fn_ = '{}dddd/{}.nc'.format(idir, pure_fn_(fn))
         print('save to', fn_)
-        iris.save(o, fn_)
+        cubesv_(o, fn_)
 
 
 if __name__ == '__main__':

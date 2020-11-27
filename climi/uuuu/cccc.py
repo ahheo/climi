@@ -24,6 +24,7 @@
 * get_gwl_y0_           : first year of 30-year window of global warming level
 * get_loa_              : longitude/latitude coords of cube
 * get_loa_dim_          : modified _get_lon_lat_coords from iris
+* get_loa_pts_2d_       : 2d longitude/latitude points (from coord or meshed)
 * get_xy_dim_           : horizontal spatial dim coords
 * get_xyd_cube          : cube axes of xy dims
 * guessBnds_cube        : bounds of dims points
@@ -58,6 +59,7 @@
 * rm_yr_doy_cube        : opposite action of yr_doy_cube
 * seasonyr_cube         : season_year auxcoord
 * slice_back_           : slice back to parent (1D)
+* unique_yrs_of_cube    : unique year points of cube
 * y0y1_of_cube          : starting and ending year of cube
 * yr_doy_cube           : year and day-of-year auxcoord
 ...
@@ -104,6 +106,7 @@ __all__ = ['alng_axis_',
            'get_gwl_y0_',
            'get_loa_',
            'get_loa_dim_',
+           'get_loa_pts_2d_',
            'get_xy_dim_',
            'get_xyd_cube',
            'guessBnds_cube',
@@ -138,6 +141,7 @@ __all__ = ['alng_axis_',
            'rm_yr_doy_cube',
            'seasonyr_cube',
            'slice_back_',
+           'unique_yrs_of_cube',
            'y0y1_of_cube',
            'yr_doy_cube']
 
@@ -256,6 +260,25 @@ def nTslice_cube(cube, n):
                         for ii in range(0, shp[i], step)]
 
 
+def unique_yrs_of_cube(cube, ccsn='year', mmm=None):
+    if isinstance(cube, iris.cube.Cube):
+        ccs = [i.name() for i in cube.coords()]
+        if ccsn not in ccs:
+            if 'season' in ccsn:
+                if mmm:
+                    seasonyr_cube(cube, mmm, ccsn=ccsn)
+                else:
+                    emsg = "'mmm' must not be None for adding coord {!r}!"
+                    raise ValueError(emsg.format(ccsn))
+            else:
+                cat.add_year(cube, 'time', name=ccsn)
+        return np.unique(cube.coord(ccsn).points)
+    elif isIter_(cube, xi=iris.cube.Cube):
+        return [unique_yrs_of_cube(i) for i in cube]
+    else:
+        raise TypeError("unknown type!")
+
+
 def y0y1_of_cube(cube, ccsn='year', mmm=None):
     if isinstance(cube, iris.cube.Cube):
         ccs = [i.name() for i in cube.coords()]
@@ -269,7 +292,7 @@ def y0y1_of_cube(cube, ccsn='year', mmm=None):
             else:
                 cat.add_year(cube, 'time', name=ccsn)
         return list(cube.coord(ccsn).points[[0, -1]])
-    elif isMyIter_(cube):
+    elif isIter_(cube, xi=iris.cube.Cube):
         yy = np.array([y0y1_of_cube(i) for i in cube])
         return [np.max(yy[:, 0]), np.min(yy[:, 1])]
     else:
@@ -301,8 +324,9 @@ def extract_period_cube(cube, y0, y1, yy=False, ccsn='year', mmm=None):
     cstrD = {ccsn: lambda x: y0 <= x <= y1}
     cstr = iris.Constraint(**cstrD)
     c_y = cube.extract(cstr)
-    #c_y.remove_coord('year')
-    return None if yy and y0y1_of_cube(c_y) != [y0, y1] else c_y
+    if not (yy and (y0y1_of_cube(c_y) != [y0, y1] or
+               not np.all(np.diff(unique_yrs_of_cube(c_y)) == 1))):
+        return c_y
 
 
 def extract_win_cube(cube, d, r=15):
@@ -436,13 +460,19 @@ def minmax_cube_(cube, rg=None, p=None):
     return (np.nanmin(mms), np.nanmax(mms))
 
 
-def get_xyd_cube(cube):
+def get_xyd_cube(cube, guess_lst2=True):
     xc, yc = get_xy_dim_(cube)
     if xc is None:
-        raise Exception("missing 'x' or 'y' dimcoord.")
-    xyd = list(cube.coord_dims(yc) + cube.coord_dims(xc))
-    xyd.sort()
-    return xyd
+        if guess_lst2:
+            warnings.warn("missing 'x' or 'y' dimcoord; "
+                          "guess last two as xyd.")
+            return list(cyl_([-2, -1], cube.ndim))
+        else:
+            raise Exception("missing 'x' or 'y' dimcoord")
+    else:
+        xyd = list(cube.coord_dims(yc) + cube.coord_dims(xc))
+        xyd.sort()
+        return xyd
 
 
 def _get_xy_lim(cube, lol=None, lal=None):
@@ -483,15 +513,12 @@ def _get_xy_lim(cube, lol=None, lal=None):
 
 
 def _get_ind_lolalim(cube, lol=None, lal=None):
-    loc, lac = cube.coord('longitude'), cube.coord('latitude')
-    xyd = set(cube.coord_dims(loc) + cube.coord_dims(lac))
-    lo, la = loc.points, lac.points
+    xyd = get_xyd_cube(cube)
+    lo, la = get_loa_pts_2d_(cube)
     if lol is None:
         lol = [lo.min(), lo.max()]
     if lal is None:
         lal = [la.min(), la.max()]
-    if lo.ndim == 1:
-        lo, la = np.meshgrid(lo, la)
     a_ = ind_inRange_(lo, *lol, r_=360)
     b_ = ind_inRange_(la, *lal)
     c_ = np.logical_and(a_, b_)
@@ -628,12 +655,16 @@ def get_loa_dim_(cube):
     return (lon_coord, lat_coord)
 
 
-def get_xy_dim_(cube):
+def get_xy_dim_(cube, guess_lst2=True):
     try:
         return (cube.coord(axis='X', dim_coords=True),
                 cube.coord(axis='Y', dim_coords=True))
     except:
-        return (None, None)
+        if guess_lst2 and cube.ndim > 1:
+            return(cube.coord(dimensions=cyl_(-1, cube.ndim), dim_coords=True),
+                   cube.coord(dimensions=cyl_(-2, cube.ndim), dim_coords=True))
+        else:
+            return (None, None)
 
 
 def get_loa_(cube):
@@ -867,20 +898,37 @@ def _inpolygons(poly, points, **kwArgs):
     return ind
 
 
-def inpolygons_cube(poly, cube, **kwArgs):
-    try:
-        lo_ = cube.coord('longitude')
-        la_ = cube.coord('latitude')
-    except:
+def _isyx(cube):
+    xc, yc = get_xy_dim_(cube)
+    if xc is None:
+        raise Exception("cube missing 'x' or 'y' coord")
+    xcD, ycD = cube.coord_dims(xc)[0], cube.coord_dims(yc)[0]
+    return ycD < xcD
+
+
+def get_loa_pts_2d_(cube):
+    lo_, la_ = get_loa_(cube)
+    if lo_ is None or la_ is None:
         raise Exception("input cube(s) must have "
                         "longitude/latidute coords!")
-    dims = set(cube.coord_dims(lo_) + cube.coord_dims(la_))
+    yx_ = _isyx(cube)
     if lo_.ndim != 2:
-        x, y = np.meshgrid(lo_.points, la_.points)
+        if yx_:
+            x, y = np.meshgrid(lo_.points, la_.points)
+        else:
+            y, x = np.meshgrid(la_.points, lo_.points)
     else:
-        x, y = lo_.points, la_.points
+        if yx_:
+            x, y = lo_.points, la_.points
+        else:
+            x, y = lo_.points.T, la_.points.T
+    return (x, y)
+
+
+def inpolygons_cube(poly, cube, **kwArgs):
+    x, y = get_loa_pts_2d_(cube)
     ind = _inpolygons(poly, np.vstack((x.ravel(), y.ravel())).T, **kwArgs)
-    ind = robust_bc2_(ind.reshape(x.shape), cube.shape, dims)
+    ind = robust_bc2_(ind.reshape(x.shape), cube.shape, get_xyd_cube(cube))
     return ind
 
 
@@ -889,9 +937,9 @@ def maskNaN_cube(cube):
     cube = iris.util.mask_cube(cube, ind)
 
 
-def maskPOLY_cube(poly, cube, out=True, **kwArgs):
+def maskPOLY_cube(poly, cube, masked_out=True, **kwArgs):
     ind = inpolygons_cube(poly, cubeD, **kwArgs)
-    ind = ~ind if out else ind
+    ind = ~ind if masked_out else ind
     cube = iris.util.mask_cube(cube, ind)
 
 
@@ -1083,7 +1131,10 @@ def en_mean_(eCube, **kwArgs):
     """
     ... ensemble mean of a cube (along dimcoord 'realization') ...
     """
-    return eCube.collapsed('realization', iris.analysis.MEAN, **kwArgs)
+    if eCube.coord_dims('realization'):
+        return eCube.collapsed('realization', iris.analysis.MEAN, **kwArgs)
+    else:
+        return eCube
 
 
 def en_iqr_(eCube):
@@ -1091,11 +1142,16 @@ def en_iqr_(eCube):
     ... ensemble interquartile range (IQR) of a cube (along dimcoord
         'realization') ...
     """
-    a = eCube.collapsed('realization', iris.analysis.PERCENTILE, percent=75)
-    b = eCube.collapsed('realization', iris.analysis.PERCENTILE, percent=25)
-    o = a - b
-    o.rename(a.name())
-    return o
+    if eCube.coord_dims('realization'):
+        a = eCube.collapsed('realization', iris.analysis.PERCENTILE,
+                            percent=75)
+        b = eCube.collapsed('realization', iris.analysis.PERCENTILE,
+                            percent=25)
+        o = a - b
+        o.rename(a.name())
+        return o
+    else:
+        return eCube.copy(np.zeros(eCube.shape))
 
 
 def kde_cube(cube, **kde_opts):

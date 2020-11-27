@@ -435,10 +435,10 @@ def clmidx_finfo_eval_(idir, var, gcm='*', rcp='*', rip='*', rcm='*',
     oi = [_clmidx_f2dn(i) for i in files]
     dn = ['_'.join(i.split('_')[-2:]) for i in oi]
     if len(dn) > 0:
-        feobs = schF_keys_(idir.replace('eval','obs'), var + '_',
-                           'EOBS20', freq)
-        ferai = schF_keys_(idir.replace('eval','obs'), var + '_',
-                           'ERAI', freq)
+        feobs = glob.glob(idir.replace('eval','obs') +
+                          '_'.join((var, 'EOBS20', rn, freq, '.nc')))
+        ferai = glob.glob(idir.replace('eval','obs') +
+                          '_'.join((var, 'ERAI', rn, freq, '.nc')))
         if len(feobs) != 1 and len(ferai) != 1:
             files, dn = [], []
         else:
@@ -462,10 +462,10 @@ def load_clmidx_eval_(idir, var, freq='year', rn='EUR', period=[1989, 2008]):
         if fn:
             o = iris.load_cube(fn, *Args, **kwArgs)
             maskNaN_cube(o)
-            repair_lccs_(o)
-            if period:
-                o = extract_period_cube(o, *period)
-            return o
+            #repair_lccs_(o)
+            #if period:
+            #    o = extract_period_cube(o, *period)
+            return extract_period_cube(o, *period) if period else o
         else:
             return None
     if freq == 'year':
@@ -478,13 +478,13 @@ def load_clmidx_eval_(idir, var, freq='year', rn='EUR', period=[1989, 2008]):
         else:
             a, d = clmidx_finfo_eval_(idir, var, freq='season', rn=rn)
             cubeL0 = [_ilc(i, iris.Constraint(season=freq)) for i in a]
-            if freq == 'djf':
-                if period is None:
-                    cubeL0 = [extract_byAxes_(i, 'time', np.s_[1:-1])
-                              if i else None for i in cubeL0]
-                else:
-                    cubeL0 = [extract_byAxes_(i, 'time', np.s_[1:])
-                              if i else None for i in cubeL0]
+            #if freq == 'djf':
+            #    if period is None:
+            #        cubeL0 = [extract_byAxes_(i, 'time', np.s_[1:-1])
+            #                  if i else None for i in cubeL0]
+            #    else:
+            #        cubeL0 = [extract_byAxes_(i, 'time', np.s_[1:])
+            #                  if i else None for i in cubeL0]
     elif freq.capitalize() in ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
                                'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']:
         a, d = clmidx_finfo_eval_(idir, var, freq='month', rn=rn)

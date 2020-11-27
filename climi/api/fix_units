@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+
+from climi.uuuu.ffff import schF_keys_, cyl_, prg_, pure_fn_
+from climi.uuuu.cccc import extract_byAxes_, cubesv_
+import iris
+import numpy as np
+import argparse
+import os
+
+
+def main():
+    parser = argparse.ArgumentParser("Change Units")
+    parser.add_argument("fld", type=str, help="folder")
+    parser.add_argument("-o", "--old", type=str, default='1',
+                        help="old units")
+    parser.add_argument("-n", "--new", type=str, default='days',
+                        help="new units")
+    parser.add_argument("-k", "--keys", type=str,
+                        help="keywords for restricting searching")
+    args = parser.parse_args()
+    fld = args.fld
+    idir = fld if fld[-1] == '/' else '{}/'.format(fld)
+    print(idir)
+    os.makedirs(idir + 'tmp/', exist_ok=True)
+    kkkk = args.keys.split(',') if args.keys else () 
+    fns = schF_keys_(idir, *kkkk)
+    print(len(fns))
+    for i, fn in enumerate(fns):
+        print(prg_(i + 1, len(fns)), fn)
+        #if i < 3138:
+        #    continue
+        o = iris.load_cube(fn)
+        if o.units == args.old:
+            o.units = args.new
+            fn_ = '{}tmp/{}.nc'.format(idir, pure_fn_(fn))
+            print('save to', fn_)
+            cubesv_(o, fn_)
+
+
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,313 @@
+#!/usr/bin/env python3
+
+import numpy as np
+import geopandas as gpd
+import matplotlib as mpl
+mpl.use('Agg', force=True)
+import matplotlib.pyplot as plt
+import iris
+import iris.coord_categorisation as cat 
+import os
+import time
+import logging
+import warnings
+
+from time import localtime, strftime
+
+from climi.uuuu import *
+from climi.pppp import *
+
+
+_here_ = get_path_(__file__)
+
+
+def _shps():
+    shp = gpd_read(_here_ + 'swe_districts/distriktsanalys_polygon.shp')                 
+    shp_ = shp.to_crs(epsg=4326)                                                
+    idd = shp.ID.copy()                                                         
+    idd.loc[:] = 0.                                                             
+    idd = idd.rename('eobs')                                       
+    shp = gpd.pd.concat((shp, idd), axis=1)                                 
+    idd = idd.rename('erai')                                       
+    shp = gpd.pd.concat((shp, idd), axis=1)                                 
+    idd = idd.rename('mean')                                       
+    shp = gpd.pd.concat((shp, idd), axis=1)                                 
+    idd = idd.rename('iqr')                                       
+    shp = gpd.pd.concat((shp, idd), axis=1)                                 
+    return (shp, shp_)
+
+
+def _cmp01(unit, var):
+    if unit == 'K' or var in ('RLDS', 'RSDS', 'SD', 'TropicNights',             
+                              'ConWarmDays', 'HumiWarmDays', 'WarmDays'):       
+        cmp0 = 'coolwarm'                                                       
+        cmp1 = 'coolwarm'                                                       
+    elif var in ('DryDays', 'LnstDryDays'):                                     
+        cmp0 = 'YlGnBu_r'                                                       
+        cmp1 = 'BrBG_r'                                                         
+    elif unit == 'days':                                                        
+        cmp0 = 'cubehelix'                                                      
+        cmp1 = 'PRGn_r'                                                         
+    else:                                                                       
+        cmp0 = 'YlGnBu'                                                         
+        cmp1 = 'BrBG'   
+    return (cmp0, cmp1)
+
+
+def _minmax_df(df):
+    warnings.filterwarnings("ignore", category=RuntimeWarning)
+    data_ = df.to_numpy()
+    return (np.nanmin(data_), np.nanmax(data_))
+
+
+def ts__(cubeL, dn, unit, odir, var, freq, xx_='ts'):
+    def _yrs(cube):
+        try:
+            yrs = cube.coord('seasonyr').points
+        except:
+            try:
+                yrs = cube.coord('year').points
+            except:
+                cat.add_year(cube, 'time', name='year')
+                yrs = cube.coord('year').points
+        return yrs
+            
+    cs = plt.get_cmap('Set2').colors
+    fig = init_fig_(t=.8)
+    ax_opt = {'ylabel': var + ' (' + unit + ')'}
+    ax = fig.add_subplot(1, 1, 1, **ax_opt)
+    ndn = dn.copy()
+    hl = []
+    for i in range(len(cubeL) - 2):
+        il, = ax.plot(_yrs(cubeL[i]), cubeL[i].data, lw=1.25,
+                      color=cs[cyl_(i, len(cs))], alpha=.75)
+        hl.append(il)
+    if cubeL[-2]:
+        il, = ax.plot(_yrs(cubeL[-2]), cubeL[-2].data, lw=2,
+                      color='k', alpha=.9)
+        hl.append(il)
+    else:
+        del(ndn[-2])
+    if cubeL[-1]:
+        il, = ax.plot(_yrs(cubeL[-1]), cubeL[-1].data, lw=2,
+                      color='grey', alpha=.9)
+        hl.append(il)
+    else:
+        del(ndn[-1])
+    yrs = ax.get_xlim()
+    nyrs = np.arange(np.ceil(yrs[0] / 5) * 5, yrs[-1], 5)
+    ax.set_xticks(nyrs)
+    ax.legend(hl, ndn, bbox_to_anchor=(0., 1.01, 1., 0.18),             
+              loc='lower left', borderaxespad=0, ncol=5, mode='expand')
+    plt.savefig(odir + '_'.join((xx_, var, freq)) + '.png')
+    plt.close()
+
+
+def bp__(cubeL, dn, unit, odir, var, freq, xx_='bp'):
+    fig = init_fig_(l=.05, r=.95, t=.8)
+    ax_opt = {'ylabel': var + ' (' + unit + ')'}
+    ax = fig.add_subplot(1, 1, 1, **ax_opt)
+    h_ = bp_cubeL_eval_(ax, cubeL)
+    ax.legend(h_, dn[:-2], bbox_to_anchor=(0., 1.01, 1., 0.18),             
+              loc='lower left', borderaxespad=0, ncol=5, mode='expand')
+    plt.savefig(odir + '_'.join((xx_, var, freq)) + '.png')
+    plt.close()
+
+
+def _map(shp0, dn, unit, odir, var, freq):
+    dx = -.03
+    dns = ['EOBS20', 'ERA-Interim', 'RCMs (MEAN)', 'RCMs (IQR)']
+    ids = ['eobs', 'erai', 'mean']
+    if all(np.isnan(_minmax_df(shp0.loc[:,['eobs']]))):
+        dns.remove('EOBS20')
+        ids.remove('eobs')
+    if all(np.isnan(_minmax_df(shp0.loc[:,['erai']]))):
+        dns.remove('ERA-Interim')
+        ids.remove('erai')
+    pch_dict = {'cmap': 'YlGnBu'}
+
+    min0, max0 = _minmax_df(shp0.loc[:, ids])
+    min1, max1 = _minmax_df(shp0.loc[:, 'iqr'])
+    cmp0, _ = _cmp01(unit, var)
+
+    fig = init_fig_(t=.925, b=.025, l=.025, r=.9, w=.25)
+    pch_dict.update({'vmin': min0, 'vmax': max0, 'cmap': cmp0})
+    axs = []
+    for i, ii in enumerate(ids):
+        ax = distri_swe_(fig, 1, len(ids) + 1, i + 1, shp0, pch_dict,
+                         ti=dns[i], column=ii)
+        axs.append(ax)
+    pch_dict.update({'vmin': min1, 'vmax': max1, 'cmap': cmp0})
+    ax = distri_swe_(fig, 1, len(ids) + 1, len(ids) + 1, shp0, pch_dict,
+                     ti=dns[-1], column='iqr')
+    axs.append(ax)
+    axs_move_(axs[:-1], dx)
+    axs_move_(axs[-1:], dx)
+    cb = aligned_cb_(fig, axs[-2], get_1st_patchCollection_(axs[-2]),
+                     [.01, .0125], orientation='vertical')
+    cb.set_label('{} ({})'.format(var, unit))
+    cbz = aligned_cb_(fig, axs[-1], get_1st_patchCollection_(axs[-1]),
+                      [.01, .0125], orientation='vertical')
+    cbz.set_label('{} IQR ({}) N={}'.format(var, unit, len(dn[:-2])))
+    plt.savefig(odir + '_'.join(('mapX', var, freq)) + '.png')
+    plt.close()
+
+
+def map0__(cubeL, dn, unit, rg_dict, odir, var, freq):
+    pch_dict = {'cmap': 'YlGnBu'}
+
+    cL = [i for i in cubeL if i]
+    ndn = [i for i, ii in zip(dn, cubeL) if ii]
+
+    nn, xx = minmax_cube_(cL, rg=rg_dict)
+    cmp0, _ = _cmp01(unit, var)
+
+    fig = init_fig_(t=.925, r=.9, h=.15)
+    if len(ndn) <= 5:
+        nrow, ncol = 1, len(ndn)
+    else:
+        nrow, ncol = 2, np.ceil(len(dn) / 2) 
+
+    pch_dict.update({'vmin': nn, 'vmax': xx, 'cmap': cmp0})
+    axs, pchs = [], []
+    for i in range(len(ndn)):
+        ax, pch = pch_swe_(fig, nrow, ncol, i + 1, cL[i], 
+                           rg=rg_dict, ti=ndn[i], pcho=pch_dict)
+        axs.append(ax)
+        pchs.append(pch)
+    cb = aligned_cb_(fig, axs, pchs[-1], [.025, .015], orientation='vertical')
+    cb.set_label('{} ({})'.format(var, unit))
+    plt.savefig(odir + '_'.join(('map0', var, freq)) + '.png')
+    plt.close()
+    return True
+
+
+def map1__(cubeL, dn, unit, rg_dict, odir, var, freq):
+    dx = -.03
+    dns = ['EOBS20', 'ERA-Interim', 'RCMs (MEAN)', 'RCMs (IQR)']
+    if cubeL[0] is None:
+        dns.remove('EOBS20')
+    if cubeL[1] is None:
+        dns.remove('ERA-Interim')
+    cL = [i for i in cubeL if i]
+    pch_dict = {'cmap': 'YlGnBu'}
+
+    min0, max0 = minmax_cube_(cL[:-1], rg=rg_dict)
+    min1, max1 = minmax_cube_(cL[-1], rg=rg_dict)
+    cmp0, _ = _cmp01(unit, var)
+
+    fig = init_fig_(t=.925, b=.025, l=.025, r=.9, w=.25)
+    pch_dict.update({'vmin': min0, 'vmax': max0, 'cmap': cmp0})
+    axs, pchs = [], []
+    for i, ii in enumerate(dns[:-1]):
+        ax, pch = pch_swe_(fig, 1, len(dns), i + 1, cL[i],
+                           rg=rg_dict, ti=ii, pcho=pch_dict)
+        axs.append(ax)
+        pchs.append(pch)
+    pch_dict.update({'vmin': min1, 'vmax': max1, 'cmap': cmp0})
+    ax, pch = pch_swe_(fig, 1, len(dns), len(dns), cL[-1],
+                       rg=rg_dict, ti=dns[-1], pcho=pch_dict)
+    axs.append(ax)
+    pchs.append(pch)
+    axs_move_(axs[:-1], dx)
+    axs_move_(axs[-1:], dx)
+    cb = aligned_cb_(fig, axs[-2], pchs[-2], [.025, .015],
+                     orientation='vertical')
+    cb.set_label('{} ({})'.format(var, unit))
+    cbz = aligned_cb_(fig, axs[-1], pchs[-1], [.025, .015],
+                     orientation='vertical')
+    cbz.set_label('{} IQR ({}) N={}'.format(var, unit, len(dn[:-2])))
+    plt.savefig(odir + '_'.join(('map1', var, freq)) + '.png')
+    plt.close()
+    return True
+
+
+def id__(cubeL, dn, sc, unit, odir, var, freq, shp, shp_):
+    shp0 = shp.copy()
+    ids = set(shp0.ID)
+    for i in ids:
+        svd = poly_to_path_(list(shp_.loc[shp_.ID == i, 'geometry']))
+        cl = get_ts_eval_(cubeL, dn, sc, poly=svd)
+        ts__(cl, dn, unit, odir, var, freq, xx_='ts-ID{}'.format(i))
+        bp__(cl, dn, unit, odir, var, freq, xx_='bp-ID{}'.format(i))
+        cld = np.asarray([np.nanmean(c.data) if c else np.nan for c in cl])
+        shp0.loc[shp0.ID == i, 'eobs'] = cld[-2]
+        shp0.loc[shp0.ID == i, 'erai'] = cld[-1]
+        shp0.loc[shp0.ID == i, 'mean'] = np.nanmean(cld[:-2])
+        shp0.loc[shp0.ID == i, 'iqr'] = np.nanpercentile(cld[:-2], 75) -\
+                                        np.nanpercentile(cld[:-2], 25)
+    _map(shp0, dn, unit, odir, var, freq)
+
+
+def main():
+    import yaml
+    logging.basicConfig(filename='ploting0.log',
+                        filemode='w',
+                        level=logging.INFO)
+    logging.info(' {:_^42}'.format('start of program'))
+    logging.info(strftime(" %a, %d %b %Y %H:%M:%S +0000", localtime()))
+    logging.info(' ')
+
+    mpl.style.use('seaborn')
+
+    ne50 = gpd_read(_here_ + 'ne_50m/ne_50m_admin_0_countries.shp')
+    sv = poly_to_path_(list(ne50.loc[ne50.NAME=='Sweden', 'geometry']))
+    shp, shp_ = _shps()
+    r24 = os.environ.get('r24')                                                 
+    odir = '{}DATA/energi/2/fig_eval/'.format(r24)
+    os.makedirs(odir, exist_ok=True)
+    idir = '/nobackup/rossby22/sm_chali/DATA/energi/res/eval/EUR/'
+    fxdir = '/nobackup/rossby22/sm_chali/DATA/fx/'
+    vf = _here_ + 'var_dict.yml'
+    with open(vf, 'r') as ymlfile:
+        vdict = yaml.safe_load(ymlfile)
+    rg_dict = {'longitude': [10.0, 23.0], 'latitude': [55.0, 69.0]}
+    def _get_freq(var):
+        freqs = []
+        if 'year' in vdict['freq'][var]:
+            freqs += ['year']
+        if 'season' in vdict['freq'][var]:
+            freqs += ['djf', 'mam', 'jja', 'son']
+        if 'month' in  vdict['freq'][var]:
+            freqs += ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        return freqs
+    #for var in vdict['vars']:
+    #vs_ = ['ET']
+    vs_ = vdict['vars'][12:]
+    for var in vs_:
+        freqs = _get_freq(var)
+        odir_ = '{}{}/'.format(odir, vdict['odir'][var])
+        for freq in freqs:
+            t000 = l__('{} >>>>>> {}'.format(var, freq))
+            p_= [1990, 2008] if freq == 'djf' else [1989, 2008]
+            a, dn = load_clmidx_eval_(idir, var, freq=freq, period=p_)
+            ll_('< load', t000)
+            if len(dn) == 0:
+                continue
+            os.makedirs(odir_, exist_ok=True)
+            sc, unit = sc_unit_clmidx_(a[0], var)
+            id__(a, dn, sc, unit, odir_, var, freq, shp, shp_)
+            ll_('<< id', t000)
+            ts = get_ts_eval_(a, dn, sc, fxdir=fxdir, poly=sv)
+            ll_('< ts', t000)
+            ts__(ts, dn, unit, odir_, var, freq)
+            ll_('<< ts', t000)
+            bp__(ts, dn, unit, odir_, var, freq)
+            ll_('<< bp', t000)
+            b, c = get_clm_eval_(a, sc) 
+            ll_('< clm', t000)
+            map0__(b, dn, unit, rg_dict, odir_, var, freq)
+            ll_('<< map0', t000)
+            map1__(b[-2:] + c, dn, unit, rg_dict, odir_, var, freq)
+            ll_('<< map1', t000)
+
+
+if __name__ == '__main__':
+    start_time = time.time()
+    main()
+    logging.info(' ')
+    logging.info(' {:_^42}'.format('end of program'))                           
+    logging.info(' {:_^42}'.format('TOTAL'))  
+    logging.info(' ' + rTime_(time.time() - start_time))
+    logging.info(strftime(" %a, %d %b %Y %H:%M:%S +0000", localtime()))

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-
+from climi.uuuu.ffff import schF_keys_, pure_fn_, prg_
+from climi.uuuu.cccc import cubesv_
 import iris
 from iris.coords import DimCoord
 import numpy as np
@@ -8,17 +9,21 @@ import argparse
 
 
 def main():
-    parser = argparse.ArgumentParser("fix CNRM-ALADIN53 xy-dim coordinate")            
-    parser.add_argument("idir", type=str,                                        
-                        help="folder")                                          
-    args = parser.parse_args()                                                  
+    parser = argparse.ArgumentParser("fix CNRM-ALADIN53 xy-dim coordinate")
+    parser.add_argument("idir", type=str, help="folder")
+    parser.add_argument("-k", "--keys", type=str,
+                        help="keywords for restriction")
+    args = parser.parse_args()
     idir = args.idir if args.idir else './'
+    odir = idir + 'tmp/'
+    os.makedirs(odir, exist_ok=True)
     #idir = '/nobackup/rossby24/users/sm_chali/DATA/energi/res/h248/'\
     #       'cordex/EUR11/grp1/'
     #idir = '/nobackup/rossby22/sm_chali/DATA/fx/'
-    fn = glob.glob(idir + '*_CNRM-ALADIN53_*.nc')
-    epochs = {}
+    kkkk = args.keys.split(',') if args.keys else ()
+    fn = schF_keys_(idir, 'CNRM-ALADIN53', *kkkk)
     for i, ifn in enumerate(fn):
+        print(prg_(i+1, len(fn)), ifn)
         o = iris.load_cube(ifn)
         if i == 0:
             cx = o.coord('projection_x_coordinate')
@@ -49,7 +54,9 @@ def main():
         o.remove_coord('projection_y_coordinate')
         o.add_dim_coord(cxx, cxd)
         o.add_dim_coord(cyy, cyd)
-        iris.save(o, ifn.replace('.nc', '_0.nc'))
+        fn_ = '{}{}.nc'.format(odir, pure_fn_(ifn))
+        print('save to', fn_)
+        cubesv_(o, fn_)
 
 
 if __name__ == '__main__':
