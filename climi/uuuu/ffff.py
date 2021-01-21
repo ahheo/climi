@@ -10,6 +10,7 @@
 * flt_                  : flatten (out: generator)          --> flt_l
 * flt_l                 : flatten (out: list)               --> (o)uniqL_
 * get_path_             : get path from filename str
+* haversine_            : distance between geo points in radians
 * indFront_             : move element with specified index to front
 * ind_inRange_          : indices of values in a range
 * ind_s_                : extraction indices (1 axis)       --> inds_ss_
@@ -78,6 +79,7 @@ __all__ = ['b2l_endian_',
            'flt_',
            'flt_l',
            'get_path_',
+           'haversine_',
            'indFront_',
            'ind_inRange_',
            'ind_s_',
@@ -700,9 +702,22 @@ def isGI_(x):
 
 def isIter_(x, xi=None, XI=(str, bytes)):
     o = isinstance(x, Iterable) and not isinstance(x, XI)
-    if xi and o:
+    if o and xi is not None:
         if not isGI_(x):
             o = o and all([isinstance(i, xi) or i is None for i in x])
         else:
             warnings.warn("xi ignored for Iterator or Generator!")
     return o
+
+
+def haversine_(x0, y0, x1, y1):
+    lat0 = np.radians(y0)
+    lon0 = np.radians(x0)
+    lat1 = np.radians(y1)
+    lon1 = np.radians(x1)
+
+    dlon = lon1 - lon0
+    dlat = lat1 - lat0
+
+    a = np.sin(dlat/2)**2 + np.cos(lat0)*np.cos(lat1)*np.sin(dlon/2)**2
+    return 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))

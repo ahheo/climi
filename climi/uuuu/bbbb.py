@@ -35,12 +35,15 @@ __all__ = ['bi_cmip5_info_',
            'cordex_dir_cubeL',
            'cordex_dir_finfo',
            'en_pmean_cubeL_',
+           'en_prgd_cubeL_',
            'get_clm_clmidx_',
            'get_clm_eval_',
            'get_period_h248_',
            'get_ts_clmidx_',
            'get_ts_eval_',
            'get_ts_h248_',
+           'get_tsa_h248_',
+           'get_tsf_h248_',
            'gwl_p_',
            'load_clmidx_',
            'load_clmidx_eval_',
@@ -51,8 +54,8 @@ __all__ = ['bi_cmip5_info_',
            'min_fselect_',
            'path2cmip5_info_',
            'path2cordex_info_',
+           'prgd_mm_',
            'pure_ts_dn_',
-           'rgd_poly_mm_',
            'sc_unit_clmidx_',
            'slct_cubeLL_dnL_',
            'version_up_',
@@ -108,7 +111,7 @@ def cordex_dir_finfo(idir, var='*', dm='*', gcm='*', exp='*', rip='*',
     files = []
     for i in idir:
         if p is None:
-            tmp = glob.glob(i + 
+            tmp = glob.glob(i +
                             s.join([var, dm, gcm, exp, rip, rcm, ver, freq])
                             + '*' + ext)
         else:
@@ -716,36 +719,70 @@ def map_sim_cmip5_(dn):
 
 
 def load_h248_(idir, var='hwmid-tx', m='', rcp='', ref='', freq='j-d',
-               y0y1=None):
+               y0y1=None, epcD={}):
     def _hist(ifn): ########################concatenate historical and rcp runs
-        fnh = re.sub(r'_\d{4}-\d{4}', '_[1-9]*-[1-9]*', ############data period 
+        fnh = re.sub(r'_\d{4}-\d{4}', '_[1-9]*-[1-9]*', ############data period
                      ifn.replace(rcp, 'historical')) #######################rcp
         if len(glob.glob(fnh)) == 0:
             fnh = re.sub(r'_v\d[a-zA-Z]?(?=_)', '_v*', fnh) ########rcm version
         return fnh
-    m = '_{}_'.format(m) if m else m
+    def _mm(x):
+        if isinstance(x, str):
+            return ['_{}_'.format(x)] if x else ['']
+        else:
+            return [_mm(i)[0] for i in x]
+    #m = '_{}_'.format(m) if m else m
     freq = 'j-d' if freq in ('', None) else freq
-    fn = schF_keys_(idir, var, m, rcp,
+    fn = schF_keys_(idir, var, *_mm(m), rcp,
                     'ref{}-{}'.format(*ref) if ref else '', freq)
     if fn:
         fn.sort(key=lambda x: x.upper())
         fn_ = pure_fn_(fn)
         if rcp[:3] == 'rcp':
             fn = [[_hist(i), i] for i in fn]
+            print(fn)
         o = [iris.load(i) for i in fn]
         o = [i[0] if len(i) == 1 else concat_cube_(i) for i in o]
         if y0y1:
-            o = [extract_period_cube(i, *y0y1) for i in o]
+            o = [extract_period_cube(i, *y0y1, **epcD) for i in o]
         return (o, fn_)
 
 
-def get_ts_h248_(cubeL, fnL, folder, fxdir=None, poly=None, reD=None):
-    ind = 3 if folder == 'cordex' else 1
-    d = [i.split('_')[ind] for i in fnL]
-    if fxdir:
+def get_tsa_h248_(cubeL, function, poly=None, rgD=None, **functionD):
+    if poly:
+        a = [rgF_poly_cube(i, poly, function, **functionD) if i else None
+             for i in cubeL]
+    else:
+        a = [rgF_cube(i, function, rgD=rgD, **functionD) if i else None
+             for i in cubeL]
+    return a
+
+
+def get_tsf_h248_(cubeL, fnL=None, folder='cordex', fxdir=None,
+                  poly=None, rgD=None, function=None):
+    if fnL and fxdir:
+        ind = 3 if folder == 'cordex' else 1
+        d = [i.split('_')[ind] for i in fnL]
         o = load_fx_(fxdir, d)
     else:
-        o = [{}] * len(dL)
+        o = [{}] * len(cubeL)
+    if poly:
+        a = [rgCount_poly_cube(i, poly, function=function, **ii) if i else None
+             for i, ii in zip(cubeL, o)]
+    else:
+        a = [rgCount_cube(i, rgD=rgD, function=function, **ii) if i else None
+             for i, ii in zip(cubeL, o)]
+    return a
+
+
+def get_ts_h248_(cubeL, fnL=None, folder='cordex', fxdir=None, poly=None,
+                 rgD=None):
+    if fnL and fxdir:
+        ind = 3 if folder == 'cordex' else 1
+        d = [i.split('_')[ind] for i in fnL]
+        o = load_fx_(fxdir, d)
+    else:
+        o = [{}] * len(cubeL)
     if poly:
         a = [rgMean_poly_cube(i, poly, **ii) if i else None
              for i, ii in zip(cubeL, o)]
@@ -799,7 +836,7 @@ def get_period_h248_(cubeL, fnL, period, rcp=None):
         return (l_ind_(tmp, ind), l_ind_(fnL))
 
 
-def rgd_poly_mm_(src_cube, src_m, target_m, region='GLB', target_cube=None):
+def prgd_mm_(src_cube, src_m, target_m, region='GLB', target_cube=None):
     import pickle
     from .rgd import POLYrgd
     pdir = '{}../regriders/'.format(_here_)
@@ -814,3 +851,27 @@ def rgd_poly_mm_(src_cube, src_m, target_m, region='GLB', target_cube=None):
         with open(pfile, 'wb') as pf:
             pickle.dump(rgder, pf)
         return rgder(src_cube)
+
+
+def en_prgd_cubeL_(cubeL, mL, tgt='ECMWF-ERAINT', region='EUR'):
+    import pickle
+    pdir = '{}../regriders/'.format(_here_)
+    cl = []
+    tmpD = {}
+    for i, (c, m) in enumerate(zip(cubeL, mL)):
+        f = schF_keys_(pdir, m, tgt, region, ext='.p')
+        if f:
+            with open(f[0], 'rb') as pf:
+                rgder = pickle.load(pf)
+            tmp = rgder(c)
+        else:
+            raise ValueError('regrider for {!r} not found!'.format(m))
+        a0 = tmpD.setdefault('a0', tmp)
+        a = a0.copy(tmp.data)
+        a.add_aux_coord(iris.coords.AuxCoord(np.int32(i),
+                                             long_name='realization',
+                                             units='no_unit'))
+        cl.append(a)
+    cl = iris.cube.CubeList(cl)
+    eCube = cl.merge_cube()
+    return eCube

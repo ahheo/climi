@@ -1,0 +1,76 @@
+obss:
+- EOBS
+- ERAI
+rcms:
+- RCA4
+- HIRHAM5
+- RACMO22E
+- REMO2015
+- CCLM4-8-17
+- REMO2009
+gcms:
+- EC-EARTH
+- HadGEM2-ES
+- NorESM1-M
+- CanESM2
+- IPSL-CM5A-MR
+- MPI-ESM-LR
+rcms_:
+- RCA4
+- HIRHAM5
+- RACMO22E
+- REMO2015
+gcms_:
+- EC-EARTH
+- HadGEM2-ES
+- NorESM1-M
+#- STKHM
+m:
+  CCLM4-8-17: CLMcom-CCLM4-8-17
+  HIRHAM5: DMI-HIRHAM5
+  RACMO22E: KNMI-RACMO22E
+  REMO2009: MPI-CSC-REMO2009
+  REMO2015: GERICS-REMO2015
+  RCA4: SMHI-RCA4
+  ERAI: ERA-Interim
+  EOBS: EOBS20
+  EC-EARTH: ICHEC-EC-EARTH
+  HadGEM2-ES: MOHC-HadGEM2-ES
+  NorESM1-M: NCC-NorESM1-M
+  CanESM2: CCCma-CanESM2
+  IPSL-CM5A-MR: IPSL-IPSL-CM5A-MR
+  MPI-ESM-LR: MPI-M-MPI-ESM-LR
+idir:
+  obss: /nobackup/rossby22/sm_chali/DATA/hc/res/obs/90/
+  rcms: /nobackup/rossby22/sm_chali/DATA/hc/res/cordex/90/
+  gcms: /nobackup/rossby22/sm_chali/DATA/hc/res/cmip5/90/
+ddir: /nobackup/rossby24/users/sm_chali/DATA/hw2018/data/h8/
+fdir: /nobackup/rossby24/users/sm_chali/DATA/hw2018/fig/h8/
+tdir: /nobackup/rossby24/users/sm_chali/DATA/hw2018/txt/h8/
+#freq: j-d
+rcp: rcp85
+ref:
+- 1981
+- 2010
+rgs:
+- swe
+- eur
+rgDs:
+  swe:
+    longitude:
+    - 10.
+    - 23.
+    latitude:
+    - 55.
+    - 69.
+  eur:
+    longitude:
+    - -10.
+    - 30.
+    latitude:
+    - 35.
+    - 70.
+#var: hwmid-tx
+#y0y1:
+#- 1989
+#- 2008

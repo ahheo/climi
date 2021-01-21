@@ -1,0 +1,162 @@
+#!/usr/bin/env python3
+
+import matplotlib as mpl
+mpl.use('Agg', force=True)
+import matplotlib.pyplot as plt
+import numpy as np
+import argparse
+import yaml
+import os
+import warnings
+import datetime
+import iris
+from scipy.stats import pearsonr, linregress
+from climi.pppp import *
+from climi.uuuu import *
+
+
+_here_ = get_path_(__file__)
+
+
+def _fld(idir):
+    tmp = idir.split('/')
+    ind = tmp.index('res') + 1
+    return tmp[ind]
+
+
+def _axopt(var):
+    ax_opt = {}
+    v = var.split('-')[0]
+    yl = v[:4].upper() + v[4:]
+    if 'wmi' in v:
+        ax_opt.update(dict(ylabel=yl))
+    if 'sdi' in v:
+        ax_opt.update(dict(ylabel='{} (days)'.format(yl)))
+    return ax_opt
+
+
+def _qfile(fn, idir, lD, tsD):
+    try:
+        o = iris.load_cube(fn)
+        return o
+    except:
+        try:
+            o = iris.load(fn.replace('.nc', '*.nc'))
+            return o
+        except:
+            if 'STKHM' in fn:
+                o = load_h248_(idir, **lD)[0]
+            else:
+                o = get_ts_h248_(*load_h248_(idir, **lD), **tsD)
+            o = o[0] if len(o) == 1 else o
+            cubesv_(o, fn)
+            return o
+
+
+def main():
+    warnings.filterwarnings("ignore", category=UserWarning)                     
+    parser = argparse.ArgumentParser('plot time series of hwmi')
+    parser.add_argument("controlfile",
+                        help="yaml file with metadata")
+    args = parser.parse_args()
+    with open(args.controlfile, 'r') as ymlfile:
+        cfg = yaml.safe_load(ymlfile)
+
+    ddir = cfg['ddir']
+    os.makedirs(ddir, exist_ok=True)
+    fdir = cfg['fdir']
+    os.makedirs(fdir, exist_ok=True)
+    tdir = cfg['tdir']
+    os.makedirs(tdir, exist_ok=True)
+    var = cfg['var']
+    rcp = cfg['rcp']
+    ref = cfg['ref']
+    rgD = cfg['rgD']
+    freq = cfg['freq']
+    y0y1 = cfg['y0y1']
+    lD0 = dict(var=var, ref=ref, freq=freq, y0y1=y0y1)
+    tsD0 = dict(rgD=rgD)
+    #fig option
+    fig = init_fig_(fx=8, fy=5)
+    #axes option
+    ax_opt = _axopt(var)
+    ax = fig.add_subplot(1, 1, 1, **ax_opt)
+    #color option
+    cs = plt.get_cmap('tab10').colors
+    #get data and plot
+    lines, oo, ooo = [], [], []
+    obss, rcms, rcms_ = cfg['obss'], cfg['rcms'], cfg['rcms_']
+    dns = obss + rcms
+    for i, this_d in enumerate(dns):
+        print(i, this_d)
+        idir = cfg['idir']['obss'] if this_d in obss else cfg['idir']['rcms']
+        lD = dict(**lD0)
+        tsD = dict(**tsD0)
+        if this_d in rcms:
+            lD.update(m=cfg['m'][this_d])
+            lD.update(rcp=rcp)
+        tsD.update(dict(folder=_fld(idir)))
+        fn = '{}ts0_{}_{}_ref{}-{}_{}.nc'
+        o = _qfile(fn.format(ddir, var, this_d, *ref, freq), idir, lD, tsD)
+        #if this_d == 'STKHM':
+        #    o = load_h248_(idir, **lD)[0]
+        #else:
+        #    o = get_ts_h248_(*load_h248_(idir, **lD), **tsD)
+        #o = o[0] if len(o) == 1 else o
+        #if this_d == 'EOBS':
+        #    y0 = o[-1].data
+        color = 'k' if this_d == 'ERAI' else ('navy' if this_d == 'EOBS' else
+                                              cs[i-len(obss)])
+        _, el = ts_eCube_(ax, o, color)
+        if this_d in rcms:
+            el.set_lw(1)
+        if this_d == 'EOBS':
+            el.set_ls('-.')
+        lines.append(el)
+        oo.append(o.data)
+        if this_d in rcms_:
+            ooo.append(o.data)
+    tmp = o.copy(np.mean(np.asarray(oo[len(obss):]), axis=0))
+    _, el= ts_eCube_(ax, tmp, cs[i-len(obss)+1])
+    lines.append(el)
+    oo.append(tmp.data)
+    dns.append('RCM ensemble (all)')
+    tmp = o.copy(np.mean(np.asarray(ooo), axis=0))
+    _, el= ts_eCube_(ax, tmp, cs[i-len(obss)+2])
+    lines.append(el)
+    oo.append(tmp.data)
+    dns.append('RCM ensemble (selected)')
+    #ax.axhline(y=y0, c='gray', lw=1)
+    #ax.axvline(x=datetime.date(2018, 7, 1), c='gray', lw=1)
+    #ax.text(datetime.date(2018, 7, 1), y0, '({:d}, {:.1f})'.format(2018, y0))
+    ax.set_ylim(bottom=0)
+    ax.set_xlim([datetime.date(y0y1[0], 1, 1), datetime.date(y0y1[1], 12, 31)])
+    ax.xaxis.set_major_locator(mpl.dates.YearLocator(5))
+    ax.xaxis.set_major_formatter(mpl.dates.DateFormatter('%Y'))
+    ax.legend(lines, dns)
+
+    fig.tight_layout()
+    fn = '{}ts0_{}_ref{}-{}_{}.png'
+    plt.savefig(fn.format(fdir, var, *ref, freq))
+    plt.close()
+
+    fn = '{}ts0_{}_ref{}-{}_{}.txt'
+    with open(fn.format(tdir, var, *ref, freq), 'w') as f:
+        f.write('{:_^90}\n'.format('CORRELATION'))
+        ss = '{:23s} vs. {:13s}: {:10.7f}, {:10.7f}\n'
+        f.write(ss.format(*dns[:len(obss)], *pearsonr(*oo[:len(obss)])))
+        for i, ii in zip(dns[len(obss):], oo[len(obss):]):
+            ss0 = '{:23s} vs. {:4s} vs. {:4s}: '
+            ss1 = '{:10.7f}, {:10.7f}; '
+            ss2 = '{:10.7f}, {:10.7f}\n'
+            f.write(ss0.format(i, *dns[:len(obss)]))
+            f.write(ss1.format(*pearsonr(ii, oo[0])))
+            f.write(ss2.format(*pearsonr(ii, oo[1])))
+        f.write('\n{:_^90}\n'.format('LINEAR TREND'))
+        ss = '{:23s}: {:10.7f}, {:10.7f}\n'
+        for i, ii in zip(dns, oo):
+            r = linregress(range(len(ii)), ii)
+            f.write(ss.format(i, r.slope, r.pvalue))
+
+if __name__ == '__main__':
+    main()

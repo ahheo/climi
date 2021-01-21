@@ -454,7 +454,9 @@ class POLYrgd:
         loG, laG = get_loa_(self._src_cube)
         src_grid = (loG.copy(), laG.copy())
         loS, laS = get_loa_(src)
-        if (loS, laS) != src_grid:
+        #if (loS, laS) != src_grid:
+        if not (np.array_equiv(loS.points, loG.points) and 
+                np.array_equiv(laS.points, laG.points)):
             raise ValueError("The given cube is not defined on the same "
                              "source grid as this regridder.")
 

@@ -10,7 +10,10 @@
 * cubesv_               : save cube to nc with dim_t unlimitted
 * cut_as_cube           : cut into the domain of another cube
 * en_iqr_               : ensemble interquartile range
+* en_max_               : ensemble max
 * en_mean_              : ensemble mean
+* en_min_               : ensemble min
+* en_mxn_               : ensemble spread
 * en_mm_cubeL_          : make ensemble cube for multimodels
 * en_rip_               : ensemble (rxixpx) cube
 * extract_byAxes_       : extraction with help of inds_ss_
@@ -46,14 +49,20 @@
 * minmax_cube           : minmax of cube(L) data (each)
 * minmax_cube_          : minmax of cube(L) data (all)
 * nTslice_cube          : slices along a no-time axis
+* nine_points_cube      : extract nine points cube centered at a given point
 * pSTAT_cube            : period statistic (month, season, year)
 * pst_                  : post-rename/reunits cube(L)
 * pp_cube               : pth and 100-pth of cube(L) data (each)
 * purefy_cubeL_         : prepare for concat or merge
 * repair_cs_            : bug fix for save cube to nc
 * repair_lccs_          : bug fix for save cube to nc (LamgfortComfort)
+* rgCount_cube          : regional count
+* rgCount_poly_cube     : regional count over in polygon only
+* rgF_cube              : regional function
+* rgF_poly_cube         : regional function over in polygon only
 * rgMean_cube           : regional mean
 * rgMean_poly_cube      : regional mean over in polygon only
+* ri_cube               : recurrence period for each grid space
 * rm_sc_cube            : remove scalar coords
 * rm_t_aux_cube         : remove time-related aux_coords
 * rm_yr_doy_cube        : opposite action of yr_doy_cube
@@ -92,7 +101,10 @@ __all__ = ['alng_axis_',
            'cubesv_',
            'cut_as_cube',
            'en_iqr_',
+           'en_max_',
            'en_mean_',
+           'en_min_',
+           'en_mxn_',
            'en_mm_cubeL_',
            'en_rip_',
            'extract_byAxes_',
@@ -128,14 +140,20 @@ __all__ = ['alng_axis_',
            'minmax_cube',
            'minmax_cube_',
            'nTslice_cube',
+           'nine_points_cube',
            'pSTAT_cube',
            'pst_',
            'pp_cube',
            'purefy_cubeL_',
            'repair_cs_',
            'repair_lccs_',
+           'rgCount_cube',
+           'rgCount_poly_cube',
+           'rgF_cube',
+           'rgF_poly_cube',
            'rgMean_cube',
            'rgMean_poly_cube',
+           'ri_cube',
            'rm_sc_cube',
            'rm_t_aux_cube',
            'rm_yr_doy_cube',
@@ -241,7 +259,7 @@ def pst_(cube, name=None, units=None, var_name=None):
 
 def axT_cube(cube):
     try:
-        tc = cube.coord(axis='T', dimcoords=True)
+        tc = cube.coord(axis='T', dim_coords=True)
         return cube.coord_dims(tc)[0]
     except:
         return None
@@ -466,33 +484,33 @@ def get_xyd_cube(cube, guess_lst2=True):
         if guess_lst2:
             warnings.warn("missing 'x' or 'y' dimcoord; "
                           "guess last two as xyd.")
-            return list(cyl_([-2, -1], cube.ndim))
+            return tuple(cyl_([-2, -1], cube.ndim))
         else:
             raise Exception("missing 'x' or 'y' dimcoord")
     else:
         xyd = list(cube.coord_dims(yc) + cube.coord_dims(xc))
         xyd.sort()
-        return xyd
+        return tuple(xyd)
 
 
-def _get_xy_lim(cube, lol=None, lal=None):
+def _get_xy_lim(cube, longitude=None, latitude=None):
     xc, yc = get_xy_dim_(cube)
     if xc is None or yc is None:
         raise Exception("missing 'x' or 'y' dimcoord.")
     lo, la = cube.coord('longitude'), cube.coord('latitude')
-    if lol is None:
-        lol = [lo.points.min(), lo.points.max()]
-    if lal is None:
-        lal = [la.points.min(), la.points.max()]
+    if longitude is None:
+        longitude = [lo.points.min(), lo.points.max()]
+    if latitude is None:
+        latitude = [la.points.min(), la.points.max()]
     if xc == lo and yc == la:
-        xyl = {xc.name(): lol, yc.name(): lal}
+        xyl = {xc.name(): longitude, yc.name(): latitude}
     else:
         xd = cube.coord_dims(lo).index(np.intersect1d(cube.coord_dims(lo),
                                                       cube.coord_dims(xc)))
         yd = cube.coord_dims(lo).index(np.intersect1d(cube.coord_dims(lo),
                                                       cube.coord_dims(yc)))
-        a_ = ind_inRange_(lo.points, *lol, r_=360)
-        b_ = ind_inRange_(la.points, *lal)
+        a_ = ind_inRange_(lo.points, *longitude, r_=360)
+        b_ = ind_inRange_(la.points, *latitude)
         c_ = np.logical_and(a_, b_)
         xi, yi = np.where(np.any(c_, axis=yd)), np.where(np.any(c_, axis=xd))
         xv, yv = xc.points[xi], yc.points[yi]
@@ -512,29 +530,32 @@ def _get_xy_lim(cube, lol=None, lal=None):
                 yc.name(), ind_inRange_(yc.points, *yll))
 
 
-def _get_ind_lolalim(cube, lol=None, lal=None):
+def _get_ind_lolalim(cube, longitude=None, latitude=None):
     xyd = get_xyd_cube(cube)
     lo, la = get_loa_pts_2d_(cube)
-    if lol is None:
-        lol = [lo.min(), lo.max()]
-    if lal is None:
-        lal = [la.min(), la.max()]
-    a_ = ind_inRange_(lo, *lol, r_=360)
-    b_ = ind_inRange_(la, *lal)
+    if longitude is None:
+        longitude = [lo.min(), lo.max()]
+    if latitude is None:
+        latitude = [la.min(), la.max()]
+    a_ = ind_inRange_(lo, *longitude, r_=360)
+    b_ = ind_inRange_(la, *latitude)
     c_ = np.logical_and(a_, b_)
     return robust_bc2_(c_, cube.shape, xyd)
 
 
-def intersection_(cube, **kwArgs):
+def intersection_(cube, longitude=None, latitude=None):
     """
     ... intersection by range of longitude/latitude ...
     """
+    kwArgs=dict()
+    if longitude is not None:
+        kwArgs.update(dict(longitude=longitude))
+    if latitude is not None:
+        kwArgs.update(dict(latitude=latitude))
     if cube.coord('latitude').ndim == 1:
         return cube.intersection(**kwArgs)
     else:
-        lol = kwArgs['longitude'] if 'longitude' in kwArgs else None
-        lal = kwArgs['latitude'] if 'latitude' in kwArgs else None
-        xyl = _get_xy_lim(cube, lol, lal)
+        xyl = _get_xy_lim(cube, **kwArgs)
         if isinstance(xyl, dict):
             return cube.intersection(**xyl)
         else:
@@ -546,35 +567,43 @@ def seasonyr_cube(cube, mmm, ccsn='seasonyr'):
     ... add season_year auxcoords to a cube especially regarding
         specified season ...
     """
-    if isinstance(mmm, str):
-        seasons = (mmm, rest_mns_(mmm))
-    elif isinstance(mmm, (list, tuple)) and len(''.join(mmm)) == 12:
-        seasons = mmm
-    else:
-        raise Exception("unknown seasons '{}'!".format(mmm))
-    try:
-        cat.add_season_year(cube, 'time', name=ccsn, seasons=seasons)
-    except ValueError:
-        cube.remove_coord(ccsn)
-        cat.add_season_year(cube, 'time', name=ccsn, seasons=seasons)
+    if isinstance(cube, iris.cube.Cube):
+        if isinstance(mmm, str):
+            seasons = (mmm, rest_mns_(mmm))
+        elif isinstance(mmm, (list, tuple)) and len(''.join(mmm)) == 12:
+            seasons = mmm
+        else:
+            raise Exception("unknown seasons '{}'!".format(mmm))
+        try:
+            cat.add_season_year(cube, 'time', name=ccsn, seasons=seasons)
+        except ValueError:
+            cube.remove_coord(ccsn)
+            cat.add_season_year(cube, 'time', name=ccsn, seasons=seasons)
+    elif isIter_(cube, xi=(iris.cube.Cube, iris.cube.CubeList, tuple, list)):
+        for c in cube:
+            seasonyr_cube(c, mmm, ccsn=ccsn)
 
 
 def yr_doy_cube(cube):
     """
     ... add year, day-of-year auxcoords to a cube ...
     """
-    try:
-        cat.add_year(cube, 'time', name='year')
-    except ValueError:
-        pass
-    else:
-        cube.coord('year').attributes = {}
-    try:
-        cat.add_day_of_year(cube, 'time', name='doy')
-    except ValueError:
-        pass
-    else:
-        cube.coord('doy').attributes = {}
+    if isinstance(cube, iris.cube.Cube):
+        try:
+            cat.add_year(cube, 'time', name='year')
+        except ValueError:
+            pass
+        else:
+            cube.coord('year').attributes = {}
+        try:
+            cat.add_day_of_year(cube, 'time', name='doy')
+        except ValueError:
+            pass
+        else:
+            cube.coord('doy').attributes = {}
+    elif isIter_(cube, xi=(iris.cube.Cube, iris.cube.CubeList, tuple, list)):
+        for c in cube:
+            yr_doy_cube(c)
 
 
 def rm_yr_doy_cube(cube):
@@ -830,15 +859,85 @@ def getGridAL_cube(cubeD, sftlf=None, areacella=None):
         grid_area of cube ...
     """
     ga = getGridA_cube(cubeD, areacella)
-    if (sftlf is not None) and (ga is not None):
+    if sftlf is not None:
         sf_ = iris.util.squeeze(sftlf)
         if sf_.ndim != 2:
             raise Exception('NOT 2D area-cube!')
         sf = cut_as_cube(cubeD, sf_).data
         sf = robust_bc2_(sf, cubeD.shape, get_xyd_cube(cubeD))
-        return ga * sf / 100.
+        if ga is None:
+            return np.ones(cubeD.shape) * sf / 100
+        else:
+            return ga * sf / 100.
     else:
         return ga
+
+
+def rgF_cube(cubeD, function, rgD=None, **functionD):
+    warnings.filterwarnings("ignore", category=UserWarning)
+    if rgD:
+        ind = _get_ind_lolalim(cubeD, **rgD)
+        tmp = iris.util.mask_cube(cubeD.copy(), ~ind)
+    else:
+        tmp = cubeD
+    xc, yc = get_xy_dim_(tmp)
+    return tmp.collapsed([xc, yc], function, **functionD)
+
+
+def rgF_poly_cube(cubeD, poly, function, **functionD):
+    warnings.filterwarnings("ignore", category=UserWarning)
+    ind = inpolygons_cube(poly, cubeD, **kwArgs)
+    tmp = iris.util.mask_cube(cubeD.copy(), ~ind)
+    xc, yc = get_xy_dim_(tmp)
+    return tmp.collapsed([xc, yc], function, **functionD)
+
+
+def rgCount_cube(cubeD, sftlf=None, areacella=None, rgD=None, function=None):
+    warnings.filterwarnings("ignore", category=UserWarning)
+    if function is None:
+        function = lambda values: values > 0
+        warnings.warn("'function' not provided; count values greater than 0.")
+    xyd = get_xyd_cube(cubeD)
+    ga0 = getGridA_cube(cubeD, areacella)
+    ga0 = np.ones(cubeD.shape) if ga0 is None else ga0
+    ga = getGridAL_cube(cubeD, sftlf, areacella)
+    ga = np.ones(cubeD.shape) if ga is None else ga
+    if rgD:
+        ind = _get_ind_lolalim(cubeD, **rgD)
+        ga0 *= ind
+        ga *= ind
+    umsk = ~cubeD.data.mask if (np.ma.isMaskedArray(cubeD.data) and
+                                np.ma.is_masked(cubeD.data)) else 1
+    sum0 = np.sum(ga0 * umsk, axis=xyd)
+    if np.any(sum0 == 0):
+        raise Exception("empty slice encountered.")
+    data = np.sum(function(cubeD.data) * ga, axis=xyd) * 100 / sum0
+    xc, yc = get_xy_dim_(cubeD)
+    tmp = cubeD.collapsed([xc, yc], iris.analysis.MEAN)
+    return tmp.copy(data)
+
+
+def rgCount_poly_cube(cubeD, poly, sftlf=None, areacella=None, function=None,
+                      **kwArgs):
+    warnings.filterwarnings("ignore", category=UserWarning)
+    if function is None:
+        function = lambda values: values > 0
+        warnings.warn("'function' not provided; count values greater than 0.")
+    xyd = get_xyd_cube(cubeD)
+    ga0 = getGridA_cube(cubeD, areacella)
+    ga0 = np.ones(cubeD.shape) if ga0 is None else ga0
+    ga = getGridAL_cube(cubeD, sftlf, areacella)
+    ga = np.ones(cubeD.shape) if ga is None else ga
+    ind = inpolygons_cube(poly, cubeD, **kwArgs)
+    ga0 *= ind
+    ga *= ind
+    sum0 = np.sum(ga0, axis=xyd)
+    if np.any(sum0 == 0):
+        raise Exception("empty slice encountered.")
+    data = np.sum(function(cubeD.data) * ga, axis=xyd) * 100 / sum0
+    xc, yc = get_xy_dim_(cubeD)
+    tmp = cubeD.collapsed([xc, yc], iris.analysis.MEAN)
+    return tmp.copy(data)
 
 
 def rgMean_cube(cubeD, sftlf=None, areacella=None, rgD=None):
@@ -848,9 +947,7 @@ def rgMean_cube(cubeD, sftlf=None, areacella=None, rgD=None):
     warnings.filterwarnings("ignore", category=UserWarning)
     ga = getGridAL_cube(cubeD, sftlf, areacella)
     if rgD:
-        lol = rgD['longitude'] if 'longitude' in rgD else None
-        lal = rgD['latitude'] if 'latitude' in rgD else None
-        ind = _get_ind_lolalim(cubeD, lol, lal)
+        ind = _get_ind_lolalim(cubeD, **rgD)
         if ga is None:
             ga = ind * np.ones(ind.shape)
         else:
@@ -1127,14 +1224,40 @@ def merge_cube_(cubeL, thr=1e-10):
     return o
 
 
+def en_mxn_(eCube):
+    """
+    ... ensemble max of a cube (along dimcoord 'realization') ...
+    """
+    if eCube.coord_dims('realization'):
+        a = en_max_(eCube)
+        b = en_min_(eCube)
+        o = a - b
+        o.rename(a.name())
+        return o
+
+
+def en_min_(eCube):
+    """
+    ... ensemble max of a cube (along dimcoord 'realization') ...
+    """
+    if eCube.coord_dims('realization'):
+        return eCube.collapsed('realization', iris.analysis.MIN)
+
+
+def en_max_(eCube):
+    """
+    ... ensemble max of a cube (along dimcoord 'realization') ...
+    """
+    if eCube.coord_dims('realization'):
+        return eCube.collapsed('realization', iris.analysis.MAX)
+
+
 def en_mean_(eCube, **kwArgs):
     """
     ... ensemble mean of a cube (along dimcoord 'realization') ...
     """
     if eCube.coord_dims('realization'):
         return eCube.collapsed('realization', iris.analysis.MEAN, **kwArgs)
-    else:
-        return eCube
 
 
 def en_iqr_(eCube):
@@ -1150,8 +1273,6 @@ def en_iqr_(eCube):
         o = a - b
         o.rename(a.name())
         return o
-    else:
-        return eCube.copy(np.zeros(eCube.shape))
 
 
 def kde_cube(cube, **kde_opts):
@@ -1281,9 +1402,11 @@ def ax_fn_mp_(arr, ax, func, out, *args, npr=32, **kwargs):
         return ind_shape_i_(arr[0].shape, i, ax, sl_)
     X = P.starmap_async(_func, [(func, (
                                         tuple(ii[_i(i)] for ii in arr),
-                                        o0[_i(i, sl_=0)],
+                                        arr[0][_i(i, sl_=0)],
                                         args,
-                                        kwargs))
+                                        kwargs
+                                       )
+                                )
                                 for i in range(nSlice_(arr[0].shape, ax))])
     XX = X.get()
     P.close()
@@ -1556,3 +1679,50 @@ def half_grid_(x, side='i', axis=-1, loa=None, rb=360):
         o = np.where(o > 90, 90, o)
         o = np.where(o < -90, -90, o)
     return o
+
+
+def _ri1d(c1d, v):
+    from skextremes.models.classic import GEV
+    data = c1d.data
+    data = data.compressed() if np.ma.isMaskedArray(data) else data
+    if data.size:
+        _gev = GEV(data)
+        return _gev.return_periods(v)
+    else:
+        return np.nan
+
+
+def ri_cube(cube, v, nmin=10):
+    c = extract_byAxes_(cube, 'time', 0)
+    rm_sc_cube(c)
+    pst_(c, 'recurrence interval', units='year')
+    ax = axT_cube(cube)
+    if ax is None or cube.shape[ax] < nmin:
+        emsg = "too few data for estimation!"
+        raise Exception(emsg)
+    ax_fn_mp_(cube, ax, _ri1d, c, v)
+    return c
+
+
+def nine_points_cube(cube, longitude, latitude):
+    x, y = get_loa_pts_2d_(cube)
+    d_ = ind_shape_i_(x.shape,
+                      np.argmin(haversine_(longitude, latitude, x, y)),
+                      axis=None)
+    xyd = get_xyd_cube(cube)
+    ind_ = np.arange(-1, 2, dtype=np.int)
+    ind = list(np.s_[:,] * cube.ndim)
+    for i, ii in zip(xyd, d_):
+        if ii == cube.shape[i] - 1:
+            warnings.warn("Causious that center point may be given outside "
+                          "(or at the boundary of) the geo domain of the "
+                          "input Cube!")
+            ii -= 1
+        elif ii == 0:
+            warnings.warn("Causious that center point may be given outside "
+                          "(or at the boundary of) the geo domain of the "
+                          "input Cube!")
+            ii += 1
+        ind[i] = ind_ + ii
+    return cube[tuple(ind)]
+            

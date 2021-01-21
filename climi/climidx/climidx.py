@@ -27,6 +27,8 @@
 * dEndSpringFrost_            : 1d arr, tasmin
 * dFirstDayWithoutFrost_      : 1d arr, tasmin
 * dFrostDays_                 : cube, tasmin
+* dMinusDays_                 : cube, tas
+* dFreezingDays_              : cube, tas
 * dTropicNights_              : cube, tasmin
 * dZeroCrossingDays_          : 1d arr, tasmax, tasmin
 * dZeroCrossingDays_cube      : cube, tasmax, tasmin
@@ -49,6 +51,7 @@
 * dWarmSnowDays_              : cube, pr, tas
 * dColdPRRNdays_              : cube, pr, prsn, tas
 * dWarmPRSNdays_              : cube, prsn, tas
+* dColdRainWarmSnowDays_      : cube, pr, tas
 """
 
 
@@ -79,6 +82,8 @@ __all__ = ['mEffPr_',
            'dEndSpringFrost_',
            'dFirstDayWithoutFrost_',
            'dFrostDays_',
+           'dMinusDays_',
+           'dFreezingDays_',
            'dTropicNights_',
            'dZeroCrossingDays_',
            'dZeroCrossingDays_cube',
@@ -99,7 +104,8 @@ __all__ = ['mEffPr_',
            'dColdRainDays_',
            'dWarmSnowDays_',
            'dColdPRRNdays_',
-           'dWarmPRSNdays_']
+           'dWarmPRSNdays_',
+           'dColdRainWarmSnowDays_']
 
 
 K0 = 273.15
@@ -311,6 +317,20 @@ def dEndSpringFrost_(tn, yrs, doy):
     return o
 
 
+def dMinusDays_(cTas, freq):
+    c = pSTAT_cube(cTas, 'COUNT', *freq,
+                   function=lambda cell: cell < K0)
+    pst_(c, 'minus days', 'days')
+    return c
+
+
+def dFreezingDays_(cTasmax, freq):
+    c = pSTAT_cube(cTasmax, 'COUNT', *freq,
+                   function=lambda cell: cell < K0)
+    pst_(c, 'freezing days', 'days')
+    return c
+
+
 def dFrostDays_(cTasmin, freq):
     c = pSTAT_cube(cTasmin, 'COUNT', *freq,
                    function=lambda cell: cell < K0)
@@ -495,6 +515,15 @@ def dPRRN_fr_PR_T_(cPr, cTas, thr=.58):
     c = cPr.copy(data)
     pst_(c, 'rainfall_flux', var_name='prrn')
     c.attributes.update(dict(PRRN='PRRN from p & t (.ge. {:g})'.format(thr)))
+    return c
+
+
+def dColdRainWarmSnowDays_(cPr, cTas, freq):
+    ind = np.logical_and(cTas.data <= K0 + 2, cTas.data >= K0 - 2)
+    ind0 = np.logical_and(ind, cPr.data > 1. / 24 / 3600)
+    c = pSTAT_cube(cPr.copy(ind0), 'COUNT', *freq,
+                   function=lambda cell: cell)
+    pst_(c, 'days with cold rain or warm snow', 'days')
     return c
 
 

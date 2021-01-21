@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+
+import matplotlib as mpl
+mpl.use('Agg', force=True)
+import matplotlib.pyplot as plt
+import numpy as np
+import argparse
+import yaml
+import os
+import warnings
+import datetime
+import iris
+from climi.pppp import *
+from climi.uuuu import *
+from climi.uuuu.cccc import _get_ind_lolalim as lllim_
+
+
+_here_ = get_path_(__file__)
+
+
+def _fld(idir):
+    tmp = idir.split('/')
+    ind = tmp.index('res') + 1
+    return tmp[ind]
+
+
+def _vlabel(var):
+    v = var.split('-')[0]
+    xl = v[:4].upper() + v[4:]
+    if 'wmi' in v:
+        return xl
+    if 'sdi' in v:
+        return '{} (days)'.format(xl)
+
+
+def main():
+    warnings.filterwarnings("ignore", category=UserWarning)
+    parser = argparse.ArgumentParser('plot time series of hwmi')
+    parser.add_argument("--var0", default='hwmid', choices=['hwmid', 'wsdi'],
+                        help="index")
+    parser.add_argument("--var1", default='tx', choices=['tx', 'tn'],
+                        help="base variable")
+    parser.add_argument("-s", "--season", default='j-d',
+                        help="season (default j-d)")
+    args = parser.parse_args()
+
+    ddir = '/nobackup/rossby24/users/sm_chali/DATA/hw2018/nc/test/'
+    os.makedirs(ddir, exist_ok=True)
+    fdir = '/nobackup/rossby24/users/sm_chali/DATA/hw2018/fig/test/'
+    os.makedirs(fdir, exist_ok=True)
+    var = '{}-{}'.format(args.var0, args.var1)
+    ref = [1989, 2008]
+    rgD = dict(longitude=[10, 23], latitude=[55, 69])
+    freq = args.season
+    y0y1 = [1981, 2018]
+    lD = dict(var=var, ref=ref, freq=freq, y0y1=y0y1, m='EOBS20')
+    vl = _vlabel(var)
+    #data
+    idir = '/nobackup/rossby22/sm_chali/DATA/hc/res/obs/90/'
+    o0, f0 = load_h248_(idir, **lD)
+    lD.update(dict(ref=[1981, 2010]))
+    o1, f1 = load_h248_(idir, **lD)
+    #o = [i[0].collapsed('time', iris.analysis.MEAN) for i in (o0, o1)]
+    o = [i[0].collapsed('time', iris.analysis.PERCENTILE, percent=90)
+         for i in (o0, o1)]
+    nn, xx = minmax_cube_(o, rg=rgD)
+
+    #FIGURE map
+    #fig option
+    fig = init_fig_(fx=5, fy=3, l=.05, r=.8, t=.9)
+    #axes option
+    fm = 'ref.: {}-{}'
+    pch_dict = dict(cmap='hot', vmin=nn, vmax=xx)
+    ax, pch = pch_swe_(fig, 1, 2, 1, o[0],
+                       rg=rgD, ti=fm.format(1989, 2008), pcho=pch_dict)
+    ax, pch = pch_swe_(fig, 1, 2, 2, o[1],
+                       rg=rgD, ti=fm.format(1981, 2010), pcho=pch_dict)
+    cb = aligned_cb_(fig, ax, pch, [.05, .05], orientation='vertical')
+    cb.set_label(vl)
+
+    fig.tight_layout()
+    fn = '{}map_p90_{}_{}.png'
+    plt.savefig(fn.format(fdir, var, freq))
+    plt.close()
+
+
+if __name__ == '__main__':
+    main()

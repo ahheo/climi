@@ -46,8 +46,10 @@ i__ = {'ET': (1, 0, ['et'], None, ['year']),
        'SpringFrostDayEnd': (24, 1, ['tn'], dEndSpringFrost_, ['year']),
        'FrostDays': (25, 1, ['tn'], dFrostDays_, ['season', 'year']),
        'TropicNights': (26, 1, ['tn'], dTropicNights_, ['year']),
+       #'ZeroCrossingDays': (27, 1, ['tx', 'tn'],
+       #                     dZeroCrossingDays_cube, ['year']),
        'ZeroCrossingDays': (27, 1, ['tx', 'tn'],
-                            dZeroCrossingDays_cube, ['season']),
+                            dZeroCrossingDays_cube, ['season']), # SVT_ERIK
        'VegSeasonDayEnd-5': (28, 1, ['t'], dStartEndVegSeason_, ['year']),
        'VegSeasonDayEnd-2': (29, 1, ['t'], dStartEndVegSeason_, ['year']),
        'VegSeasonDayStart-5': (30, 1, ['t'], dStartEndVegSeason_, ['year']),
@@ -119,7 +121,11 @@ i__ = {'ET': (1, 0, ['et'], None, ['year']),
                           dConCalmDays_, ['year']),
        'CalmDays975': (79, 1, ['u975', 'v975', 'ps'], dCalmDays_, ['year']),
        'ConCalmDays975': (80, 1, ['u975', 'v975', 'ps'],
-                          dConCalmDays_, ['year'])}
+                          dConCalmDays_, ['year']),
+       'MinusDays': (81, 1, ['t'], dMinusDays_, ['year']),
+       'FreezingDays': (82, 1, ['tx'], dFreezingDays_, ['year']),
+       'ColdRainWarmSnowDays': (83, 1, ['pr', 't'],
+                                dColdRainWarmSnowDays_, ['year'])}
 
 
 var_ = {'pr': 'pr', 'et': 'evspsbl', 'prsn': 'prsn', 'ro': 'mrro',
@@ -486,6 +492,9 @@ def _dclimidx(c_pr=None, c_t=None, c_tx=None, c_tn=None, c_wsgs=None,
         v_ = 'ColdDays'
         if v_ in il_:
             _d0(v_, c_tx)                                             #ColdDays
+        v_ = 'FreezingDays'
+        if v_ in il_:
+            _d0(v_, c_tx)                                         #FreezingDays
         v_ = 'CoolingDegDay'
         if v_ in il_:
             _d0(v_, c_tx, fK_=dict(thr=20),
@@ -523,6 +532,9 @@ def _dclimidx(c_pr=None, c_t=None, c_tx=None, c_tn=None, c_wsgs=None,
     if v_ in il_ and c_tx and c_tn:
         _d0(v_, (c_tx, c_tn))                                 #ZeroCrossingDays
     if c_t:
+        v_ = 'MinusDays'
+        if v_ in il_:
+            _d0(v_, c_t)                                             #MinusDays
         v_ = 'DegDay20'
         if v_ in il_:
             _d0(v_, c_t, fK_=dict(thr=20))                            #DegDay20
@@ -660,6 +672,9 @@ def _dclimidx(c_pr=None, c_t=None, c_tx=None, c_tn=None, c_wsgs=None,
     v_ = 'PRSNmax'
     if v_ in il_ and c_prsn:
         _dd(v_, c_prsn)                                                #PRSNmax
+    v_ = 'ColdRainWarmSnowDays'
+    if v_ in il_ and c_pr and c_t:
+        _d0(v_, (c_pr, c_t))                              #ColdRainWarmSnowDays
     if (any([i in il_ for i in ['ColdRainDays', 'ColdRainGT10Days',
                                 'ColdRainGT20Days']]) and c_pr and c_t):
         _d0(['ColdRainDays', 'ColdRainGT10Days', 'ColdRainGT20Days'],

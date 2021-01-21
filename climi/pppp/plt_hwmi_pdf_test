@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+
+import matplotlib as mpl
+mpl.use('Agg', force=True)
+import matplotlib.pyplot as plt
+import numpy as np
+import argparse
+import yaml
+import os
+import warnings
+import datetime
+import iris
+from climi.pppp import *
+from climi.uuuu import *
+from climi.uuuu.cccc import _get_ind_lolalim as lllim_
+
+
+_here_ = get_path_(__file__)
+
+
+def _fld(idir):
+    tmp = idir.split('/')
+    ind = tmp.index('res') + 1
+    return tmp[ind]
+
+
+def _axopt(var):
+    ax_opt = {}
+    v = var.split('-')[0]
+    xl = v[:4].upper() + v[4:]
+    if 'wmi' in v:
+        ax_opt.update(dict(xlabel=xl))
+    if 'sdi' in v:
+        ax_opt.update(dict(xlabel='{} (days)'.format(xl)))
+    ax_opt.update(dict(ylabel='Probability'))
+    return ax_opt
+
+
+def main():
+    warnings.filterwarnings("ignore", category=UserWarning)                     
+    parser = argparse.ArgumentParser('plot time series of hwmi')
+    parser.add_argument("--var0", default='hwmid', choices=['hwmid', 'wsdi'],
+                        help="index")
+    parser.add_argument("--var1", default='tx', choices=['tx', 'tn'],
+                        help="base variable")
+    parser.add_argument("-s", "--season", default='j-d',
+                        help="season (default j-d)")
+    args = parser.parse_args()
+
+    ddir = '/nobackup/rossby24/users/sm_chali/DATA/hw2018/nc/test/'
+    os.makedirs(ddir, exist_ok=True)
+    fdir = '/nobackup/rossby24/users/sm_chali/DATA/hw2018/fig/test/'
+    os.makedirs(fdir, exist_ok=True)
+    var = '{}-{}'.format(args.var0, args.var1)
+    ref = [1981, 2010]
+    rgD = dict(longitude=[10, 23], latitude=[55, 69])
+    freq = args.season
+    y0y1 = [1981, 2018]
+    lD = dict(var=var, ref=ref, freq=freq, y0y1=y0y1, m='EOBS20')
+    idir = '/nobackup/rossby22/sm_chali/DATA/hc/res/obs/90/'
+    o0, f0 = load_h248_(idir, **lD)
+    o0_ = o0[0].data[lllim_(o0[0], rgD['longitude'], rgD['latitude'])]
+    o0_2018 = o0[0][-1,:,:].data[lllim_(o0[0][-1,:,:],
+                                        rgD['longitude'], rgD['latitude'])]
+    o1 = get_ts_h248_(o0, f0, folder=_fld(idir), rgD=rgD)[0].data
+    o2 = get_tsa_h248_(o0,
+                       iris.analysis.PERCENTILE, percent=90, rgD=rgD)[0].data
+
+    #fig option
+    fig = init_fig_(fx=8, fy=5)
+    #axes option
+    ax_opt = _axopt(var)
+    ax = fig.add_subplot(1, 1, 1, **ax_opt)
+    #color option
+    cs = plt.get_cmap('tab10').colors
+    #get data and plot
+    _, _, h= ax.hist((o0_.compressed(), o1, o2),
+                     bins=32, density=True, color=cs[:3], alpha=.75,
+                     label=('grid cells', 'mean', '90th percentile'))
+    ax.scatter(o0_2018.compressed(), np.ones(o0_2018.compressed().shape)*.1,
+               marker='x', color=cs[0], s=6, alpha=.5,
+               label='grid cells (2018)')
+    ax.scatter(o1[-1], .1, marker='s', color=cs[1],
+               label='mean (2018)')
+    ax.scatter(o2[-1], .1, marker='s', color=cs[2],
+               label='90 percentile (2018)')
+
+    ax.legend()
+
+    fig.tight_layout()
+    fn = '{}pdf_{}_ref{}-{}_{}.png'
+    plt.savefig(fn.format(fdir, var, *ref, freq))
+    plt.close()
+
+
+if __name__ == '__main__':
+    main()

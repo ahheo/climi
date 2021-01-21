@@ -1,0 +1,121 @@
+#!/usr/bin/env python3
+
+import matplotlib as mpl
+mpl.use('Agg', force=True)
+import matplotlib.pyplot as plt
+import numpy as np
+import argparse
+import yaml
+import os
+import warnings
+import datetime
+import iris
+from scipy.stats import pearsonr, linregress
+from climi.pppp import *
+from climi.uuuu import *
+from climi.uuuu.cccc import _get_ind_lolalim as lllim_
+from skextremes.models.classic import GEV
+
+
+_here_ = get_path_(__file__)
+
+
+def _fld(idir):
+    tmp = idir.split('/')
+    ind = tmp.index('res') + 1
+    return tmp[ind]
+
+
+def _vlabel(var):
+    v = var.split('-')[0]
+    yl = v[:4].upper() + v[4:]
+    if 'wmi' in v:
+        return yl
+    if 'sdi' in v:
+        return '{} (days)'.format(yl)
+
+
+def _data(idir, lD, rgD):
+    o0 = load_h248_(idir, **lD)
+    if o0:
+        data = o0[0][0].data[lllim_(o0[0][0], **rgD)].compressed()
+        return data[data>0]
+
+
+def main():
+    warnings.filterwarnings("ignore", category=UserWarning)
+    parser = argparse.ArgumentParser('plot time series of hwmi')
+    parser.add_argument("controlfile",
+                        help="yaml file with metadata")
+    args = parser.parse_args()
+    with open(args.controlfile, 'r') as ymlfile:
+        cfg = yaml.safe_load(ymlfile)
+
+    ddir = cfg['ddir']
+    os.makedirs(ddir, exist_ok=True)
+    fdir = cfg['fdir']
+    os.makedirs(fdir, exist_ok=True)
+    var = cfg['var']
+    rcp = cfg['rcp']
+    ref = cfg['ref']
+    rgD = cfg['rgD']
+    freq = cfg['freq']
+    y0y1 = cfg['y0y1']
+    lD0 = dict(var=var, ref=ref, freq=freq, y0y1=y0y1)
+    vl = _vlabel(var)
+    #fig option
+    fig = init_fig_(fx=8, fy=6)
+    #axes option
+    ax = fig.add_subplot(2, 1, 1, xlabel=vl, ylabel='Probability')
+    ax_ = fig.add_subplot(2, 1, 2, xlabel=vl, sharex=ax,
+                          ylabel='Recurrence Period (year)')
+    #color option
+    cs = plt.get_cmap('tab10').colors
+    #get data and plot
+    oo, ooo = [], []
+    obss, rcms, rcms_ = cfg['obss'], cfg['rcms'], cfg['rcms_']
+    def _gev(data, color, ti=None, alpha=.5, **kwArgs):
+        pltD = dict(color=color, alpha=alpha, **kwArgs)
+        if ti:
+            pltD.update(dict(label=ti))
+        _GEV = GEV(data)
+        _x = np.linspace(_GEV.distr.ppf(.001), _GEV.distr.ppf(.999), 100)
+        ax.plot(_x, _GEV.distr.pdf(_x), **pltD)
+        ax_.semilogy(_x, _GEV.return_periods(_x), **pltD)
+    idir = cfg['idir']['rcms']
+    for i, this_d in enumerate(rcms):
+        print(i, this_d)
+        lD = dict(**lD0)
+        lD.update(m=cfg['m'][this_d], rcp=rcp)
+        data = _data(idir, lD, rgD)
+        if data is not None:
+            _gev(data, cs[i], ti=this_d, lw=1)
+            oo.append(data)
+            if this_d in rcms_:
+                ooo.append(data)
+    _gev(flt_l(oo), cs[i+1], alpha=.8, ti='ensemble (all)', lw=2.5)
+    _gev(flt_l(ooo), cs[i+2], alpha=.8, ti='ensemble (selected)', lw=2.5)
+    cs = ['navy', 'k']
+    idir = cfg['idir']['obss']
+    for i, this_d in enumerate(obss):
+        print(i, this_d)
+        lD = dict(**lD0)
+        lD.update(m=cfg['m'][this_d])
+        data = _data(idir, lD, rgD)
+        if data is not None:
+            if this_d == 'EOBS':
+                _gev(data, cs[i], ti=this_d, alpha=.8, lw=2.5, ls='-.')
+            else:
+                _gev(data, cs[i], ti=this_d, alpha=.8, lw=2.5)
+
+    ax.set_xlim(left=0)
+    ax.legend()
+
+    fig.tight_layout()
+    fn = '{}pdf_{}_ref{}-{}_{}.png'
+    plt.savefig(fn.format(fdir, var, *ref, freq))
+    plt.close()
+
+
+if __name__ == '__main__':
+    main()

@@ -11,9 +11,11 @@ from climi.uuuu import *
 
 __all__ = ['aligned_cb_',
            'aligned_tx_',
+           'annotate_heatmap',
            'axColor_',
            'ax_move_',
            'axs_move_',
+           'axs_rct_',
            'axs_shrink_',
            'bp_cubeL_eval_',
            'bp_dataLL0_',
@@ -23,13 +25,16 @@ __all__ = ['aligned_cb_',
            'distri_swe_',
            'getAggrArg_',
            'get_1st_patchCollection_',
+           'heatmap',
+           'hspace_ax_',
            'init_fig_',
            'pch_',
            'pch_eur_',
            'pch_ll_',
            'pch_swe_',
            'pdf_iANDe_',
-           'ts_iANDe_']
+           'ts_eCube_',
+           'wspace_ax_']
 
 
 def init_fig_(fx=12, fy=6,
@@ -64,20 +69,6 @@ def getAggrArg_(aggr):
     return args, kwargs
 
 
-def ts_iANDe_(ax, cubeL, color):
-    y0y1 = y0y1_of_cube(cubeL)
-    ils = []
-    for cube in cubeL:
-        #plot
-        il, = iplt.plot(cube, axes=ax, lw=.75, color=color, alpha=.25)
-        ils.append(il)
-    c = extract_period_cube(cubeL[0], *y0y1)
-    c.data = np.mean(np.array([extract_period_cube(i, *y0y1).data
-                               for i in cubeL]), axis=0)
-    el, = iplt.plot(ets, axes=ax, lw=1.5, color=color, alpha=.85)
-    return (ils, el)
-
-
 def _get_clo(cube):
     cs = cube.coord_system()
     if isinstance(cs, (iris.coord_systems.LambertConformal,
@@ -96,7 +87,7 @@ def _get_clo(cube):
 
 
 def pch_swe_(fig, nrow, ncol, n, cube,
-             rg='data', clo_=None, ti=None, pcho={}):
+             rg='data', clo_=None, ti=None, pcho={}, fr_on=False):
     ext = _mapext(cube, rg=rg)
     if isinstance(clo_, (int, float)):
         clo = clo_
@@ -105,27 +96,31 @@ def pch_swe_(fig, nrow, ncol, n, cube,
     else:
         clo = _clo_ext(ext, h_=clo_)
     proj = ccrs.NorthPolarStereo(central_longitude=clo)
-    return pch_(fig, nrow, ncol, n, cube, proj, ext=ext, ti=ti, pcho=pcho)
+    return pch_(fig, nrow, ncol, n, cube, proj, ext=ext, ti=ti, pcho=pcho,
+                fr_on=fr_on)
 
 
-def pch_eur_(fig, nrow, ncol, n, cube, rg=None, ti=None, pcho={}):
+def pch_eur_(fig, nrow, ncol, n, cube, rg=None, ti=None, pcho={}, fr_on=False):
     ext = _mapext(cube, rg=rg)
     proj = ccrs.EuroPP()
-    return pch_(fig, nrow, ncol, n, cube, proj, ext=ext, ti=ti, pcho=pcho)
+    return pch_(fig, nrow, ncol, n, cube, proj, ext=ext, ti=ti, pcho=pcho,
+                fr_on=fr_on)
 
 
-def pch_ll_(fig, nrow, ncol, n, cube, rg=None, ti=None, pcho={}):
+def pch_ll_(fig, nrow, ncol, n, cube, rg=None, ti=None, pcho={}, fr_on=False):
     ext = _mapext(cube, rg=rg)
     proj = ccrs.PlateCarree()
-    return pch_(fig, nrow, ncol, n, cube, proj, ext=ext, ti=ti, pcho=pcho)
+    return pch_(fig, nrow, ncol, n, cube, proj, ext=ext, ti=ti, pcho=pcho,
+                fr_on=fr_on)
 
 
-def pch_(fig, nrow, ncol, n, cube, proj, ext=None, ti=None, pcho={}):
+def pch_(fig, nrow, ncol, n, cube, proj, ext=None, ti=None, pcho={},
+         fr_on=False):
     ax = fig.add_subplot(nrow, ncol, n, projection=proj)
     if ext:
         ax.set_extent(ext, crs=ccrs.PlateCarree())
     ax.coastlines('50m', linewidth=0.5) #coastlines
-    ax.outline_patch.set_visible(False)
+    ax.outline_patch.set_visible(fr_on)
     pch = _pcolormesh(cube, axes=ax, **pcho)
     if ti is not None:
         ax.set_title(ti)
@@ -242,6 +237,24 @@ def _minmaxXYlm(ax):
     return (xmin, xmax, ymin, ymax)
 
 
+def axs_rct_(fig, ax, dx=.005, **kwarg):
+    xmin, xmax, ymin, ymax = _minmaxXYlm(ax)
+    kD = dict(fill=False, color='k', zorder=1000,
+              transform=fig.transFigure, figure=fig)
+    kD.update(kwarg)
+    fig.patches.extend([plt.Rectangle((xmin - dx, ymin -dx),
+                                      xmax - xmin + 2*dx, ymax - ymin + 2*dx,
+                                      **kD)])
+
+
+def wspace_ax_(ax0, ax1):
+    return ax1.get_position().x0 - ax0.get_position().x1
+
+
+def hspace_ax_(ax0, ax1):
+    return ax0.get_position().y0 - ax1.get_position().y1
+
+
 def aligned_cb_(fig, ax, ppp, iw, orientation='vertical', shrink=1.,
                 **cb_dict):
     xmin, xmax, ymin, ymax = _minmaxXYlm(ax)
@@ -353,23 +366,30 @@ def cdf_iANDe_(ax, eCube, color, log_it=False, kopt={}):
     return (ils, el)
 
 
-def ts_eCube_(ax, eCube, color, **rgm_opts):
+def ts_eCube_(ax, eCube, color):
+    y0y1 = y0y1_of_cube(eCube)
     cl = []
     ils = []
-    if isinstance(eCube, iris.cube.CubeList):
-        cubes = eCube
+    if isinstance(eCube, iris.cube.Cube):
+        if 'realization' in (i.name() for i in eCube.coords()):
+            cubes = eCube.slices_over('realization')
+            #ax_r = eCube.coord_dims('realization')[0]
+            #crd_r = eCube.coord('realization').points
+            #cubes = [extract_byAxes_(eCube, ax_r, np.where(crd_r == i)[0][0])
+            #         for i in crd_r]
+            cut = False
+        else:
+            cubes = []
     else:
-        ax_r = eCube.coord_dims('realization')[0]
-        crd_r = eCube.coord('realization').points
-        cubes = [extract_byAxes_(eCube, ax_r, crd_r == i) for i in crd_r]
-    for i in cubes:
-        ts = rgMean_cube(i, **rgm_opts)
-        cl.append(ts.data)
+        cubes, cut = eCube, True
+    for c in cubes:
+        tmp = extract_period_cube(c, *y0y1) if cut else c
+        cl.append(tmp.data)
         #plot
-        il, = iplt.plot(ts, axes=ax, lw=1.25, color=color, alpha=.25)
+        il, = iplt.plot(tmp, axes=ax, lw=.5, color=color, alpha=.25, zorder=0)
         ils.append(il)
-    ets = ts.copy(np.mean(np.array(cl), axis=0))
-    el, = iplt.plot(ets, axes=ax, lw=2, color=color, alpha=.85)
+    ets = tmp.copy(np.mean(np.array(cl), axis=0)) if cubes else eCube
+    el, = iplt.plot(ets, axes=ax, lw=1.75, color=color, alpha=.8, zorder=9)
     return (ils, el)
 
 
@@ -616,3 +636,142 @@ def get_1st_patchCollection_(ax):
              pc_ = i
              break
     return pc_
+
+
+#def heatmap(data, row_labels, col_labels, ax=None,
+#            cbar_kw={}, cbarlabel="", **kwargs):
+def heatmap(data, row_labels, col_labels, ax=None, tkD=None, **kwargs):
+    """
+    Create a heatmap from a numpy array and two lists of labels.
+
+    Parameters
+    ----------
+    data
+        A 2D numpy array of shape (N, M).
+    row_labels
+        A list or array of length N with the labels for the rows.
+    col_labels
+        A list or array of length M with the labels for the columns.
+    ax
+        A `matplotlib.axes.Axes` instance to which the heatmap is plotted.  If
+        not provided, use current axes or create a new one.  Optional.
+    cbar_kw
+        A dictionary with arguments to `matplotlib.Figure.colorbar`.  Optional.
+    cbarlabel
+        The label for the colorbar.  Optional.
+    **kwargs
+        All other arguments are forwarded to `imshow`.
+    """
+
+    if not ax:
+        ax = plt.gca()
+
+    # Plot the heatmap
+    im = ax.imshow(data, **kwargs)
+
+    # Create colorbar
+    #cbar = ax.figure.colorbar(im, ax=ax, **cbar_kw)
+    #cbar.ax.set_ylabel(cbarlabel)
+
+    # We want to show all ticks...
+    ax.set_xticks(np.arange(data.shape[1]))
+    ax.set_yticks(np.arange(data.shape[0]))
+    # ... and label them with the respective list entries.
+    ax.set_xticklabels(col_labels)
+    ax.set_yticklabels(row_labels)
+
+    # Let the horizontal axes labeling appear on top.
+    if tkD:
+        ax.tick_params(**tkD)
+        rot=-45
+    else:
+        rot=45
+    #ax.tick_params(top=True, bottom=False,
+    #               labeltop=True, labelbottom=False)
+
+    # Rotate the tick labels and set their alignment.
+    plt.setp(ax.get_xticklabels(), rotation=rot, ha="right",
+             rotation_mode="anchor")
+
+    # Turn spines off and create white grid.
+    for edge, spine in ax.spines.items():
+        spine.set_visible(False)
+
+    ax.set_xticks(np.arange(data.shape[1]+1)-.5, minor=True)
+    ax.set_yticks(np.arange(data.shape[0]+1)-.5, minor=True)
+    ax.grid(which="minor", color="w", linestyle='-', linewidth=3)
+    ax.tick_params(which="minor", bottom=False, left=False)
+
+    #return im, cbar
+    return im
+
+
+def annotate_heatmap(im, data=None, valfmt="{:.2f}", data_=None,
+                     textcolors=("black", "white"),
+                     threshold=None, middle_0=False, **textkw):
+    """
+    A function to annotate a heatmap.
+
+    Parameters
+    ----------
+    im
+        The AxesImage to be labeled.
+    data
+        Data used to annotate.  If None, the image's data is used.  Optional.
+    valfmt
+        The format of the annotations inside the heatmap.  This should either
+        use the string format method, e.g. "$ {x:.2f}", or be a
+        `matplotlib.ticker.Formatter`.  Optional.
+    textcolors
+        A pair of colors.  The first is used for values below a threshold,
+        the second for those above.  Optional.
+    threshold
+        Value in data units according to which the colors from textcolors are
+        applied.  If None (the default) uses the middle of the colormap as
+        separation.  Optional.
+    **kwargs
+        All other arguments are forwarded to each call to `text` used to create
+        the text labels.
+    """
+
+    if not isinstance(data, (list, np.ndarray)):
+        data = im.get_array()
+
+    # Normalize the threshold to the images color range.
+    if threshold is not None:
+        threshold = im.norm(threshold)
+    else:
+        threshold = im.norm(data.max())/2.
+
+    # Set default alignment to center, but allow it to be
+    # overwritten by textkw.
+    kw = dict(horizontalalignment="center",
+              verticalalignment="center")
+    kw.update(textkw)
+
+    # Get the formatter in case a string is supplied
+    #if isinstance(valfmt, str):
+    #    valfmt = mpl.ticker.StrMethodFormatter(valfmt)
+
+    # Loop over the data and create a `Text` for each "pixel".
+    # Change the text's color depending on the data.
+    def _ccc(v):
+        if middle_0:
+            kw.update(color=textcolors[int(im.norm(abs(v)) > threshold)])
+        else:
+            kw.update(color=textcolors[int(im.norm(v) > threshold)])
+    texts = []
+    for i in range(data.shape[0]):
+        for j in range(data.shape[1]):
+            _ccc(data[i, j])
+            #kw.update(color=textcolors[int(im.norm(data[i, j]) > threshold)])
+            if data_ is None:
+                #text = im.axes.text(j, i, valfmt(data[i, j], None), **kw)
+                text = im.axes.text(j, i, valfmt.format(data[i, j]), **kw)
+            else:
+                text = im.axes.text(j, i,
+                                    valfmt.format(data[i, j], data_[i, j]),
+                                    **kw)
+            texts.append(text)
+
+    return texts

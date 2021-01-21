@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+
+import matplotlib as mpl
+mpl.use('Agg', force=True)
+import matplotlib.pyplot as plt
+import numpy as np
+import argparse
+import yaml
+import os
+import warnings
+import datetime
+import iris
+from climi.pppp import *
+from climi.uuuu import *
+from climi.uuuu.cccc import _get_ind_lolalim as lllim_
+from skextremes.models.classic import GEV
+
+
+_here_ = get_path_(__file__)
+
+
+def _fld(idir):
+    tmp = idir.split('/')
+    ind = tmp.index('res') + 1
+    return tmp[ind]
+
+
+def _vlabel(var):
+    v = var.split('-')[0]
+    xl = v[:4].upper() + v[4:]
+    if 'wmi' in v:
+        return xl
+    if 'sdi' in v:
+        return '{} (days)'.format(xl)
+
+
+def main():
+    warnings.filterwarnings("ignore", category=UserWarning)
+    parser = argparse.ArgumentParser('plot time series of hwmi')
+    parser.add_argument("--var0", default='hwmid', choices=['hwmid', 'wsdi'],
+                        help="index")
+    parser.add_argument("--var1", default='tx', choices=['tx', 'tn'],
+                        help="base variable")
+    parser.add_argument("-s", "--season", default='j-d',
+                        help="season (default j-d)")
+    args = parser.parse_args()
+
+    ddir = '/nobackup/rossby24/users/sm_chali/DATA/hw2018/nc/test/'
+    os.makedirs(ddir, exist_ok=True)
+    fdir = '/nobackup/rossby24/users/sm_chali/DATA/hw2018/fig/test/'
+    os.makedirs(fdir, exist_ok=True)
+    var = '{}-{}'.format(args.var0, args.var1)
+    ref = [1989, 2008]
+    rgD = dict(longitude=[10, 23], latitude=[55, 69])
+    freq = args.season
+    y0y1 = [1981, 2018]
+    lD = dict(var=var, ref=ref, freq=freq, y0y1=y0y1, m='EOBS20')
+    vl = _vlabel(var)
+    #data
+    idir = '/nobackup/rossby22/sm_chali/DATA/hc/res/obs/90/'
+    o0, f0 = load_h248_(idir, **lD)
+    o0__ = o0[0].data[lllim_(o0[0], **rgD)]
+    o0_2018 = get_tsa_h248_(o0,
+                            iris.analysis.PERCENTILE, percent=90,
+                            rgD=rgD)[0].data[-1]
+    lD.update(dict(ref=[1981, 2010]))
+    o1, f1 = load_h248_(idir, **lD)
+    o1__ = o1[0].data[lllim_(o1[0], **rgD)]
+    o1_2018 = get_tsa_h248_(o1,
+                            iris.analysis.PERCENTILE, percent=90,
+                            rgD=rgD)[0].data[-1]
+    GEV0 = GEV(o0__.compressed())
+    GEV1 = GEV(o1__.compressed())
+
+    #FIGURE pdf
+    #fig option
+    fig = init_fig_(fx=5, fy=6)
+    #axes option
+    ax_opt = dict(ylabel='Probability')
+    ax = fig.add_subplot(2, 1, 1, **ax_opt)
+    #color option
+    #cs = plt.get_cmap('tab10').colors
+    fm = 'ref.: {}-{}'
+    #get data and plot
+    ax.hist((o0__.compressed(), o1__.compressed()),
+            bins=16, density=True, color=('tab:gray', 'tab:blue'), alpha=.75,
+            label=(fm.format(1989, 2008), fm.format(1981, 2010)))
+    ax.scatter(o0_2018, GEV0.distr.pdf(o0_2018), marker='x', color='tab:gray',
+               label='2018')
+    ax.scatter(o1_2018, GEV1.distr.pdf(o1_2018), marker='x', color='tab:blue')
+    x0 = np.linspace(GEV0.distr.ppf(.001), GEV0.distr.ppf(.999), 100)
+    ax.plot(x0, GEV0.distr.pdf(x0), color='tab:gray', label='fitted')
+    x1 = np.linspace(GEV1.distr.ppf(.001), GEV1.distr.ppf(.999), 100)
+    ax.plot(x1, GEV1.distr.pdf(x1), color='tab:blue')
+    ax.set_xlim(left=0)
+    ax.legend()
+
+    ax_opt = dict(ylabel='Cumulative Probability', ylim=[0, 1],
+                  xlabel=vl, sharex=ax)
+    ax_ = fig.add_subplot(2, 1, 2, **ax_opt)
+    ax_.hist((o0__.compressed(), o1__.compressed()), cumulative=True,
+             bins=16, density=True, color=('tab:gray', 'tab:blue'), alpha=.75,
+             label=(fm.format(1989, 2008), fm.format(1981, 2010)))
+    ax_.scatter(o0_2018, GEV0.distr.cdf(o0_2018), marker='x', color='tab:gray')
+    ax_.scatter(o1_2018, GEV1.distr.cdf(o1_2018), marker='x', color='tab:blue')
+    ax_.plot(x0, GEV0.distr.cdf(x0), color='tab:gray')
+    ax_.plot(x1, GEV1.distr.cdf(x1), color='tab:blue')
+    #ax_.legend()
+
+    fig.tight_layout()
+    fn = '{}pdf_{}_{}.png'
+    plt.savefig(fn.format(fdir, var, freq))
+    plt.close()
+
+
+if __name__ == '__main__':
+    main()

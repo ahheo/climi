@@ -1,0 +1,159 @@
+#!/usr/bin/env python3
+
+import matplotlib as mpl
+mpl.use('Agg', force=True)
+import matplotlib.pyplot as plt
+import numpy as np
+import argparse
+import yaml
+import os
+import warnings
+import datetime
+import iris
+from scipy.stats import pearsonr, linregress
+from climi.pppp import *
+from climi.uuuu import *
+
+
+_here_ = get_path_(__file__)
+
+
+def _fld(idir):
+    tmp = idir.split('/')
+    ind = tmp.index('res') + 1
+    return tmp[ind]
+
+
+def _vlabel(var):
+    v = var.split('-')[0]
+    yl = v[:4].upper() + v[4:]
+    if 'wmi' in v:
+        return yl
+    if 'sdi' in v:
+        return '{} (days)'.format(yl)
+
+
+def _nnxx(var, stat, freq):
+    nn, xx = (10, 20) if 'wmi' in var else (8, 18)
+    if stat == 'mean':
+        nn -= 4 if 'wmi' in var else 3
+        xx -= 4 if 'wmi' in var else 3
+    if freq == 'mjja':
+        nn -= 2
+        xx -= 2
+    elif freq == 'ndjf':
+        nn -= 1
+        xx -= 1
+    return nn, xx
+
+
+def _qfile(fn, idir, lD, y0y1):
+    try:
+        o = iris.load_cube(fn)
+        return o
+    except:
+        try:
+            o = iris.load(fn.replace('.nc', '*.nc'))
+            return o
+        except:
+            f = iris.analysis.PERCENTILE if 'p90' in fn else iris.analysis.MEAN
+            fD = dict(percent=90) if 'p90' in fn else dict()
+            tmp = load_h248_(idir, **lD)
+            if tmp:
+                o = [i.collapsed('time', f, **fD)
+                     for i in tmp[0]]
+                o = o[0] if len(o) == 1 else o
+                cubesv_(o, fn)
+                return o
+
+
+def _qfile2(fn, cl, ml, tgt='ECMWF-ERAINT', region='EUR'):
+    try:
+        o = iris.load_cube(fn)
+        return o
+    except:
+        o = en_prgd_cubeL_(cl, ml, tgt=tgt, region=region)
+        cubesv_(o, fn)
+        return o
+
+
+def main():
+    warnings.filterwarnings("ignore", category=UserWarning)
+    parser = argparse.ArgumentParser('plot time series of hwmi')
+    parser.add_argument("controlfile",
+                        help="yaml file with metadata")
+    parser.add_argument("--stat", default='mean',
+                        help="yaml file with metadata")
+    args = parser.parse_args()
+    with open(args.controlfile, 'r') as ymlfile:
+        cfg = yaml.safe_load(ymlfile)
+
+    ddir = cfg['ddir']
+    os.makedirs(ddir, exist_ok=True)
+    fdir = cfg['fdir']
+    os.makedirs(fdir, exist_ok=True)
+    var = cfg['var']
+    rcp = cfg['rcp']
+    ref = cfg['ref']
+    rgD = cfg['rgD']
+    freq = cfg['freq']
+    y0y1 = cfg['y0y1']
+    lD0 = dict(var=var, ref=ref, freq=freq, y0y1=y0y1)
+    #fig option
+    fig = init_fig_(fx=8, fy=5, l=.01, r=.99, t=.95, b=.02, h=.12)
+    #get data and plot
+    lines, oo, ooo, axs = [], [], [], []
+    obss, rcms, rcms_ = cfg['obss'], cfg['rcms'], cfg['rcms_']
+    vl = _vlabel(var)
+    nn, xx = _nnxx(var, args.stat, freq)
+    tiD = dict(fontsize=8, fontweight='bold')
+    pch_dict = dict(cmap='OrRd', vmin=nn, vmax=xx)
+    idir = cfg['idir']['rcms']
+    fn = '{}map_' + args.stat + '_{}_{}_ref{}-{}_{}.nc'
+    def _pch(ii, o, ti):
+        ax, pch = pch_swe_(fig, 2, len(rcms), ii, o,
+                           rg=rgD, pcho=pch_dict, fr_on=True)
+        ax.set_title(ti, tiD)
+        return (ax, pch)
+    for i, this_d in enumerate(rcms):
+        print(i, this_d)
+        lD = dict(**lD0)
+        lD.update(m=cfg['m'][this_d], rcp=rcp)
+        o = _qfile(fn.format(ddir, var, this_d, *ref, freq), idir, lD, y0y1)
+        if o is not None:
+            ax, pch = _pch(i+1, o, this_d)
+            axs.append(ax)
+            oo.append(o)
+            if this_d in rcms_:
+                ooo.append(o)
+    o = _qfile2(fn.format(ddir, var, '6rcms', *ref, freq), oo, rcms)
+    ax, pch = _pch(len(rcms)+1, en_mean_(o), 'ensemble (all)')
+    axs.append(ax)
+    o = _qfile2(fn.format(ddir, var, '4rcms', *ref, freq), ooo, rcms_)
+    ax, pch = _pch(len(rcms)+2, en_mean_(o), 'ensemble (selected)')
+    axs.append(ax)
+    idir = cfg['idir']['obss']
+    for i, this_d in enumerate(obss):
+        print(i, this_d)
+        lD = dict(**lD0)
+        lD.update(m=cfg['m'][this_d])
+        o = _qfile(fn.format(ddir, var, this_d, *ref, freq), idir, lD, y0y1)
+        if o is not None:
+            ax, pch = _pch(len(rcms)+3+i, o, this_d)
+            axs.append(ax)
+
+    for i in axs:
+        i.set_facecolor('lightgray')
+
+    cb = aligned_cb_(fig, axs[-1], pch, [.05, .05],
+                     orientation='vertical', extend='max')
+    cb.set_label(vl)
+
+    fig.tight_layout()
+    fn = '{}map_' + args.stat + '_{}_ref{}-{}_{}.png'
+    plt.savefig(fn.format(fdir, var, *ref, freq))
+    plt.close()
+
+
+if __name__ == '__main__':
+    main()

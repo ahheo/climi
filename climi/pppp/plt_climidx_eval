@@ -6,7 +6,7 @@ import matplotlib as mpl
 mpl.use('Agg', force=True)
 import matplotlib.pyplot as plt
 import iris
-import iris.coord_categorisation as cat 
+import iris.coord_categorisation as cat
 import os
 import time
 import logging
@@ -22,35 +22,35 @@ _here_ = get_path_(__file__)
 
 
 def _shps():
-    shp = gpd_read(_here_ + 'swe_districts/distriktsanalys_polygon.shp')                 
-    shp_ = shp.to_crs(epsg=4326)                                                
-    idd = shp.ID.copy()                                                         
-    idd.loc[:] = 0.                                                             
-    idd = idd.rename('eobs')                                       
-    shp = gpd.pd.concat((shp, idd), axis=1)                                 
-    idd = idd.rename('erai')                                       
-    shp = gpd.pd.concat((shp, idd), axis=1)                                 
-    idd = idd.rename('mean')                                       
-    shp = gpd.pd.concat((shp, idd), axis=1)                                 
-    idd = idd.rename('iqr')                                       
-    shp = gpd.pd.concat((shp, idd), axis=1)                                 
+    shp = gpd_read(_here_ + 'swe_districts/distriktsanalys_polygon.shp')
+    shp_ = shp.to_crs(epsg=4326)
+    idd = shp.ID.copy()
+    idd.loc[:] = 0.
+    idd = idd.rename('eobs')
+    shp = gpd.pd.concat((shp, idd), axis=1)
+    idd = idd.rename('erai')
+    shp = gpd.pd.concat((shp, idd), axis=1)
+    idd = idd.rename('mean')
+    shp = gpd.pd.concat((shp, idd), axis=1)
+    idd = idd.rename('iqr')
+    shp = gpd.pd.concat((shp, idd), axis=1)
     return (shp, shp_)
 
 
 def _cmp01(unit, var):
-    if unit == 'K' or var in ('RLDS', 'RSDS', 'SD', 'TropicNights',             
-                              'ConWarmDays', 'HumiWarmDays', 'WarmDays'):       
-        cmp0 = 'coolwarm'                                                       
-        cmp1 = 'coolwarm'                                                       
-    elif var in ('DryDays', 'LnstDryDays'):                                     
-        cmp0 = 'YlGnBu_r'                                                       
-        cmp1 = 'BrBG_r'                                                         
-    elif unit == 'days':                                                        
-        cmp0 = 'cubehelix'                                                      
-        cmp1 = 'PRGn_r'                                                         
-    else:                                                                       
-        cmp0 = 'YlGnBu'                                                         
-        cmp1 = 'BrBG'   
+    if unit == 'K' or var in ('RLDS', 'RSDS', 'SD', 'TropicNights',
+                              'ConWarmDays', 'HumiWarmDays', 'WarmDays'):
+        cmp0 = 'coolwarm'
+        cmp1 = 'coolwarm'
+    elif var in ('DryDays', 'LnstDryDays'):
+        cmp0 = 'YlGnBu_r'
+        cmp1 = 'BrBG_r'
+    elif unit == 'days':
+        cmp0 = 'cubehelix'
+        cmp1 = 'PRGn_r'
+    else:
+        cmp0 = 'YlGnBu'
+        cmp1 = 'BrBG'
     return (cmp0, cmp1)
 
 
@@ -71,7 +71,7 @@ def ts__(cubeL, dn, unit, odir, var, freq, xx_='ts'):
                 cat.add_year(cube, 'time', name='year')
                 yrs = cube.coord('year').points
         return yrs
-            
+
     cs = plt.get_cmap('Set2').colors
     fig = init_fig_(t=.8)
     ax_opt = {'ylabel': var + ' (' + unit + ')'}
@@ -97,7 +97,7 @@ def ts__(cubeL, dn, unit, odir, var, freq, xx_='ts'):
     yrs = ax.get_xlim()
     nyrs = np.arange(np.ceil(yrs[0] / 5) * 5, yrs[-1], 5)
     ax.set_xticks(nyrs)
-    ax.legend(hl, ndn, bbox_to_anchor=(0., 1.01, 1., 0.18),             
+    ax.legend(hl, ndn, bbox_to_anchor=(0., 1.01, 1., 0.18),
               loc='lower left', borderaxespad=0, ncol=5, mode='expand')
     plt.savefig(odir + '_'.join((xx_, var, freq)) + '.png')
     plt.close()
@@ -108,7 +108,7 @@ def bp__(cubeL, dn, unit, odir, var, freq, xx_='bp'):
     ax_opt = {'ylabel': var + ' (' + unit + ')'}
     ax = fig.add_subplot(1, 1, 1, **ax_opt)
     h_ = bp_cubeL_eval_(ax, cubeL)
-    ax.legend(h_, dn[:-2], bbox_to_anchor=(0., 1.01, 1., 0.18),             
+    ax.legend(h_, dn[:-2], bbox_to_anchor=(0., 1.01, 1., 0.18),
               loc='lower left', borderaxespad=0, ncol=5, mode='expand')
     plt.savefig(odir + '_'.join((xx_, var, freq)) + '.png')
     plt.close()
@@ -166,12 +166,12 @@ def map0__(cubeL, dn, unit, rg_dict, odir, var, freq):
     if len(ndn) <= 5:
         nrow, ncol = 1, len(ndn)
     else:
-        nrow, ncol = 2, np.ceil(len(dn) / 2) 
+        nrow, ncol = 2, np.ceil(len(dn) / 2)
 
     pch_dict.update({'vmin': nn, 'vmax': xx, 'cmap': cmp0})
     axs, pchs = [], []
     for i in range(len(ndn)):
-        ax, pch = pch_swe_(fig, nrow, ncol, i + 1, cL[i], 
+        ax, pch = pch_swe_(fig, nrow, ncol, i + 1, cL[i],
                            rg=rg_dict, ti=ndn[i], pcho=pch_dict)
         axs.append(ax)
         pchs.append(pch)
@@ -253,7 +253,7 @@ def main():
     ne50 = gpd_read(_here_ + 'ne_50m/ne_50m_admin_0_countries.shp')
     sv = poly_to_path_(list(ne50.loc[ne50.NAME=='Sweden', 'geometry']))
     shp, shp_ = _shps()
-    r24 = os.environ.get('r24')                                                 
+    r24 = os.environ.get('r24')
     odir = '{}DATA/energi/2/fig_eval/'.format(r24)
     os.makedirs(odir, exist_ok=True)
     idir = '/nobackup/rossby22/sm_chali/DATA/energi/res/eval/EUR/'
@@ -295,7 +295,7 @@ def main():
             ll_('<< ts', t000)
             bp__(ts, dn, unit, odir_, var, freq)
             ll_('<< bp', t000)
-            b, c = get_clm_eval_(a, sc) 
+            b, c = get_clm_eval_(a, sc)
             ll_('< clm', t000)
             map0__(b, dn, unit, rg_dict, odir_, var, freq)
             ll_('<< map0', t000)
@@ -307,7 +307,7 @@ if __name__ == '__main__':
     start_time = time.time()
     main()
     logging.info(' ')
-    logging.info(' {:_^42}'.format('end of program'))                           
-    logging.info(' {:_^42}'.format('TOTAL'))  
+    logging.info(' {:_^42}'.format('end of program'))
+    logging.info(' {:_^42}'.format('TOTAL'))
     logging.info(' ' + rTime_(time.time() - start_time))
     logging.info(strftime(" %a, %d %b %Y %H:%M:%S +0000", localtime()))

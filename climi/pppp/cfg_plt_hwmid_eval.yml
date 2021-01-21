@@ -1,0 +1,58 @@
+obss:
+- EOBS
+- ERAI
+rcms:
+- RCA4
+- HIRHAM5
+- RACMO22E
+- REMO2015
+- CCLM4-8-17
+- REMO2009
+rcms_:
+- RCA4
+- HIRHAM5
+- RACMO22E
+- REMO2015
+#- STKHM
+m:
+  CCLM4-8-17: CLMcom-CCLM4-8-17
+  HIRHAM5: DMI-HIRHAM5
+  RACMO22E: KNMI-RACMO22E
+  REMO2009: MPI-CSC-REMO2009
+  REMO2015: GERICS-REMO2015
+  RCA4: SMHI-RCA4
+  ERAI: ERA-Interim
+  EOBS: EOBS20
+idir:
+  obss: /nobackup/rossby22/sm_chali/DATA/hc/res/obs/90/
+  rcms: /nobackup/rossby22/sm_chali/DATA/hc/res/cordex/90/
+ddir: /nobackup/rossby24/users/sm_chali/DATA/hw2018/data/eval/
+fdir: /nobackup/rossby24/users/sm_chali/DATA/hw2018/fig/eval/
+tdir: /nobackup/rossby24/users/sm_chali/DATA/hw2018/txt/eval/
+#freq: j-d
+rcp: evaluation
+ref:
+- 1989
+- 2008
+rgs:
+- swe
+- eur
+rgDs:
+  swe:
+    longitude:
+    - 10.
+    - 23.
+    latitude:
+    - 55.
+    - 69.
+  eur:
+    longitude:
+    - -10.
+    - 30.
+    latitude:
+    - 35.
+    - 70.
+#var: hwmid-tx
+#y0y1:
+#- 1989
+#- 2008
