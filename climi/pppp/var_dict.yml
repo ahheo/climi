@@ -14,7 +14,8 @@ vars: ['ET', 'HumiWarmDays', 'EffPR', 'PR7Dmax', 'LnstDryDays', 'DryDays',
        'ColdPRRNgt10Days', 'ColdPRRNgt20Days', 'WarmPRSNdays',
        'WarmPRSNgt10Days', 'WarmPRSNgt20Days', 'SST', 'SIC', 'Rho975',
        'hSuperCooledPR', 'Wind925', 'Wind925toSfc', 'FirstDayWithoutFrost',
-       'CalmDays925', 'ConCalmDays925', 'CalmDays975', 'ConCalmDays975']
+       'CalmDays925', 'ConCalmDays925', 'CalmDays975', 'ConCalmDays975',
+       'ColdRainWarmSnowDays', 'MinusDays', 'FreezingDays']
 
 odir:
  ET: 1-ET
@@ -97,6 +98,9 @@ odir:
  ConCalmDays925: 78-ConCalmDays925
  CalmDays975: 79-CalmDays975
  ConCalmDays975: 80-ConCalmDays975
+ MinusDays: 81-MinusDays
+ FreezingDays: 82-FreezingDays
+ ColdRainWarmSnowDays: 83-ColdRainWarmSnowDays
 
 freq:
  PR: [season, year]
@@ -179,3 +183,6 @@ freq:
  ConCalmDays925: [year]
  CalmDays975: [year]
  ConCalmDays975: [year]
+ ColdRainWarmSnowDays: [year]                                        
+ MinusDays: [year]                                                      
+ FreezingDays: [year]

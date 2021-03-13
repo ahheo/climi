@@ -1,0 +1,109 @@
+#!/usr/bin/env python3
+
+import numpy as np
+import os
+import argparse
+import yaml
+
+from climi.uuuu import *
+
+
+_here_ = get_path_(__file__)
+
+
+def _yyyy(idir, var, gwls, folder=None):
+    tmp = 'clmidx_finfo_'
+    if folder:
+        tmp += '{}_'.format(folder)
+        lD = dict()
+    else:
+        lD = dict(newestV=True)
+    _info = eval(tmp)
+    freqs = ['year', 'season', 'month', 'djf']
+    for freq in freqs:
+        fnL = _info(idir, var=var, freq=freq, gwls=gwls, **lD)[1]
+        if fnL is not None:
+            break
+    if fnL:
+        if var in ['SNWmax', 'R5OScw', 'R1OScw']:
+            fnL = slctStrL_(fnL, excl='KNMI')
+        def _ggff(gwl, fn):
+            gcm, rcp, rip = fn.split('_')[:3]
+            return gwl_p_(gwl, rcp, gcm, rip)[0]
+        def _gg(gwl):
+            y0 = round(np.asarray([_ggff(gwl, i) for i in fnL]).mean())
+            return '{}-{}'.format(y0, y0 + 29)
+        return ', '.join([_gg(i) for i in gwls if i[0]=='g'])
+
+
+def main():
+    #####################################################################PARSER
+    parser = argparse.ArgumentParser('WA TIMING CLIMIDX')
+    parser.add_argument("opt", type=int, default=0,
+                        help="options for dataset on BI")
+    parser.add_argument("-c", "--config", type=str, default="2", help="")
+    parser.add_argument("-s", "--start", type=int, help="")
+    parser.add_argument("-e", "--end", type=int, help="")
+    args = parser.parse_args()
+    opt_ = args.opt
+    sss_, eee_ = args.start, args.end
+    ##################################################################CONFIGURE
+    if os.path.isfile(args.config):
+        yf = args.config
+    elif args.config == '2':
+        yf = _here_ + 'cfg_plt_climidx_gwls.yml'
+    elif args.config == '4':
+        yf = _here_ + 'cfg_plt_climidx_gwls_.yml'
+    elif args.config == '3':
+        yf = _here_ + 'cfg_plt_climidx_gwls__.yml'
+    else:
+        raise ValueError("unknown configuration!")
+    with open(yf, 'r') as ymlfile:
+        cfg = yaml.safe_load(ymlfile)
+    version = cfg['version']
+    gg, gwls = cfg['gg'], cfg['gwls']
+    #gg = ['gwl15', 'gwl2']
+    #gwls = ['current', '1.5 K warming', '2 K wariming']
+    #gg = ['gwl15', 'gwl2', 'gwl25', 'gwl3', 'gwl35', 'gwl4']
+    #gwls = ['current', '1.5 K warming', '2 K wariming', '2.5 K warming',
+    #                    '3 K wariming', '3.5 K warming', '4 K warming']
+    root = cfg['root']
+    ddir = cfg['ddir']
+    ######################################################INDEPENDENT VARIABLES
+    vf = _here_ + 'var_dict.yml'
+    with open(vf, 'r') as ymlfile:
+        vdict = yaml.safe_load(ymlfile)
+    yf = _here_ + 'rg_dict.yml'
+    with open(yf, 'r') as ymlfile:
+        rdict = yaml.safe_load(ymlfile)
+    #######################################VARIABLES VARY CORRISPONDING TO OPT_
+    rn = 'EUR' if opt_ in (0, 1) else 'GLB'
+    idir = '{}{}/'.format(ddir, rn)
+    odir = '{}DATA/energi/{}/'.format(root, version)
+    os.makedirs(odir, exist_ok=True)
+    ofile = '{}weighted-averaged-timing_{}K.txt'.format(odir, gg[-1][3:])
+    #r24 = os.environ.get('r24')
+    #odir = '{}DATA/energi/2/fig{}K/'.format(r24, gg[-1][3:])
+    #os.makedirs(odir, exist_ok=True)
+    #idir = '/nobackup/rossby22/sm_chali/DATA/energi/res/gwls/EUR/'
+    #fxdir = '/nobackup/rossby22/sm_chali/DATA/fx/'
+    if opt_ in (0, 1):
+        vvv_ = vdict['vars'][sss_:eee_]
+        lD = dict()
+    else:
+        vvv_ = ['SST', 'SIC']
+        lD = dict(folder='cmip5')
+    ############################################################DOING SOMETHING
+    tf = open(ofile, 'a')
+    tf.write('SWLs: {}\n'.format(', '.join(
+        [i[3:] + 'K' for i in gg if i[0]=='g'])))
+    for var in vvv_:
+        print(vdict['odir'][var])
+        o = _yyyy(idir, var, gg, **lD)
+        if o:
+            tf.write('{:20s}: {}\n'.format(var, o))
+    tf.close()
+
+
+if __name__ == '__main__':
+    main()

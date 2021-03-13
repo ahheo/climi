@@ -740,7 +740,7 @@ def load_h248_(idir, var='hwmid-tx', m='', rcp='', ref='', freq='j-d',
         fn_ = pure_fn_(fn)
         if rcp[:3] == 'rcp':
             fn = [[_hist(i), i] for i in fn]
-            print(fn)
+            #print(fn)
         o = [iris.load(i) for i in fn]
         o = [i[0] if len(i) == 1 else concat_cube_(i) for i in o]
         if y0y1:
@@ -840,9 +840,13 @@ def prgd_mm_(src_cube, src_m, target_m, region='GLB', target_cube=None):
     import pickle
     from .rgd import POLYrgd
     pdir = '{}../regriders/'.format(_here_)
-    pfile = pdir + '_'.join((src_m, target_m, region))
-    if os.path.isfile(pfile):
-        with open(pfile, 'rb') as pf:
+    pn = '_'.join((src_m, target_m, region))
+    pfile = pdir + pn + '.p'
+    fns = schF_keys_(pdir, pn, ext='.p')
+    if fns:
+        if len(fns) > 1:
+            warnings.warn("multiple 'rgder' files founded!")
+        with open(fns[0], 'rb') as pf:
             rgder = pickle.load(pf)
         return rgder(src_cube)
     elif target_cube:

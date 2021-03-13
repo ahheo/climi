@@ -16,35 +16,46 @@ from climi.pppp import *
 from climi.uuuu import *
 from climi.uuuu.cccc import _get_ind_lolalim as lllim_
 from skextremes.models.classic import GEV
-
+from sklearn.metrics import mean_squared_error as mse_, r2_score as r2_
 
 _here_ = get_path_(__file__)
 
 
-def _vlabel(var):
+def _vlabel(var, year=None, ts=None):
     v = var.split('-')[0]
     yl = v[:4].upper() + v[4:]
-    if 'SDI' in yl:
-        return '{} (days)'.format(yl)
+    if isinstance(year, str) and year[0] == 'g':
+        return 'Number of years with {}$\geq${}'.format(yl, year[1:])
+    if isinstance(ts, str) and ts[0] == 'g':
+        return '% land area \n with {}$\geq${}'.format(yl, ts[1:])
     else:
         return yl
 
 
-def _pdict(var, year):
-    bd = [0, 6, 9, 12, 15, 18, 24, 48, 96] if 'hwmid' in var else \
-         [0, 6, 9, 12, 15, 18, 24, 48, 96]
-    if year == 'mean':
-        bd = [0, 6, 7, 8, 9, 10, 11, 12, 15]
+def mbe_(y0, y1):
+    return np.mean(np.asarray(y1) - np.asarray(y0))
+
+
+def _cmnm(bd):
     bd = np.asarray(bd)
     cm = list(plt.get_cmap("magma_r", len(bd)-1).colors)
     cmap = mpl.colors.ListedColormap(('white', *cm[:-1])) # "afmhot_r"
-    #cm = ['white', 'lightgray', 'gray', 'gold',
-    #      'tomato', 'red', 'sienna', 'maroon']
     cmo = cm[-1]
-    #cmap = mpl.colors.ListedColormap(cm)
     cmap.set_over(cmo)
     norm = mpl.colors.BoundaryNorm(bd, cmap.N)
     return dict(cmap=cmap, norm=norm)
+
+
+def _pdict(var, year):
+    if isinstance(year, str) and year[0] == 'g':
+        bd = np.arange(7)
+    else:
+        if year == 'mean':
+            bd = [0, 6, 7, 8, 9, 10, 11, 12, 15]
+        else:
+            bd = [0, 6, 9, 12, 15, 18, 24, 48, 96] if 'hwmid' in var else \
+                 [0, 6, 9, 12, 15, 18, 24, 48, 96]
+    return _cmnm(bd)
 
 
 def _ec(cl, cref=None):
@@ -64,7 +75,11 @@ def _cl(idir, dns, mD, **lD):
 
 
 def _t_collapsed(cl, mtd):
-    if mtd == 'mean':
+    if isinstance(mtd, str) and mtd[0] == 'g':
+        return [i.collapsed('time', iris.analysis.COUNT,
+                            function=lambda x: x >= int(mtd[1:]))
+                if i else None for i in cl]
+    elif mtd == 'mean':
         return [i.collapsed('time', iris.analysis.MEAN) if i else None
                 for i in cl]
     elif isinstance(mtd, int):
@@ -78,7 +93,6 @@ def _2d_af(cl, rgD, vv):
     return np.asarray(tmp).T
 
 
-#def _map_data(fn, clo, clr, obss, rcms, mtd, rgD, vv, slct=None):
 def _map_data(clo, clr, obss, rcms, mtd, rgD, vv, slct=None):
     def _em(cl):
         tmp = en_mean_(_ec(cl))
@@ -91,37 +105,39 @@ def _map_data(clo, clr, obss, rcms, mtd, rgD, vv, slct=None):
             if isIter_(slct) and dn in slct:
                 ooo.append(o)
     ecs = [_em(i) for i in (oo, ooo) if i]
-    ens = ['Ensemble MEAN \n (all)', 'Ensemble MEAN \n (selected)'] if ooo \
-          else ['Ensemble MEAN']
+    ens = ['RCM mean \n (all)', 'RCM mean \n (selected)'] if ooo \
+          else ['RCM mean']
     oooo = _t_collapsed(clo, mtd)
     af = [_2d_af(i, rgD, vv) for i in (oo, ecs, oooo)]
-    #with open(fn, 'wb') as pf:
-    #    pickle.dump(((oo, ecs, oooo), af, (rcms, ens, obss), vv), pf,
-    #                protocol=pickle.HIGHEST_PROTOCOL)
     return ((oo, ecs, oooo), (rcms, ens, obss), af)
 
 
-def _mp(fn, cubeLL, tiLL, dataLL, tiLL_, vv, pD, rgD, vl):
-    fig = init_fig_(fx=7.5, fy=7.5, l=.01, r=.99, t=.96, b=.36, h=.15)
-    _map(fig, cubeLL, tiLL, pD, rgD, vl)
-    yl = 'Land Area (%)'
-    ax = fig.add_axes([.09, .075, .89, .24],
+def _mp(fn, cubeLL, tiLL, dataLL, tiLL_, vv, pD, rgD, vl, cbt=None):
+    fig = init_fig_(fx=7.5, fy=6, l=.09, r=.98, t=.965, b=.45, h=.15)
+    _map(fig, cubeLL, tiLL, pD, rgD, vl, cbt=cbt)
+    yl = 'Land area (%)'
+    ax = fig.add_axes([.09, .075, .89, .32],
                       ylabel=yl, xlabel=vl, ylim=(0, 100))
-    _map_stat(ax, dataLL, tiLL_, vv, vl)
+    _map_stat(ax, dataLL, tiLL_, vv)
+    fig.text(.09, .975, '(a)', ha='right', fontsize=10, fontweight='bold')
+    fig.text(.09, .41, '(b)', ha='right', fontsize=10, fontweight='bold')
     plt.savefig(fn, dpi=300)
     plt.close()
 
-#def _map(fn, cubeLL, tiLL, pD, rgD, vl):
-def _map(fig, cubeLL, tiLL, pD, rgD, vl):
+
+def _tx_rgmean(fig, ax, cube, rgD):
+    s = '{:.1f}'.format(rgMean_cube(cube, rgD=rgD).data)
+    aligned_tx_(fig, ax, s, rpo='tl', itv=-0.005, alpha=.5, fontsize=8)
+
+
+def _map(fig, cubeLL, tiLL, pD, rgD, vl, cbt=None):
     tiD = dict(fontsize=10, fontweight='bold')
     nrow = len(cubeLL)
     ncol = max((len(i) for i in cubeLL))
     pD_ = dict(rasterized=True)
     pD_.update(pD)
-    #fy = 5 if nrow > 5 else 6
-    #fig = init_fig_(fx=10, fy=fy, l=.01, r=.99, t=.95, b=.02, h=.12)
     def _pch(ii, o, ti):
-        ax, pch = pch_eur_(fig, nrow, ncol, ii, o,
+        ax, pch = pch_ll_(fig, nrow, ncol, ii, o,
                            rg=rgD, pcho=pD_, fr_on=True)
         ax.set_title(ti, tiD)
         return (ax, pch)
@@ -129,42 +145,37 @@ def _map(fig, cubeLL, tiLL, pD, rgD, vl):
     for i, (cubeL, tiL) in enumerate(zip(cubeLL, tiLL)):
         for ii, (cube, ti) in enumerate(zip(cubeL, tiL)):
             ax, pch = _pch(i*ncol + ii + 1, cube, ti)
+            _tx_rgmean(fig, ax, cube, rgD)
             axs.append(ax)
     cbw = wspace_ax_(*axs[-2:])
     cb = aligned_cb_(fig, ax, pch, [cbw, cbw*1.5],
                      orientation='vertical', extend='max')
     cb.set_label(vl)
-    #fig.tight_layout()
-    #plt.savefig(fn, dpi=300)
-    #plt.close()
+    if cbt is not None:
+        cb.set_ticks(cbt)
 
 
-#def _map_stat(fn, dataLL, tiLL, vv, vl):
-def _map_stat(ax, dataLL, tiLL, vv, vl):
-    #fig = init_fig_(fx=10, fy=3)
-    #yl = 'Land Area (%)'
-    #ax = fig.add_subplot(1, 1, 1, ylabel=yl, xlabel=vl, ylim=(0, 100))
-    #color option
-    cLL = (plt.get_cmap('Dark2').colors, plt.get_cmap('Dark2').colors[::-1],
-           plt.get_cmap('Paired').colors)
-    fL = (1, 0, 0)
+def _map_stat(ax, dataLL, tiLL, vv):
+    cLL = (plt.get_cmap('tab10').colors, plt.get_cmap('Dark2').colors[::-1],
+           plt.get_cmap('tab20b').colors)
+    fL = (0, 0, 0)
     wL = (1, 3, 3,)
     aL = (.99, .8, .9)
     zL = (3, 2, 1)
+    N = sum([len(i) for i in tiLL])
+    dvL = iter(np.linspace(-.25, .25, N))
     for dataL, tiL, cL, w_, a_, z_, f_ in zip(dataLL, tiLL, cLL, wL, aL, zL,
                                               fL):
         for data, ti, c_ in zip(dataL, tiL, cL):
-            ax.plot(vv, data,
+            ax.plot(vv + next(dvL) * len(vv) / 10, data,
                     drawstyle='steps-mid', label=ti.replace('\n ', ''),
+                    #label=ti.replace('\n ', ''),
                     color=c_, lw=w_, alpha=a_, zorder=z_)
         if f_:
             ax.fill_between(vv, dataL.max(axis=0), dataL.min(axis=0),
                             color='gray', alpha=.25, step='mid', zorder=0)
     ax.set_xticks(vv)
-    ax.legend(ncol=2)
-    #fig.tight_layout()
-    #plt.savefig(fn, dpi=300)
-    #plt.close()
+    ax.legend(ncol=2, frameon=False)
 
 
 def _t(cl, rgD, mtd):
@@ -177,7 +188,6 @@ def _t(cl, rgD, mtd):
         return get_tsf_h248_(cl, function=lambda x: x >= int(mtd[1:]), rgD=rgD)
 
 
-#def _ts_data(fn, clo, clr, obss, rcms, mtd, rgD, slct=None, tdir=None):
 def _ts_data(clo, clr, obss, rcms, mtd, rgD, slct=None):
     oo = [i.data for i in _t(clr, rgD, mtd)]
     ooo = []
@@ -186,56 +196,34 @@ def _ts_data(clo, clr, obss, rcms, mtd, rgD, slct=None):
             if isIter_(slct) and dn in slct:
                 ooo.append(o)
     ecs = [np.ma.mean(np.asarray(i), axis=0) for i in (oo, ooo) if i]
-    ens = ['Ensemble MEAN (all)', 'Ensemble MEAN (selected)'] if ooo else\
-          ['Ensemble MEAN']
+    ens = ['RCM mean (all)', 'RCM mean (selected)'] if ooo else\
+          ['RCM mean']
     oooo = [i.data for i in _t(clo, rgD, mtd)]
-    #with open(fn, 'wb') as pf:
-    #    pickle.dump(((oo, ecs, oooo), (rcms, ens, obss)), pf)
-    #if tdir:
-    #    fn_ = tdir + pure_fn_(fn) + '.txt'
-    #    corr_tr_(oooo, oo + ecs, obss, rcms + ens, fn_)
     return ((oo, ecs, oooo), (rcms, ens, obss))
 
 
 def _ts(fn, dataL, tiL, xtkL, vl):
-    fig = plt.figure(figsize=(7.5, 4))
-    ax0 = fig.add_axes([.175, .15, .6, .82])
+    fig = plt.figure(figsize=(7.5, 3.5))
+    ax0 = fig.add_axes([.13, .175, .62, .77])
     _hm(fig, ax0, dataL, tiL, xtkL, vl)
-    ax1 = fig.add_axes([.87, .15, .11, .82])
+    ax1 = fig.add_axes([.85, .175, .12, .77])
     _violin(ax1, dataL, tiL, vl)
+    fig.text(.13, .95, '(a)', ha='right', fontsize=10, fontweight='bold')
+    fig.text(.85, .95, '(b)', ha='right', fontsize=10, fontweight='bold')
     plt.savefig(fn, dpi=300)
-    plt.close()
+    plt.close(fig)
 
 
-#def _hm(fn, dataL, tiL, xtkL, vl):
 def _hm(fig, ax, dataL, tiL, xtkL, vl):
-    #fig = init_fig_(fx=10, fy=3, l=.15, r=.9, t=.95, b=.15)
-    #ax = fig.add_subplot(1, 1, 1)
     data = np.asarray(dataL)
     im = heatmap(data, tiL, iter_str_(xtkL),
                  ax=ax, cmap="magma_r", aspect='auto')
     texts = annotate_heatmap(im, valfmt="{:.1f}", fontsize=8, rotation=90)
-    cb = aligned_cb_(fig, ax, im, [.01, .01],
-                     orientation='vertical')
-    cb.set_label(vl)
-    #fig.tight_layout()
-    #plt.savefig(fn, dpi=300)
-    #plt.close()
+    cb = aligned_cb_(fig, ax, im, [.01, .01], orientation='vertical')
+    cb.set_label(vl.replace('\n ', ''))
 
 
-def _adjacent_values(vals, q1, q3):
-    upper_adjacent_value = q3 + (q3 - q1) * 1.5
-    upper_adjacent_value = np.clip(upper_adjacent_value, q3, vals[-1])
-
-    lower_adjacent_value = q1 - (q3 - q1) * 1.5
-    lower_adjacent_value = np.clip(lower_adjacent_value, vals[0], q1)
-    return lower_adjacent_value, upper_adjacent_value
-
-
-#def _violin(fn, dataL, tiL, vl):
 def _violin(ax, dataL, tiL, vl=None):
-    #fig = init_fig_(fx=10, fy=2.5, l=.08, r=.98, t=.95, b=.25)
-    #ax = fig.add_subplot(1, 1, 1, ylabel=vl)
     ax.invert_yaxis()
     parts = ax.violinplot(dataL,
                           vert=False, widths=.9, showmeans=False,
@@ -250,56 +238,40 @@ def _violin(ax, dataL, tiL, vl=None):
     for pc in boxes['boxes']:
         pc.set_facecolor('k')
 
-    #quartile1, medians, quartile3 = np.percentile(np.asarray(dataL),
-    #                                              [25, 50, 75], axis=1)
-    #whiskers = np.array([
-    #    _adjacent_values(sorted_array, q1, q3)
-    #    for sorted_array, q1, q3 in zip(np.asarray(dataL),
-    #                                    quartile1, quartile3)])
-    #whiskers_min, whiskers_max = whiskers[:, 0], whiskers[:, 1]
-
-    #inds = np.arange(1, len(medians) + 1)
-    #ax.scatter(inds, medians, marker='o', color='white', s=50, zorder=3)
-    #ax.vlines(inds, quartile1, quartile3, color='k', ls='-', lw=7)
-    #ax.vlines(inds, whiskers_min, whiskers_max, color='k', ls='-', lw=1)
-
-    # set style for the axes
-    #ax.set_xlim(left=0)
-    ax.spines['top'].set_visible(False)
-    ax.spines['bottom'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_visible(False)
+    axVisibleOff_(ax)
     ax.set_yticks([])
     ax.grid(True, 'major', 'x', lw=.5, c='k', alpha=.3)
     if vl:
         ax.set_xlabel(vl)
-    #ax.set_yticks(range(1, len(tiL) + 1))
-    #ax.set_xticklabels(tiL, rotation=15, ha="right",
-    #                   rotation_mode="anchor")
-    #plt.savefig(fn, dpi=300)
-    #plt.close()
 
 
 def corr_tr_(t_o, t_r, obss, rcms, fn):
     from itertools import combinations as _cb
     n_o = len(obss)
     nnn = max([len(i) for i in rcms + obss])
-    ss = '{0}{1}{2} vs. {0}{1}{2}: '.format('{:', nnn, 's}')
+    nnn_ = max([len(i) for i in obss])
+    ss = '{0}{1}{3} vs. {0}{2}{3}: '.format('{:', nnn, nnn_, 's}')
     ss_ = '{0}{1}{2}: '.format('{:', nnn, 's}')
-    ss1 = '{:10.6f}, {:10.6f}\n'
-    ss_ += '{:.6f} +/-{:.6f}, {:.6f}\n'
+    ss1 = '{:8.3f} ({:5.3f}), {:8.3f}, {:8.3f}, {:8.3f}\n'
+    ss_ += '{:.3f} +/-{:.3f}, {:.3f}\n'
     tinv = lambda p, df: abs(t.ppf(p/2, df))
     with open(fn, 'w') as f:
-        f.write('{:_^80}\n'.format('CORRELATION'))
+        f.write('{:_^80}\n'.format('CORR COEF(P-VALUE), R2, RMSE, MBE'))
         if n_o > 1:
             for i, i_ in _cb(range(n_o), 2):
                 f.write(ss.format(obss[i], obss[i_]))
-                f.write(ss1.format(*pearsonr(t_o[i], t_o[i_])))
+                f.write(ss1.format(*pearsonr(t_o[i], t_o[i_]),
+                                   r2_(t_o[i], t_o[i_]),
+                                   mse_(t_o[i], t_o[i_], squared=False),
+                                   mbe_(t_o[i], t_o[i_])))
                 f.write('\n')
         for i, ii in zip(rcms, t_r):
             for iii, iiii in zip(obss, t_o):
                 f.write(ss.format(i, iii))
-                f.write(ss1.format(*pearsonr(ii, iiii)))
+                f.write(ss1.format(*pearsonr(ii, iiii),
+                                   r2_(iiii, ii),
+                                   mse_(iiii, ii, squared=False),
+                                   mbe_(iiii, ii)))
         f.write('\n{:_^80}\n'.format('LINEAR TREND'))
         for i, ii in zip(obss + rcms, t_o + t_r):
             r_ = linregress(range(len(ii)), ii)
@@ -330,25 +302,26 @@ def main():
     rcp, ref, rgDs = cfg['rcp'], cfg['ref'], cfg['rgDs']
     idir, idir_ = cfg['idir']['obss'], cfg['idir']['rcms']
     rgD_eur = rgDs['eur']
-    ffmt = '{}{}_{}_ref{}-{}_{}_{}.pdf'
-    hh = range(3,16)
     #loop variables
     if args.test:
         rr = ['eur']
         vv = ['hwmid-tx']
         ff = ['j-d']
-        yy = [2003]
+        yy = ['mean']
         tt = ['mean']
     else:
-        rr = cfg['rgs']
-        vv = ['hwmid-tx', 'hwmid-tn', 'wsdi-tx', 'wsdi-tn']
-        ff = ['j-d', 'mjja', 'ndjf']
-        yy = [1994, 2003, 2006, 2007, 'mean']
-        tt = ['mean', 'p90', 'g6', 'g15']
+        #rr = cfg['rgs']
+        #vv = ['hwmid-tx', 'hwmid-tn', 'wsdi-tx', 'wsdi-tn']
+        #ff = ['j-d', 'mjja', 'ndjf']
+        rr = ['eur']
+        vv = ['hwmid-tx', 'hwmid-tn', 'wsdi-tx']
+        ff = ['j-d']
+        yy = [1994, 2003, 2006, 2007, 'mean', 'g15']
+        #yy = ['mean']
+        tt = ['mean', 'p90', 'g15']
     #loop 0
     for var in vv:
         print('{}'.format(var))
-        vl = _vlabel(var)
         #loop 1
         for freq in ff:
             print('  {}'.format(freq))
@@ -359,6 +332,16 @@ def main():
             (clr, rcms0)= _cl(idir_, rcms_, mD, rcp=rcp, **lD)
             if freq == 'j-d' and args.plt_map:
                 for year in yy:
+                    if isinstance(year, str) and year[0] == 'g':
+                        hh = range(1, 6)
+                        if var[0] == 'w':
+                            continue
+                    elif year == 'mean':
+                        hh = range(6, 11)
+                    else:
+                        hh = range(6, 16)
+                    vl = _vlabel(var, year)
+                    ffmt = '{}{}_{}_ref{}-{}_{}_{}.pdf'
                     pD = _pdict(var, year)
                     print('    {} map'.format(year))
                     (o, oo, ooo), (d, dd, ddd), mstat = _map_data(
@@ -370,34 +353,23 @@ def main():
                         mstat, (d, dd, ddd), hh,
                         pD, rgD_eur, vl
                         )
-                    #_map(
-                    #    ffmt.format(fdir, 'map', var, *ref, freq, year),
-                    #    (o, oo + ooo), (d, dd + ddd), pD, rgD_eur, vl
-                    #    )
-                    #_map_stat(
-                    #    ffmt.format(fdir, 'ms', var, *ref, freq, year),
-                    #    mstat, (d, dd, ddd), hh, vl)
-            for rg in rr:
-                if args.plt_ts:
+            if args.plt_ts:
+                vl = _vlabel(var)
+                for rg in rr:
                     print('    {} region'.format(rg))
                     for ts in tt:
                         print('      {} ts'.format(ts))
-                        vl_ = 'Land Area (%)' if ts[0] == 'g' else vl
+                        vl_ = _vlabel(var, ts=ts)
                         (o, oo, ooo), (d, dd, ddd) =_ts_data(
                             clo, clr, obss0, rcms0, ts, rgDs[rg]
                             )
+                        ffmt = '{}{}_{}_ref{}-{}_{}_{}.pdf'
                         fn = ffmt.format(fdir, ts, var, *ref, freq, rg)
                         _ts(fn, o + oo + ooo, d + dd + ddd,
                             np.arange(y0y1[0], y0y1[-1] + 1),
                             vl_)
-                        #fn = ffmt.format(fdir, ts + '_hm', var, *ref, freq, rg)
-                        #_hm(fn, o + oo + ooo, d + dd + ddd,
-                        #    np.arange(y0y1[0], y0y1[-1] + 1),
-                        #    vl_)
-                        #fn = ffmt.format(fdir, ts + '_vl', var, *ref, freq, rg)
-                        #_violin(fn, o + oo + ooo, d + dd + ddd, vl_)
-                        #fn = ffmt.format(tdir, ts, var, *ref, freq, rg)
-                        #fn.replace(ext_(fn), '.txt')
+                        ffmt = '{}{}_{}_ref{}-{}_{}_{}.txt'
+                        fn = ffmt.format(tdir, ts, var, *ref, freq, rg)
                         corr_tr_(ooo, o + oo, ddd, d + dd, fn)
 
 

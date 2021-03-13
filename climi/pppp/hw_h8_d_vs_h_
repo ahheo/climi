@@ -1,0 +1,170 @@
+#!/usr/bin/env python3
+
+import matplotlib as mpl
+mpl.use('pdf', force=True)
+import matplotlib.pyplot as plt
+import numpy as np
+import argparse
+import yaml
+import os
+import warnings
+import datetime
+import iris
+from scipy.stats import pearsonr, linregress
+from iris.fileformats.netcdf import UnknownCellMethodWarning
+from climi.pppp import *
+from climi.uuuu import *
+from climi.uuuu.cccc import _get_ind_lolalim as lllim_
+
+
+_here_ = get_path_(__file__)
+
+
+def _vlabel(var, mtd=None):
+    v = var.split('-')[0]
+    yl = v[:4].upper() + v[4:]
+    if isinstance(mtd, str) and mtd[0] == 'g':
+        return '$\Delta$Number of years with {}$\geq${}'.format(yl, mtd[1:])
+    else:
+        if 'SDI' in yl:
+            return '$\Delta${} (days)'.format(yl)
+        else:
+            return '$\Delta${}'.format(yl)
+
+
+def _pdict(var, mtd):
+    if mtd == 'mean':
+        bd = [0, 6, 7, 8, 9, 10, 11, 12, 15, 30]
+        bd_ = [0, 6, 9, 12, 15, 18, 24, 48, 96, 200]
+    elif mtd[0] == 'g':
+        bd = [0, 2, 4, 6, 8, 10, 12, 40]
+        bd_ = [0, 6, 12, 18, 24, 30, 36, 40]
+    elif mtd[0] == 'p':
+        bd = [0, 6, 9, 12, 15, 18, 24, 48, 96, 200]
+        bd_ = [0, 6, 9, 12, 15, 18, 24, 48, 96, 200]
+    return (np.asarray(bd), np.asarray(bd_))
+
+
+def _rf(fn):
+    if os.path.isfile(fn):
+        return iris.load_cube(fn)
+
+
+def _clcdx(ddir, gcms, rcms, y_, y0y1, freq, var, rgD):
+    ffmt = '{}mp_r_{}_{}_{}_{}-{}_{}_{}.nc'
+
+    def _yy(gcm, rcm, yy):
+        o0 = _rf(ffmt.format(ddir, y_, gcm, rcm, *yy, freq, var))
+        return o0.data[lllim_(o0, **rgD)].compressed()
+
+    o = []
+    for gcm in gcms:
+        oo = []
+        for rcm in rcms:
+            tmp = [_yy(gcm, rcm, i) for i in y0y1]
+            oo.append([tmp[0]] + [i - tmp[0] for i in tmp[1:]])
+        o.append(oo)
+    return o
+
+
+def _clcmp(ddir, gcms, y_, y0y1, freq, var, rgD, go_='g'):
+    ffmt = '{}mp_{}_{}_{}_{}-{}_{}_{}.nc'
+
+    def _yy(gcm, yy):
+        o0 = _rf(ffmt.format(ddir, go_, y_, gcm, *yy, freq, var))
+        return o0.data[lllim_(o0, **rgD)].compressed()
+
+    o = []
+    for gcm in gcms:
+        tmp = [_yy(gcm, i) for i in y0y1]
+        o.append([tmp[0]] + [i - tmp[0] for i in tmp[1:]])
+    return o
+
+
+def _pch(fig, nrow, ncol, ii, o, bins, tiD=None, xi=None, yi=None):
+    cms = ('Greys', 'Purples')
+    ax = fig.add_subplot(nrow, ncol, ii)
+    pD = dict(rasterized=True, bins=bins, alpha=.5)
+    for i, (data, cm) in enumerate(zip(o[1:], cms)):
+        ax.hist2d(o[0], data, cmap=cm, **pD)
+    if xi:
+        ax.set_title(xi, tiD)
+    if yi:
+        axp = ax.get_position()
+        fig.text(axp.x0 - .07, (axp.y0 + axp.y1)/2, yi,
+                 ha='center', va='baseline',
+                 rotation_mode='anchor', rotation='vertical',
+                 **tiD)
+    return ax
+
+
+def _rk(o):
+    r, k = [], []
+    for i in o[1:]:
+        r.append(pearsonr(o[0], i))
+        r_ = linregress(o[0], i)
+        k.append((r_.slope, r_.pvalue))
+    return (r, k)
+
+
+def _tx_rgmean(fig, ax, cube):
+    s = '{:.1f}'.format(rgMean_cube(cube).data)
+    aligned_tx_(fig, ax, s, rpo='tc', itv=-0.005, alpha=.5)
+
+
+def _mp0(fn, cgL, crLL, gcms, rcms):
+    f = open(fn, 'w')
+    for i, (cg, crL, yi) in enumerate(zip(cgL, crLL, gcms)):
+        for ii, (cube, xi) in enumerate(zip([cg] + crL, ['GCM'] + rcms)):
+            if cube:
+                r, k = _rk(cube)
+                f.write('{}-{}: '.format(yi, xi))
+                fmt_rk = '{:.6f} ({:.6f}), {:.6f} ({:.6f}); '
+                for r_, k_, in zip(r, k):
+                    f.write(fmt_rk.format(*r_, *k_))
+                f.write('\n')
+    f.close()
+
+
+def main():
+    warnings.filterwarnings("ignore", category=UserWarning)
+    warnings.filterwarnings("ignore", category=UnknownCellMethodWarning)
+    with open(_here_ + 'cfg_plt_hwmid_h8.yml', 'r') as ymlfile:
+        cfg = yaml.safe_load(ymlfile)
+    #output dirs
+    ddir, fdir, tdir = cfg['ddir'], cfg['fdir'], cfg['tdir']
+    os.makedirs(ddir, exist_ok=True)
+    os.makedirs(fdir, exist_ok=True)
+    os.makedirs(tdir, exist_ok=True)
+    #constans
+    obss = cfg['obss']
+    gcms = cfg['gcms_']
+    rcms = cfg['rcms_']
+    rcms.sort()
+    rcp, ref, rgDs = cfg['rcp'], cfg['ref'], cfg['rgDs']
+    idir = cfg['idir']['obss']
+    idir_ = cfg['idir']['gcms']
+    idir__ = cfg['idir']['rcms']
+    rgD_eur = rgDs['eur']
+    #loop variables
+    vv = ['hwmid-tx', 'hwmid-tn', 'wsdi-tx']
+    ff = ['j-d']
+    yy = ['g15', 'mean']
+    pp = [[1981, 2020], [2021, 2060], [2061, 2100]]
+    #loop 0
+    for var in vv:
+        print('{}'.format(var))
+        #loop 1
+        for freq in ff:
+            print('  {}'.format(freq))
+            for y_ in yy:
+                vl = _vlabel(var, y_)
+                pD = _pdict(var, y_)
+                fn = '{}dvsh_{}_{}.txt'.format(tdir, y_, var)
+                crLL = _clcdx(ddir, gcms, rcms, y_, pp, freq, var, rgD_eur)
+                cgL = _clcmp(ddir, gcms, y_, pp, freq, var, rgD_eur)
+                _mp0(fn, cgL, crLL, gcms, rcms)
+
+
+if __name__ == '__main__':
+    main()

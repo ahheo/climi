@@ -60,7 +60,10 @@ vdict = {
     'Snd20Days': ['year'],
     'PRSNmax': ['year'],
     'ColdRainDays': ['year'],
-    'WarmSnowDays': ['year']
+    'WarmSnowDays': ['year'],
+    'ColdRainWarmSnowDays': ['year'],
+    'MinusDays': ['year'],
+    'FreezingDays': ['year']
     }
 
 sdict = {
@@ -211,7 +214,7 @@ def main():
                 continue
             sc, unit = sc_unit_clmidx_(a[0][0], var)
             if args.single:
-                fn0 = ffmt1.format(odir, var, freq, si_)
+                fn0 = ffmt.format(odir, var, freq, si_)
                 fig0 = init_fig_(fx=7.5, fy=7.5,
                                 r=.91, t=.96, l=.075, b=.13,
                                 w=.28, h=.35)
@@ -222,7 +225,7 @@ def main():
                 mm, ss, n = _min_mean_max(a, *sdict[site])
                 ll_('  < mmm', t000)
                 if args.single:
-                    dm, ds = _dif_ttest(mm, ss, n)
+                    #dm, ds = _dif_ttest(mm, ss, n)
                     if i < len(sites) - 1:
                         xl, yl = [], []
                         vl = ''
@@ -231,8 +234,8 @@ def main():
                         xl = gwls
                         vl = '{} ({})'.format(var, unit)
                     ax_ = fig0.add_subplot(nrow, ncol, i + 1)
-                    #_hm0(fig0, ax_, mm*sc, ss*sc, xl, yl, site, vl)
-                    _hm1(fig0, ax_, dm*sc, ds, xl, yl, site, vl)
+                    _hm0(fig0, ax_, mm*sc, ss*sc, xl, yl, site, vl)
+                    #_hm1(fig0, ax_, dm*sc, ds, xl, yl, site, vl)
                 else:
                     dm, ds = _dif_ttest(mm, ss, n)
                     ll_('  < ddd', t000)

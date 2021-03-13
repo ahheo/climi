@@ -1,0 +1,231 @@
+#!/usr/bin/env python3
+
+import matplotlib as mpl
+mpl.use('pdf', force=True)
+import matplotlib.pyplot as plt
+import numpy as np
+import argparse
+import yaml
+import os
+import warnings
+import datetime
+import iris
+from iris.fileformats.netcdf import UnknownCellMethodWarning
+from climi.pppp import *
+from climi.uuuu import *
+from climi.uuuu.cccc import _get_ind_lolalim as lllim_
+
+
+_here_ = get_path_(__file__)
+
+
+def _vlabel(var, mtd=None):
+    v = var.split('-')[0]
+    yl = v[:4].upper() + v[4:]
+    if isinstance(mtd, str) and mtd[0] == 'g':
+        return '% years \n with {}$\geq${}'.format(yl, mtd[1:])
+    else:
+        return yl
+
+
+def _cmnm(bd):
+    bd = np.asarray(bd)
+    cm = list(plt.get_cmap("magma_r", len(bd)-1).colors)
+    cmap = mpl.colors.ListedColormap(('white', *cm[:-1])) # "afmhot_r"
+    cmo = cm[-1]
+    cmap.set_over(cmo)
+    norm = mpl.colors.BoundaryNorm(bd, cmap.N)
+    return dict(cmap=cmap, norm=norm)
+
+
+def _pdict(var, mtd, y0y1=None):
+    if y0y1 is not None and y0y1[0] > 2020:
+        if mtd[0] == 'g':
+            bd = np.arange(0, 100, 10)
+            bd_ = bd / 2.
+        else:
+            bd = [0, 6, 9, 12, 15, 18, 24, 48, 96]
+            bd_ = [0, 3, 4, 5, 6, 9, 12, 24, 48]
+    else:
+        if mtd == 'mean':
+            bd = [0, 6, 7, 8, 9, 10, 11, 12, 15]
+            bd_ = [0, .5, 1, 1.5, 2, 2.5, 3, 3.5, 4]
+        elif mtd[0] == 'g':
+            bd = bd_ = np.arange(0, 35, 5)
+        elif mtd[0] == 'p':
+            bd = [0, 6, 9, 12, 15, 18, 24, 48, 96]
+            bd_ = [0, 3, 4, 5, 6, 9, 12, 24, 48]
+    return (_cmnm(bd), _cmnm(bd_))
+
+
+def _rf(fn):
+    if os.path.isfile(fn):
+        return iris.load_cube(fn)
+
+
+def _clcdx(ddir, gcms, rcms, y_, y0y1, freq, var):
+    ffmt = '{}mp_r_{}_{}_{}_{}-{}_{}_{}.nc'
+    o = []
+    for gcm in gcms:
+        oo = []
+        for rcm in rcms:
+            oo.append(_rf(ffmt.format(ddir, y_, gcm, rcm, *y0y1, freq, var)))
+        o.append(oo)
+    return o
+
+
+def _clcmp(ddir, gcms, y_, y0y1, freq, var, go_='g'):
+    ffmt = '{}mp_{}_{}_{}_{}-{}_{}_{}.nc'
+    o = []
+    for gcm in gcms:
+        o.append(_rf(ffmt.format(ddir, go_, y_, gcm, *y0y1, freq, var)))
+    return o
+
+
+def _ec(cl, cref=None):
+    return en_mm_cubeL_([i for i in cl if i], cref=cref)
+
+
+def _em1d(cl, ind=None):
+    cl_ = cl if ind is None else l_ind_(cl, ind)
+    tmp = en_mean_(_ec(cl_))
+    rm_sc_cube(tmp)
+    return tmp
+
+
+def _es1d(cl, ind=None):
+    cl_ = cl if ind is None else l_ind_(cl, ind)
+    tmp = en_mxn_(_ec(cl_))
+    rm_sc_cube(tmp)
+    return tmp
+
+
+def _es(cll, ax=-1, ind1=None, ind0=None):
+    ind0 = [True]*len(cll) if ind0 is None else ind0
+    ind1 = [True]*len(cll[0]) if ind1 is None else ind1
+    if ax != 0:
+        return [_es1d(cl, ind1) if i else None for cl, i in zip(cll, ind0)]
+    else:
+        return [_es1d([i[ii] for i in cll], ind0) if iii else None
+                for ii, iii in enumerate(ind1)]
+
+
+def _em(cll, ax=-1, ind1=None, ind0=None):
+    ind0 = [True]*len(cll) if ind0 is None else ind0
+    ind1 = [True]*len(cll[0]) if ind1 is None else ind1
+    if ax != 0:
+        return [_em1d(cl, ind1) if i else None for cl, i in zip(cll, ind0)]
+    else:
+        return [_em1d([i[ii] for i in cll], ind0) if iii else None
+                for ii, iii in enumerate(ind1)]
+
+
+def _pch(fig, nrow, ncol, ii, o, rgD, pD, tiD=None, xi=None, yi=None):
+    ax, pch = pch_ll_(fig, nrow, ncol, ii, o,
+                       rg=rgD, pcho=pD, fr_on=True)
+    if xi:
+        ax.set_title(xi, tiD)
+    if yi:
+        axp = ax.get_position()
+        fig.text(axp.x0 - .01, (axp.y0 + axp.y1)/2, yi,
+                 ha='center', va='baseline',
+                 rotation_mode='anchor', rotation='vertical',
+                 **tiD)
+    return (ax, pch)
+
+
+def _tx_rgmean(fig, ax, cube, rgD):
+    s = '{:.1f}'.format(rgMean_cube(cube, rgD=rgD).data)
+    aligned_tx_(fig, ax, s, rpo='tl', itv=-0.005, alpha=.5, fontsize=8)
+
+
+def _mp2(fn, cgL, crLL, gcms, rcms, pD, dpD, rgD, vl):
+    o00, o00_ = _em1d(cgL), _es1d(cgL)
+    o10, o10_ = _em(crLL, ax=0), _es(crLL, ax=0)
+    cubeLL = [[o00] + o10, [o00_] + o10_]
+    tiD = dict(fontsize=10, fontweight='bold')
+    nrow = 2
+    ncol = len(rcms) + 1
+    pD_ = dict(rasterized=True)
+    fx = 7.5
+    ifx = fx / ncol
+    fy = ifx * .9 * nrow
+    fig = init_fig_(fx=fx, fy=fy,
+                    l=.03, r=.875 if '\n' in vl else .895, t=.92, b=.02)
+    def _p(ii, o, pdict, xi=None, yi=None):
+        return _pch(fig, nrow, ncol, ii, o, rgD, pdict, tiD, xi, yi)
+    axs, axs_, pchs, pchs_ = [], [], [], []
+    for i, (cubeL, yi) in enumerate(zip(cubeLL, ['mean', 'spread'])):
+        for ii, (cube, xi) in enumerate(zip(cubeL, ['GCM'] + rcms)):
+            xi_ = xi if i == 0 else None
+            yi_ = yi if ii == 0 else None
+            pD_.update(dpD if 'spread' in yi else pD)
+            if cube:
+                ax, pch = _p(i*ncol + ii + 1, cube, pD_, xi_, yi_)
+                if 'spread' in yi:
+                    axs_.append(ax)
+                    pchs_.append(pch)
+                else:
+                    axs.append(ax)
+                    pchs.append(pch)
+                _tx_rgmean(fig, ax, cube, rgD)
+    cbw = wspace_ax_(*axs_[-2:])
+    cb = aligned_cb_(fig, axs, pchs[-1], [cbw, .02],
+                     shrink=1.05,
+                     orientation='vertical', extend='max')
+    cb.set_label(vl)
+    cb_ = aligned_cb_(fig, axs_[-1], pchs_[-1], [cbw, .02],
+                      shrink=1.05,
+                      orientation='vertical', extend='max')
+    cb_.set_label(vl)
+    #cb.ax.tick_params(labelsize=8)
+    #cb_.ax.tick_params(labelsize=8)
+    plt.savefig(fn, dpi=300)
+    plt.close()
+
+
+def main():
+    warnings.filterwarnings("ignore", category=UserWarning)
+    warnings.filterwarnings("ignore", category=UnknownCellMethodWarning)
+    with open(_here_ + 'cfg_plt_hwmid_h8.yml', 'r') as ymlfile:
+        cfg = yaml.safe_load(ymlfile)
+    #output dirs
+    ddir, fdir, tdir = cfg['ddir'], cfg['fdir'], cfg['tdir']
+    os.makedirs(ddir, exist_ok=True)
+    os.makedirs(fdir, exist_ok=True)
+    os.makedirs(tdir, exist_ok=True)
+    #constans
+    obss = cfg['obss']
+    gcms = cfg['gcms_']
+    rcms = cfg['rcms_']
+    rcms.sort()
+    rcp, ref, rgDs = cfg['rcp'], cfg['ref'], cfg['rgDs']
+    idir = cfg['idir']['obss']
+    idir_ = cfg['idir']['gcms']
+    idir__ = cfg['idir']['rcms']
+    rgD_eur = rgDs['eur']
+    #loop variables
+    vv = ['hwmid-tx', 'hwmid-tn', 'wsdi-tx']
+    ff = ['j-d']
+    #yy = ['g15', 'mean']
+    yy = ['g15', 'mean', 'p10', 'p50', 'p90']
+    pp = [[1981, 2020], [2021, 2060], [2061, 2100]]
+    #loop 0
+    for var in vv:
+        print('{}'.format(var))
+        #loop 1
+        for freq in ff:
+            print('  {}'.format(freq))
+            for y0y1 in pp:
+                print('    {}-{}'.format(*y0y1))
+                for y_ in yy:
+                    vl = _vlabel(var, y_)
+                    pD, dpD = _pdict(var, y_, y0y1)
+                    fn = '{}mp2_{}_p{}-{}_{}.pdf'.format(fdir, y_, *y0y1, var)
+                    crLL = _clcdx(ddir, gcms, rcms, y_, y0y1, freq, var)
+                    cgL = _clcmp(ddir, gcms, y_, y0y1, freq, var)
+                    _mp2(fn, cgL, crLL, gcms, rcms, pD, dpD, rgD_eur, vl)
+
+
+if __name__ == '__main__':
+    main()

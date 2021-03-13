@@ -1,0 +1,195 @@
+#!/usr/bin/env python3
+
+import matplotlib as mpl
+mpl.use('pdf', force=True)
+import matplotlib.pyplot as plt
+import numpy as np
+import argparse
+import yaml
+import os
+import warnings
+import datetime
+import iris
+from iris.fileformats.netcdf import UnknownCellMethodWarning
+from climi.pppp import *
+from climi.uuuu import *
+from climi.uuuu.cccc import _get_ind_lolalim as lllim_
+
+
+_here_ = get_path_(__file__)
+
+
+
+_vD = dict(DryDays='$\Delta$ Dry Days',
+           TX='$\Delta T_{max} (^{\circ}$C)',
+           TN='$\Delta T_{min} (^{\circ}$C)')
+
+
+_mnD = dict(DryDays=[-25, -20, -15, -10, -5, 5, 10, 15, 20, 25],
+            TX=[-6, -5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6],
+            TN=[-6, -5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6])
+
+
+def _vlabel(var):
+    return _vD[var]
+
+
+def _cmnm(bd):
+    bd = np.asarray(bd)
+    cmap = mpl.cm.BrBG_r
+    norm = mpl.colors.BoundaryNorm(bd, cmap.N, extend='both')
+    return dict(cmap=cmap, norm=norm)
+
+
+def _pdict(var):
+    return  _cmnm(_mnD[var])
+
+
+def _rf(fn):
+    if os.path.isfile(fn):
+        return iris.load_cube(fn)
+
+
+def _clcdx(ddir, gcms, rcms, y_, y0y1, y0y1_, freq, var):
+    ffmt = '{}mp_r_{}_{}_{}_{}-{}_{}_{}.nc'
+    o = []
+    for gcm in gcms:
+        oo = []
+        for rcm in rcms:
+            o0 = _rf(ffmt.format(ddir, y_, gcm, rcm, *y0y1_, freq, var))
+            o1 = _rf(ffmt.format(ddir, y_, gcm, rcm, *y0y1, freq, var))
+            oo.append(o1.copy(o1.data - o0.data))
+        o.append(oo)
+    return o
+
+
+def _clcmp(ddir, gcms, y_, y0y1, y0y1_, freq, var, go_='g'):
+    ffmt = '{}mp_{}_{}_{}_{}-{}_{}_{}.nc'
+    o = []
+    for gcm in gcms:
+        o0 = _rf(ffmt.format(ddir, go_, y_, gcm, *y0y1_, freq, var))
+        o1 = _rf(ffmt.format(ddir, go_, y_, gcm, *y0y1, freq, var))
+        o.append(o1.copy(o1.data - o0.data))
+    return o
+
+
+def _pch(fig, nrow, ncol, ii, o, rgD, pD,
+         tiD=None, xi=None, yi=None, dx=0, dy=0):
+    ax, pch = pch_ll_(fig, nrow, ncol, ii, o,
+                       rg=rgD, pcho=pD, fr_on=True)
+    if dx or dy:
+        ax_move_(ax, dx=dx, dy=dy)
+    if xi:
+        ax.set_title(xi, tiD)
+    if yi:
+        axp = ax.get_position()
+        fig.text(axp.x0 - .01, (axp.y0 + axp.y1)/2, yi,
+                 ha='center', va='baseline',
+                 rotation_mode='anchor', rotation='vertical',
+                 **tiD)
+    return (ax, pch)
+
+
+def _tx_rgmean(fig, ax, cube, rgD):
+    s = '{:.1f}'.format(rgMean_cube(cube, rgD=rgD).data)
+    aligned_tx_(fig, ax, s, rpo='tl', itv=-0.005, alpha=.5, fontsize=8)
+
+
+def _mp0(fn, cgL, cgL1, crLL, crLL1, gcms, rcms, prds, pD, rgD, vl):
+    tiD = dict(fontsize=10, fontweight='bold')
+    nrow = len(gcms) * 2
+    ncol = len(rcms) + 1
+    pD_ = dict(rasterized=True)
+    pD_.update(pD)
+    fx = 7.5
+    ifx = fx/ncol
+    fy = ifx * .8 * nrow
+    fig = init_fig_(fx=fx, fy=fy,
+                    l=.06, r=.895 if 'T' in vl else .885, t=.975, b=.01+.02)
+    def _p(ii, o, xi=None, yi=None, dx=0, dy=0):
+        return _pch(fig, nrow, ncol, ii, o, rgD, pD_, tiD, xi, yi, dx, dy)
+    axs, axr = [], []
+    i_ = 0
+    for i, (cg, crL, yi) in enumerate(zip(cgL, crLL, gcms)):
+        for ii, (cube, xi) in enumerate(zip([cg] + crL, ['GCM'] + rcms)):
+            xi_ = xi if i == 0 else None
+            yi_ = yi if ii == 0 else None
+            if cube:
+                ax, pch = _p((i + i_) * ncol + ii + 1, cube, xi_, yi_)
+                axs.append(ax)
+                if xi in rcms:
+                    axr.append(ax)
+                _tx_rgmean(fig, ax, cube, rgD)
+    axs_rct_(fig, axr, color='r')
+    axs_abc_(fig, axs, '(a)', dx=.025)
+    aligned_tx_(fig, axs, prds[0], rpo='lc', itv=.03, **tiD)
+    axs1, axr1 = [], []
+    i_ = len(gcms)
+    for i, (cg, crL, yi) in enumerate(zip(cgL1, crLL1, gcms)):
+        for ii, (cube, xi) in enumerate(zip([cg] + crL, ['GCM'] + rcms)):
+            xi_ = None
+            yi_ = yi if ii == 0 else None
+            if cube:
+                ax, pch = _p((i + i_) * ncol + ii + 1, cube, xi_, yi_, dy=-.02)
+                axs1.append(ax)
+                if xi in rcms:
+                    axr1.append(ax)
+                _tx_rgmean(fig, ax, cube, rgD)
+    axs_rct_(fig, axr1, color='r')
+    axs_abc_(fig, axs1, '(b)', dx=.025)
+    aligned_tx_(fig, axs1, prds[1], rpo='lc', itv=.03, **tiD)
+    cbw = wspace_ax_(*axs[-2:])
+    cb = aligned_cb_(fig, axs + axs1, pch, [cbw, .02], shrink=.25,
+                     orientation='vertical', extend='max')
+    cb.set_label(vl)
+    #fig.tight_layout()
+    plt.savefig(fn, dpi=300)
+    plt.close()
+
+
+def main():
+    warnings.filterwarnings("ignore", category=UserWarning)
+    warnings.filterwarnings("ignore", category=UnknownCellMethodWarning)
+    with open(_here_ + 'cfg_plt_hwmid_h8.yml', 'r') as ymlfile:
+        cfg = yaml.safe_load(ymlfile)
+    #output dirs
+    ddir, fdir, tdir = cfg['ddir'], cfg['fdir'], cfg['tdir']
+    os.makedirs(ddir, exist_ok=True)
+    os.makedirs(fdir, exist_ok=True)
+    os.makedirs(tdir, exist_ok=True)
+    #constans
+    obss = cfg['obss']
+    gcms = cfg['gcms_']
+    rcms = cfg['rcms_']
+    rcms.sort()
+    rcp, ref, rgDs = cfg['rcp'], cfg['ref'], cfg['rgDs']
+    idir = cfg['idir']['obss']
+    idir_ = cfg['idir']['gcms']
+    idir__ = cfg['idir']['rcms']
+    rgD_eur = rgDs['eur']
+    #loop variables
+    vv = ['DryDays', 'TX', 'TN']
+    ff = ['year']
+    yy = ['mean']
+    pp = [[1981, 2020], [2021, 2060], [2061, 2100]]
+    #loop 0
+    for var in vv:
+        print('{}'.format(var))
+        #loop 1
+        for freq in ff:
+            print('  {}'.format(freq))
+            for y_ in yy:
+                vl = _vlabel(var)
+                pD = _pdict(var)
+                fn = '{}dmp00_{}_{}.pdf'.format(fdir, y_, var)
+                prds = ['{}-{}'.format(*i) for i in pp[1:]]
+                crLL = _clcdx(ddir, gcms, rcms, y_, pp[1], pp[0], freq, var)
+                cgL = _clcmp(ddir, gcms, y_, pp[1], pp[0], freq, var)
+                crLL1 = _clcdx(ddir, gcms, rcms, y_, pp[2], pp[0], freq, var)
+                cgL1 = _clcmp(ddir, gcms, y_, pp[2], pp[0], freq, var)
+                _mp0(fn, cgL, cgL1, crLL, crLL1, gcms, rcms, prds, pD,
+                     rgD_eur, vl)
+
+
+if __name__ == '__main__':
+    main()

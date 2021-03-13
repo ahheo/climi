@@ -13,7 +13,9 @@ __all__ = ['aligned_cb_',
            'aligned_tx_',
            'annotate_heatmap',
            'axColor_',
+           'axVisibleOff_',
            'ax_move_',
+           'axs_abc_',
            'axs_move_',
            'axs_rct_',
            'axs_shrink_',
@@ -25,6 +27,7 @@ __all__ = ['aligned_cb_',
            'distri_swe_',
            'getAggrArg_',
            'get_1st_patchCollection_',
+           'hatch_cube',
            'heatmap',
            'hspace_ax_',
            'init_fig_',
@@ -32,6 +35,7 @@ __all__ = ['aligned_cb_',
            'pch_eur_',
            'pch_ll_',
            'pch_swe_',
+           'pcolormesh_cube',
            'pdf_iANDe_',
            'ts_eCube_',
            'wspace_ax_']
@@ -45,6 +49,13 @@ def init_fig_(fx=12, fy=6,
                         top=t, bottom=b,
                         left=l, right=r)
     return fig
+
+
+def axVisibleOff_(ax, which='all'):
+    which_ = 'tbrl' if which == 'all' else which
+    tbrl = dict(t='top', b='bottom', r='right', l='left')
+    for i in which_:
+        ax.spines[tbrl[i]].set_visible(False)
 
 
 def axColor_(ax, color):
@@ -88,7 +99,7 @@ def _get_clo(cube):
 
 def pch_swe_(fig, nrow, ncol, n, cube,
              rg='data', clo_=None, ti=None, pcho={}, fr_on=False):
-    ext = _mapext(cube, rg=rg)
+    ext = _mapext(rg=rg, cube=cube)
     if isinstance(clo_, (int, float)):
         clo = clo_
     elif clo_ == 'cs':
@@ -101,14 +112,14 @@ def pch_swe_(fig, nrow, ncol, n, cube,
 
 
 def pch_eur_(fig, nrow, ncol, n, cube, rg=None, ti=None, pcho={}, fr_on=False):
-    ext = _mapext(cube, rg=rg)
+    ext = _mapext(rg=rg, cube=cube)
     proj = ccrs.EuroPP()
     return pch_(fig, nrow, ncol, n, cube, proj, ext=ext, ti=ti, pcho=pcho,
                 fr_on=fr_on)
 
 
 def pch_ll_(fig, nrow, ncol, n, cube, rg=None, ti=None, pcho={}, fr_on=False):
-    ext = _mapext(cube, rg=rg)
+    ext = _mapext(rg=rg, cube=cube)
     proj = ccrs.PlateCarree()
     return pch_(fig, nrow, ncol, n, cube, proj, ext=ext, ti=ti, pcho=pcho,
                 fr_on=fr_on)
@@ -121,7 +132,7 @@ def pch_(fig, nrow, ncol, n, cube, proj, ext=None, ti=None, pcho={},
         ax.set_extent(ext, crs=ccrs.PlateCarree())
     ax.coastlines('50m', linewidth=0.5) #coastlines
     ax.outline_patch.set_visible(fr_on)
-    pch = _pcolormesh(cube, axes=ax, **pcho)
+    pch = pcolormesh_cube(cube, axes=ax, **pcho)
     if ti is not None:
         ax.set_title(ti)
     return (ax, pch)
@@ -135,10 +146,10 @@ def _clo_ext(ext, h_=None):
     return clo
 
 
-def _mapext(cube, rg='data'):
+def _mapext(rg='data', cube=None):
     if isinstance(rg, dict):
         ext = flt_l([rg['longitude'], rg['latitude']])
-    elif rg == 'data':
+    elif cube and rg == 'data':
         ext = [np.min(cube.coord('longitude').points),
                np.max(cube.coord('longitude').points),
                np.min(cube.coord('latitude').points),
@@ -148,7 +159,7 @@ def _mapext(cube, rg='data'):
     return ext
 
 
-def _pcolormesh(cube, axes=None, **kwArgs):
+def pcolormesh_cube(cube, axes=None, **kwArgs):
     if axes is None:
         axes = plt.gca()
     lo0, la0 = cube.coord('longitude'), cube.coord('latitude')
@@ -162,6 +173,26 @@ def _pcolormesh(cube, axes=None, **kwArgs):
         pch = axes.pcolormesh(x, y, cube.data,
                               transform=ccrs.PlateCarree(),
                               **kwArgs)
+    return pch
+
+
+def hatch_cube(cube, axes=None, p=0.05, **kwArgs):
+    pD = dict(hatch='.', zorder=9, alpha=0.)
+    pD.update(kwArgs)
+    if axes is None:
+        axes = plt.gca()
+    lo0, la0 = cube.coord('longitude'), cube.coord('latitude')
+    cube_ = cube.copy(np.ma.masked_greater(cube.data, p))
+    if lo0.ndim == 1:
+        pch = iplt.pcolor(cube_, axes=axes, **pD)
+    else:
+        if hasattr(lo0, 'has_bounds') and lo0.has_bounds():
+            x, y = lo0.contiguous_bounds(), la0.contiguous_bounds()
+        else:
+            x, y = _2d_bounds(lo0.points, la0.points)
+        pch = axes.pcolor(x, y, cube_.data,
+                          transform=ccrs.PlateCarree(),
+                          **pD)
     return pch
 
 
@@ -242,8 +273,10 @@ def axs_rct_(fig, ax, dx=.005, **kwarg):
     kD = dict(fill=False, color='k', zorder=1000,
               transform=fig.transFigure, figure=fig)
     kD.update(kwarg)
-    fig.patches.extend([plt.Rectangle((xmin - dx, ymin -dx),
-                                      xmax - xmin + 2*dx, ymax - ymin + 2*dx,
+    fx, fy = fig.get_size_inches()
+    dy = dx * fx / fy
+    fig.patches.extend([plt.Rectangle((xmin - dx, ymin -dy),
+                                      xmax - xmin + 2*dx, ymax - ymin + 2*dy,
                                       **kD)])
 
 
@@ -255,18 +288,55 @@ def hspace_ax_(ax0, ax1):
     return ax0.get_position().y0 - ax1.get_position().y1
 
 
-def aligned_cb_(fig, ax, ppp, iw, orientation='vertical', shrink=1.,
+def aligned_cb_(fig, ax, ppp, iw,
+                orientation='vertical', shrink=1., side=1, ncx='c', ti=None,
                 **cb_dict):
+    cD = dict(orientation=orientation, **cb_dict)
     xmin, xmax, ymin, ymax = _minmaxXYlm(ax)
+    shrink_ = 0 if ncx == 'n' else (1 if ncx=='x' else .5)
     if orientation == 'vertical':
-        caxb = [xmax + iw[0], ymin + (ymax - ymin) * (1. - shrink) * 0.5,
-                iw[1], (ymax - ymin) * shrink]
+        if side:
+            caxb = [xmax + iw[0],
+                    ymin + (ymax - ymin) * (1. - shrink) * shrink_,
+                    iw[1],
+                    (ymax - ymin) * shrink]
+        else:
+            caxb = [xmin - iw[0] -iw[1],
+                    ymin + (ymax - ymin) * (1. - shrink) * shrink_,
+                    iw[1],
+                    (ymax - ymin) * shrink]
     elif orientation == 'horizontal':
-        caxb = [xmin + (xmax - xmin) * (1. - shrink) * 0.5,
-                ymin - iw[0] - iw[1], (xmax - xmin) * shrink, iw[1]]
-    cb = plt.colorbar(ppp, fig.add_axes(caxb), orientation=orientation,
-                      **cb_dict)
+        if side:
+            caxb = [xmin + (xmax - xmin) * (1. - shrink) * shrink_,
+                    ymin - iw[0] - iw[1],
+                    (xmax - xmin) * shrink,
+                    iw[1]]
+        else:
+            caxb = [xmin + (xmax - xmin) * (1. - shrink) * shrink_,
+                    ymax + iw[1],
+                    (xmax - xmin) * shrink,
+                    iw[1]]
+    cax = fig.add_axes(caxb)
+    cb = plt.colorbar(ppp, cax, **cD)
+    if not side:
+        if orientation == 'vertical':
+            cax.yaxis.tick_left()
+            cax.yaxis.set_label_position('left')
+        if orientation == 'horizontal':
+            cax.xaxis.tick_top()
+            cax.xaxis.set_label_position('top')
+    if ti:
+        cb.set_label(ti)
     return cb
+
+
+def axs_abc_(fig, ax, s='(a)', dx=.005, dy=.005,
+             fontdict=dict(fontweight='bold'), **kwArgs):
+    xmin, _, _, ymax = _minmaxXYlm(ax)
+    kD = dict(ha='right')
+    kD.update(kwArgs)
+    fig.text(xmin - dx, ymax + dy, s, fontdict=fontdict, **kD)
+
 
 
 def aligned_tx_(fig, ax, s, rpo='tl', itv=0.005,
@@ -305,13 +375,13 @@ def aligned_tx_(fig, ax, s, rpo='tl', itv=0.005,
             kwArgs.update({'verticalalignment': 'top'})
 
     if rpo[1].upper() == 'L':
-        x = xlm[0]
+        x = xlm[0] + abs(itv)
         kwArgs.update({'horizontalalignment': 'left'})
     elif rpo[1].upper() == 'C':
         x = np.mean(xlm)
         kwArgs.update({'horizontalalignment': 'center'})
     elif rpo[1].upper() == 'R':
-        x = xlm[1]
+        x = xlm[1] - abs(itv)
         kwArgs.update({'horizontalalignment': 'right'})
     else:
         raise Exception('uninterpretable rpo!')

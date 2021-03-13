@@ -23,7 +23,8 @@ i__ = {'ET': (1, 0, ['et'], None, ['year']),
        'EffPR': (3, 0, ['et', 'pr'], None, ['season', 'year']),
        'PR7Dmax': (4, 1, ['pr'], dPr7_, ['year']),
        'LnstDryDays': (5, 1, ['pr'], dLongestDryDays_, ['season']),
-       'DryDays': (6, 1, ['pr'], dDryDays_, ['month']),
+       #'DryDays': (6, 1, ['pr'], dDryDays_, ['month']),
+       'DryDays': (6, 1, ['pr'], dDryDays_, ['year']),
        'PR': (7, 0, ['pr'], None, ['season', 'year']),
        #'PR': (7, 0, ['pr'], None, ['month']),
        'PRmax': (8, 1, ['pr'], 'MAX', ['month', 'year']),
@@ -36,14 +37,16 @@ i__ = {'ET': (1, 0, ['et'], None, ['year']),
        'RSDS': (14, 0, ['rs'], None, ['season']),
        'CoolingDegDay': (15, 1, ['tx'], dDegDay_, ['month', 'year']),
        'ConWarmDays': (16, 1, ['tx'], dConWarmDays_, ['year']),
-       'TX': (17, 0, ['tx'], None, ['season', 'year']),
+       #'TX': (17, 0, ['tx'], None, ['season', 'year']),
+       'TX': (17, 0, ['tx'], None, ['year']),
        #'TX': (17, 0, ['tx'], None, ['month']),
        'WarmDays': (18, 1, ['tx'], dWarmDays_, ['season', 'year']),
        'ColdDays': (19, 1, ['tx'], dColdDays_, ['season', 'year']),
        'DegDay20': (20, 1, ['t'], dDegDay_, ['year']),
        'DegDay8': (21, 1, ['t'], dDegDay8_vegSeason_, ['year']),
        'DegDay17': (22, 1, ['t'], dDegDay_, ['year']),
-       'TN': (23, 0, ['tn'], None, ['season', 'year']),
+       #'TN': (23, 0, ['tn'], None, ['season', 'year']),
+       'TN': (23, 0, ['tn'], None, ['year']),
        #'TN': (23, 0, ['tn'], None, ['month']),
        'SpringFrostDayEnd': (24, 1, ['tn'], dEndSpringFrost_, ['year']),
        'FrostDays': (25, 1, ['tn'], dFrostDays_, ['season', 'year']),
@@ -68,7 +71,8 @@ i__ = {'ET': (1, 0, ['et'], None, ['year']),
        'Snd10Days': (40, 1, ['snd'], dSndGT10LE20Days_, ['year']),
        'Snd20Days': (41, 1, ['snd'], dSndGT10LE20Days_, ['year']),
        'SNWmax': (42, 1, ['snw'], 'MAX', ['year']),
-       'TAS': (43, 0, ['t'], None, ['season', 'year']),
+       #'TAS': (43, 0, ['t'], None, ['season', 'year']),
+       'TAS': (43, 0, ['t'], None, ['year']),
        #'TAS': (43, 0, ['t'], None, ['month']),
        'DTR': (44, 0, ['tx', 'tn'], mDTR_, ['month']),
        'Rho925': (45, 1, ['t925', 'hus925', 'ps'], None, ['month']),
@@ -876,10 +880,11 @@ def _yy_dn(pD, dn, gwl, gg, curr):
     return (y0y1, dn)
 
 
-def cmip5_imp_rcp_(il_, reg_d, reg_n, po_, sss=None, eee=None):
+def cmip5_imp_rcp_(il_, reg_d, reg_n, po_, sss=None, eee=None, idx=None):
     pp = _pp(_here_ + 'cmip5_import_.yml')
-    ppp = pp['p_'][sss:eee]
-    for p_ in ppp:
+    pp_ = l_ind_(pp['p_'], [int(i) for i in idx.split(',')]) if idx else\
+          pp['p_'][sss:eee]
+    for p_ in pp_:
         tmp = path2cmip5_info_(p_)
         dn = '_'.join((tmp['gcm'], tmp['rcp'], tmp['rip'], reg_n))
         t0 = l__('>>>>>>>' + dn)
@@ -891,12 +896,13 @@ def cmip5_imp_rcp_(il_, reg_d, reg_n, po_, sss=None, eee=None):
 
 
 def cmip5_imp_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
-                  sss=None, eee=None):
+                  sss=None, eee=None, idx=None):
     pp = _pp(_here_ + 'cmip5_import.yml')
     #pp = _pp(_here_ + 'cmip5_import_cp.yml')
     gg = _gg('cmip5')
-    ppp = pp['p_'][sss:eee]
-    for p_ in ppp:
+    pp_ = l_ind_(pp['p_'], [int(i) for i in idx.split(',')]) if idx else\
+          pp['p_'][sss:eee]
+    for p_ in pp_:
         tmp = path2cmip5_info_(p_)
         dn = '_'.join((tmp['gcm'], tmp['rcp'], tmp['rip'], reg_n))
         y0y1, dn = _yy_dn(tmp, dn, gwl, gg, curr)
@@ -913,9 +919,11 @@ def cmip5_imp_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
         ll_('<<<<<<<' + dn, t0)
 
 
-def eur11_imp_rcp_(il_, reg_d, reg_n, po_, sss=None, eee=None):
+def eur11_imp_rcp_(il_, reg_d, reg_n, po_, sss=None, eee=None, idx=None):
     pp = _pp(_here_ + 'eur-11_import__.yml')
-    for p_ in pp['p_'][sss:eee]:
+    pp_ = l_ind_(pp['p_'], [int(i) for i in idx.split(',')]) if idx else\
+          pp['p_'][sss:eee]
+    for p_ in pp_:
         tmp = path2cordex_info_(p_)
         dn = '_'.join((tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
                        tmp['ver'], reg_n))
@@ -928,10 +936,12 @@ def eur11_imp_rcp_(il_, reg_d, reg_n, po_, sss=None, eee=None):
 
 
 def eur11_imp_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
-                  sss=None, eee=None):
+                  sss=None, eee=None, idx=None):
     pp = _pp(_here_ + 'eur-11_import.yml')
     gg = _gg()
-    for p_ in pp['p_'][sss:eee]:
+    pp_ = l_ind_(pp['p_'], [int(i) for i in idx.split(',')]) if idx else\
+          pp['p_'][sss:eee]
+    for p_ in pp_:
         tmp = path2cordex_info_(p_)
         dn = '_'.join((tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
                        tmp['ver'], reg_n))
@@ -949,10 +959,12 @@ def eur11_imp_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
         ll_('<<<<<<<' + dn, t0)
 
 
-def eur11_imp_eval(il_, reg_d, reg_n, po_, sss=None, eee=None):
+def eur11_imp_eval(il_, reg_d, reg_n, po_, sss=None, eee=None, idx=None):
     gwl = ''
     pp = _pp(_here_ + 'eur-11_import_eval.yml')
-    for p_ in pp['p_'][sss:eee]:
+    pp_ = l_ind_(pp['p_'], [int(i) for i in idx.split(',')]) if idx else\
+          pp['p_'][sss:eee]
+    for p_ in pp_:
         tmp = path2cordex_info_(p_)
         dn = '_'.join((tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
                        tmp['ver'], reg_n))
@@ -997,9 +1009,11 @@ def eur11_smhi_eval(il_, reg_d, reg_n, po_):
     ll_('<<<<<<<' + dn, t0)
 
 
-def eur11_smhi_rcp_(il_, reg_d, reg_n, po_, sss=None, eee=None):
+def eur11_smhi_rcp_(il_, reg_d, reg_n, po_, sss=None, eee=None, idx=None):
     pp = _pp(_here_ + 'eur-11_smhi-rca4.yml')
-    for ppi in pp['h248'][sss:eee]:
+    pp_ = l_ind_(pp['h248'], [int(i) for i in idx.split(',')]) if idx else\
+          pp['h248'][sss:eee]
+    for ppi in pp_:
         pi_ = '{}{}/netcdf/'.format(pp['root'], ppi)
         dn = '_'.join((pp[ppi]['gcm'], pp[ppi]['rcp'], pp[ppi]['rip'],
                        pp[ppi]['rcm'], pp[ppi]['ver'], reg_n))
@@ -1011,10 +1025,12 @@ def eur11_smhi_rcp_(il_, reg_d, reg_n, po_, sss=None, eee=None):
 
 
 def eur11_smhi_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
-                   sss=None, eee=None):
+                   sss=None, eee=None, idx=None):
     pp = _pp(_here_ + 'eur-11_smhi-rca4.yml')
     gg = _gg()
-    for p0p1 in pp['rcps'][sss:eee]:
+    pp_ = l_ind_(pp['rcps'], [int(i) for i in idx.split(',')]) if idx else\
+          pp['rcps'][sss:eee]
+    for p0p1 in pp_:
         pi0, pi1 = p0p1[0], p0p1[1]
         pi0_, pi1_ = ('{}{}/netcdf/'.format(pp['root'], pi0),
                       '{}{}/netcdf/'.format(pp['root'], pi1))
@@ -1115,6 +1131,8 @@ def main():
                         type=int, help="simulation-loop start")
     parser.add_argument("-e", "--end",
                         type=int, help="simulation-loop end")
+    parser.add_argument("-i", "--idx",
+                        type=str, help="simulation-loop index")
     parser.add_argument("-l", "--log",
                         type=str, help="exclusive log identifier")
     args = parser.parse_args()
@@ -1159,8 +1177,8 @@ def main():
     #rdir = '/nobackup/rossby22/sm_chali/DATA/energi/res/'
     rdir = '{}DATA/energi/res/'.format(rxx)
     po_ = rdir + 'eval/' + reg_n + '/'
-    #pcdx = rdir + 'h248/cordex/EUR11/' + reg_n + '/'
-    pcdx = rdir + 'h248/cordex/EUR11/grp1/'
+    pcdx = rdir + 'h248/cordex/EUR11/' + reg_n + '/'
+    #pcdx = rdir + 'h248/cordex/EUR11/grp1/'
     pcmp = rdir + 'h248/cmip5/' + reg_n + '/'
     po__ = rdir + 'gwls/' + reg_n + '/'
     po___ = rdir + 'obs/' + reg_n + '/'
@@ -1182,39 +1200,47 @@ def main():
     logging.info(' ')
 
     if args.opt == 0:
-        eur11_imp_eval(il_, reg_d, reg_n, po_, sss=args.start, eee=args.end)
+        eur11_imp_eval(il_, reg_d, reg_n, po_,
+                       sss=args.start, eee=args.end, idx=args.idx)
     elif args.opt == 1:
         eur11_imp_eval_dmi(il_, reg_d, reg_n, po_)
     elif args.opt == 2:
         eur11_imp_rcp(il_, reg_d, reg_n, po__,
-                      gwl=args.gwl, sss=args.start, eee=args.end)
+                      gwl=args.gwl, sss=args.start, eee=args.end, idx=args.idx)
     elif args.opt == 22:
         eur11_imp_rcp(il_, reg_d, reg_n, po__, curr=[2001, 2030],
-                      gwl='curr0130', sss=args.start, eee=args.end)
+                      gwl='curr0130',
+                      sss=args.start, eee=args.end, idx=args.idx)
     elif args.opt == 3:
         eur11_smhi_eval(il_, reg_d, reg_n, po_)
     elif args.opt == 4:
         eur11_smhi_rcp(il_, reg_d, reg_n, po__,
-                       gwl=args.gwl, sss=args.start, eee=args.end)
+                       gwl=args.gwl,
+                       sss=args.start, eee=args.end, idx=args.idx)
     elif args.opt == 44:
         eur11_smhi_rcp(il_, reg_d, reg_n, po__, curr=[2001, 2030],
-                       gwl='curr0130', sss=args.start, eee=args.end)
+                       gwl='curr0130',
+                       sss=args.start, eee=args.end, idx=args.idx)
     elif args.opt == 5:
         eobs20_(il_, reg_d, reg_n, po___)
     elif args.opt == 6:
         erai_(il_, reg_d, reg_n, po___)
     elif args.opt == 7:
         cmip5_imp_rcp(il_, reg_d, reg_n, po____,
-                      gwl=args.gwl, sss=args.start, eee=args.end)
+                      gwl=args.gwl, sss=args.start, eee=args.end, idx=args.idx)
     elif args.opt == 77:
         cmip5_imp_rcp(il_, reg_d, reg_n, po____, curr=[2001, 2030],
-                      gwl='curr0130', sss=args.start, eee=args.end)
+                      gwl='curr0130',
+                      sss=args.start, eee=args.end, idx=args.idx)
     elif args.opt == 8:
-        eur11_smhi_rcp_(il_, reg_d, reg_n, pcdx, sss=args.start, eee=args.end)
+        eur11_smhi_rcp_(il_, reg_d, reg_n, pcdx,
+                        sss=args.start, eee=args.end, idx=args.idx)
     elif args.opt == 9:
-        eur11_imp_rcp_(il_, reg_d, reg_n, pcdx, sss=args.start, eee=args.end)
+        eur11_imp_rcp_(il_, reg_d, reg_n, pcdx,
+                       sss=args.start, eee=args.end, idx=args.idx)
     elif args.opt == 10:
-        cmip5_imp_rcp_(il_, reg_d, reg_n, pcmp, sss=args.start, eee=args.end)
+        cmip5_imp_rcp_(il_, reg_d, reg_n, pcmp,
+                       sss=args.start, eee=args.end, idx=args.idx)
     else:
         pass
 

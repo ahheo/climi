@@ -1,0 +1,217 @@
+#!/usr/bin/env python3
+
+import matplotlib as mpl
+mpl.use('pdf', force=True)
+import matplotlib.pyplot as plt
+from matplotlib.colors import to_rgb
+import numpy as np
+import argparse
+import yaml
+import os
+import warnings
+import datetime
+import iris
+from iris.fileformats.netcdf import UnknownCellMethodWarning
+from climi.pppp import *
+from climi.uuuu import *
+from climi.uuuu.cccc import _get_ind_lolalim as lllim_
+
+
+_here_ = get_path_(__file__)
+
+
+def _vlabel(var, mtd=None):
+    v = var.split('-')[0]
+    yl = v[:4].upper() + v[4:]
+    if isinstance(mtd, str) and mtd[0] == 'g':
+        return '% land area with {}$\geq${}'.format(yl, mtd[1:])
+    else:
+        return yl
+
+
+def _rf(fn):
+    if os.path.isfile(fn):
+        return iris.load_cube(fn).data
+
+
+def _clcdx(ddir, gcms, rcms, y_, y0y1, freq, var):
+    ffmt = '{}ts_r_{}_{}_{}_{}-{}_{}_{}.nc'
+    o = []
+    for gcm in gcms:
+        oo = []
+        for rcm in rcms:
+            oo.append(_rf(ffmt.format(ddir, y_, gcm, rcm, *y0y1, freq, var)))
+        o.append(oo)
+    return o
+
+
+def _clcmp(ddir, gcms, y_, y0y1, freq, var, go_='g'):
+    ffmt = '{}ts_{}_{}_{}_{}-{}_{}_{}.nc'
+    o = []
+    for gcm in gcms:
+        o.append(_rf(ffmt.format(ddir, go_, y_, gcm, *y0y1, freq, var)))
+    return o
+
+
+def _violin(ax, dataL, p, color, hch=None, p_=0):
+    pos = np.arange(5) / 5 * .9
+    pos += p - max(pos)/2 + p_ * .3 / len(dataL)
+    pos = pos[-len(dataL):]
+    parts = ax.violinplot(dataL,
+                          vert=False, widths=.36*.2, positions=pos,
+                          showmeans=False,
+                          showmedians=False, showextrema=False)
+    for i, pc in enumerate(parts['bodies']):
+        pc.set_facecolor(to_rgb(color) + (.333,))
+        pc.set_edgecolor(to_rgb(color) + (.333,))
+        #pc.set_alpha(.333)
+        if hch is not None:
+            pc.set_hatch(hch[i])
+
+    boxes = ax.boxplot(dataL,
+                       positions=pos,
+                       vert=False, widths=.1*.2, patch_artist=True,
+                       medianprops=dict(color='white', linewidth=1.5),
+                       flierprops=dict(mfc=color,
+                                       mec=color,
+                                       ms=4,
+                                       marker='x'),
+                       capprops=dict(color=color),
+                       whiskerprops=dict(color=color))
+
+    for pc in boxes['boxes']:
+        pc.set_facecolor(color)
+        pc.set_edgecolor(color)
+
+    return (pos if len(dataL)<5 else p, parts['bodies'])
+
+
+def _plt_vl(ax, cgL, crLL, color, coL=None, p_=0):
+    vvs = []
+    p = []
+    if coL:
+        xp, _ = _violin(ax, coL, 1, color)
+        p.append(xp)
+    hch = (None, '\\\\\\', 'xxx', '///', '+++')
+    for i, (cg, crL) in enumerate(zip(cgL, crLL)):
+        xp, parts = _violin(ax, [cg] + crL, i + 2, color, hch, p_=p_)
+        p.append(xp)
+    return (flt_l(p), parts)
+
+
+def _lgd(ax, parts, pp, rcms):
+    pg0 = [i[0] for i in parts]
+    pg0_ = ['{}-{}'.format(*i) for i in pp]
+    leg0 = ax.legend(pg0, pg0_, fontsize=8, bbox_to_anchor=(.0, 1.01),
+                      loc='lower left', borderaxespad=0, frameon=False)
+    ax.add_artist(leg0)
+    pg1 = parts[0]
+    leg1 = ax.legend(pg1, rcms, fontsize=8, bbox_to_anchor=(1., 1.01),
+                      loc='lower right', borderaxespad=0, frameon=False)
+
+
+def _lgd1(ax, parts, pp, rcms):
+    pg0 = [i[0] for i in parts]
+    pg0_ = ['{}-{}'.format(*i) for i in pp]
+    leg0 = ax.legend(pg0, pg0_, fontsize=8, bbox_to_anchor=(.6, .99),
+                     loc='upper right', borderaxespad=0, frameon=False)
+    ax.add_artist(leg0)
+    pg1 = parts[0]
+    leg1 = ax.legend(pg1, rcms, fontsize=8, bbox_to_anchor=(.99, .99),
+                     loc='upper right', borderaxespad=0, frameon=False)
+
+
+def _xtl(ax, p, xtl):
+    ax.set_yticks(p)
+    ax.set_yticklabels(xtl, ha='center', va='bottom',
+                       rotation=68, rotation_mode='anchor')
+
+
+def _xtl1(ax0, ax1, p, xtl):
+    ax0.set_yticks(p)
+    ax0.set_yticklabels(xtl)
+    plt.setp(ax1.get_yticklabels(), visible=False)
+
+
+def _fa(vl):
+    fig = init_fig_(fx=3.6, fy=7.5, t=.87, l=.125, b=.068)
+    ax_opt = dict(xlabel=vl, ylim=[1., 4.6])
+    if '%' not in vl:
+        ax_opt.update(dict(xscale='log'))
+    ax = fig.add_subplot(1, 1, 1, **ax_opt)
+    ax.invert_yaxis()
+    return (fig, ax)
+
+
+def _fa1(vl):
+    fig = init_fig_(fx=7.5, fy=6, t=.96, l=.14, b=.08, r=.99, w=.1)
+    ax_opt = dict(xlabel=vl, ylim=[1., 4.6])
+    ax0 = fig.add_subplot(1, 2, 1, **ax_opt)
+    axs_abc_(fig, ax0, '(a)')
+    ax1 = fig.add_subplot(1, 2, 2, xscale='log', sharey=ax0, **ax_opt)
+    axs_abc_(fig, ax1, '(b)')
+    ax0.invert_yaxis()
+    return (fig, (ax0, ax1))
+
+
+def main():
+    warnings.filterwarnings("ignore", category=UserWarning)
+    warnings.filterwarnings("ignore", category=UnknownCellMethodWarning)
+    with open(_here_ + 'cfg_plt_hwmid_h8.yml', 'r') as ymlfile:
+        cfg = yaml.safe_load(ymlfile)
+    #output dirs
+    ddir, fdir, tdir = cfg['ddir'], cfg['fdir'], cfg['tdir']
+    os.makedirs(ddir, exist_ok=True)
+    os.makedirs(fdir, exist_ok=True)
+    os.makedirs(tdir, exist_ok=True)
+    #constans
+    obss = cfg['obss']
+    gcms = cfg['gcms_']
+    rcms = cfg['rcms_']
+    rcms.sort()
+    rcp, ref, rgDs = cfg['rcp'], cfg['ref'], cfg['rgDs']
+    idir = cfg['idir']['obss']
+    idir_ = cfg['idir']['gcms']
+    idir__ = cfg['idir']['rcms']
+    rgD_eur = rgDs['eur']
+    #loop variables
+    vv = ['hwmid-tx', 'hwmid-tn', 'wsdi-tx']
+    ff = ['j-d']
+    yy = ['mean']
+    #yy = ['g15', 'p10', 'p50', 'p90']
+    pp = [[1981, 2020], [2021, 2060], [2061, 2100]]
+    #loop 0
+    for var in vv:
+        print('{}'.format(var))
+        #loop 1
+        for freq in ff:
+            print('  {}'.format(freq))
+            for y_ in yy:
+                print('  {}'.format(y_))
+                vl = _vlabel(var, y_)
+                fn = '{}vl0_{}_{}.pdf'.format(fdir, y_, var)
+                fig, (ax0, ax1) = _fa1(vl)#fig, ax
+                cm = ['dimgray']#colors
+                cm += list(plt.get_cmap("magma_r", 5).colors)[2:]
+                bss = []#list of bodies for legend
+                for i, y0y1 in enumerate(pp):
+                    print('    {}-{}'.format(*y0y1))
+                    crLL = _clcdx(ddir, gcms, rcms, y_, y0y1, freq, var)
+                    cgL = _clcmp(ddir, gcms, y_, y0y1, freq, var)
+                    if y0y1[1] < 2021:
+                        coL = _clcmp(ddir, obss, y_, y0y1, freq, var, 'o')
+                        xp, bodies = _plt_vl(ax0, cgL, crLL, cm[i], coL, p_=i)
+                        _, _ = _plt_vl(ax1, cgL, crLL, cm[i], coL, p_=i)
+                    else:
+                        _, bodies = _plt_vl(ax0, cgL, crLL, cm[i], p_=i)
+                        _, _ = _plt_vl(ax1, cgL, crLL, cm[i], p_=i)
+                    bss.append(bodies)
+                _xtl1(ax0, ax1, xp, obss + gcms)
+                _lgd1(ax0, bss, pp, ['GCM'] + rcms)
+                #fig.tight_layout()
+                plt.savefig(fn, dpi=300)
+                plt.close()
+
+
+if __name__ == '__main__':
+    main()
