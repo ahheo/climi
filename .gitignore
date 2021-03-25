@@ -1,4 +1,5 @@
 *.out
+*.old
 *~
 *.pyc
 *.log

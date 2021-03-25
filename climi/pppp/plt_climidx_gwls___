@@ -1,0 +1,313 @@
+#!/usr/bin/env python3
+
+import numpy as np
+import geopandas as gpd
+import matplotlib as mpl
+mpl.use('Agg', force=True)
+import matplotlib.pyplot as plt
+import iris
+import os
+import time
+import logging
+import warnings
+import argparse
+import yaml
+
+from time import localtime, strftime
+
+from climi.uuuu import *
+from climi.pppp import *
+
+
+_here_ = get_path_(__file__)
+
+
+def _shps(n):
+    shp = gpd_read(_here_ + 'swe_districts/distriktsanalys_polygon.shp')
+    shp_ = shp.to_crs(epsg=4326)
+    idd = shp.ID.copy()
+    idd.loc[:] = 0.
+    for i in range(n):
+        idd = idd.rename('mean{}'.format(i))
+        shp = gpd.pd.concat((shp, idd), axis=1)
+    for i in range(n):
+        idd = idd.rename('iqr{}'.format(i))
+        shp = gpd.pd.concat((shp, idd), axis=1)
+    return (shp, shp_)
+
+
+def _minmax_df(df):
+    data_ = df.to_numpy()
+    return (np.nanmin(data_), np.nanmax(data_))
+
+
+def _cmp01(unit, var):
+    if unit == 'K' or var in ('RLDS', 'RSDS', 'SD', 'TropicNights',
+                              'ConWarmDays', 'HumiWarmDays', 'WarmDays'):
+        cmp0 = 'coolwarm'
+        cmp1 = 'coolwarm'
+    elif var in ('DryDays', 'LnstDryDays'):
+        cmp0 = 'YlGnBu_r'
+        cmp1 = 'BrBG_r'
+    elif unit == 'days':
+        cmp0 = 'cubehelix'
+        cmp1 = 'PRGn_r'
+    else:
+        cmp0 = 'YlGnBu'
+        cmp1 = 'BrBG'
+    return (cmp0, cmp1)
+
+
+def _cmpinfo(mm_, cmp_, fn, f):
+    f.write('\n{!r}\n'.format(fn))
+    f.write('  Absolute:\n')
+    f.write('    min: {:.4f}; max: {:.4f}; N:{}; colormap: {};\n'.format(
+            mm_[0], mm_[1], plt.get_cmap(cmp_[0]).N, cmp_[0]))
+    f.write('  Anomaly:\n')
+    f.write('    min: {:.4f}; max: {:.4f}; N:{}; colormap: {};\n'.format(
+            -mm_[-1], mm_[-1], plt.get_cmap(cmp_[1]).N, cmp_[1]))
+    f.write('  Absolute IQR:\n')
+    f.write('    min: {:.4f}; max: {:.4f}; N:{}; colormap: {};\n'.format(
+            mm_[2], mm_[3], plt.get_cmap(cmp_[0]).N, cmp_[0]))
+    f.write('  Anomaly IQR:\n')
+    f.write('    min: {:.4f}; max: {:.4f}; N:{}; colormap: {};\n\n'.format(
+            mm_[4], mm_[5], plt.get_cmap(cmp_[0]).N, cmp_[0]))
+
+
+def _map(shp0, gwls, unit, odir, var, freq, f):
+    ngwls = gwls + [r'{} $-$ {}'.format(gwl, gwls[0]) for gwl in gwls[1:]]      
+    na, nb = len(gwls), len(ngwls) - len(gwls) 
+    #################################################################parameters
+    min0, max0 = _minmax_df(shp0.loc[:, ['mean{}'.format(i)
+                                         for i in range(na)]])
+    min1, max1 = _minmax_df(shp0.loc[:, ['iqr{}'.format(i)
+                                         for i in range(na)]])
+    min2, max2 = _minmax_df(shp0.loc[:, ['mean{}'.format(i)
+                                         for i in range(na, na + nb)]])
+    min3, max3 = _minmax_df(shp0.loc[:, ['iqr{}'.format(i)
+                                         for i in range(na, na + nb)]])
+    mm2 = np.max(np.abs([min2, max2]))
+
+    _cmpinfo((min0, max0, min1, max1, min3, max3, mm2),
+             _cmp01(unit, var),
+             odir + '_'.join(('mapX', var, freq)) + '.png',
+             f)
+
+
+def map__(am, ai, bm, bi, unit, rg_dict, odir, var, freq,
+          f, ap=None):
+    min0, max0 = minmax_cube_(am, rg=rg_dict, p=5)
+    min1, max1 = minmax_cube_(ai, rg=rg_dict, p=5)
+    min2, max2 = minmax_cube_(bm, rg=rg_dict, p=5)
+    min3, max3 = minmax_cube_(bi, rg=rg_dict, p=5)
+    mm2 = np.max(np.abs([min2, max2]))
+
+    fn = 'map-{}'.format(ap) if ap else 'map'
+    _cmpinfo((min0, max0, min1, max1, min3, max3, mm2),
+             _cmp01(unit, var),
+             odir + '_'.join((fn, var, freq)) + '.png',
+             f)
+
+
+def id__(cubeLL, dn, gwls, sc, unit, odir, var, freq, shp, shp_,
+         f):
+    shp0 = shp.copy()
+    ids = set(shp0.ID)
+    for i in ids:
+        svd = poly_to_path_(list(shp_.loc[shp_.ID == i, 'geometry']))
+        ##########################################################fixing SNWmax
+        if var in ['SNWmax', 'R5OScw', 'R1OScw'] and i in [12, 15]:
+            a_, dn_ = slct_cubeLL_dnL_(cubeLL, dn, slctStrL_, excl='KNMI')
+            ts = get_ts_clmidx_(a_, dn_, sc, poly=svd)
+            #bp__(ts, dn_, unit, gwls, odir, var, freq, opt='0',
+            #     ap='ID{}'.format(i))
+        ##########################################################fixing SNWmax
+        else:
+            ts = get_ts_clmidx_(cubeLL, dn, sc, poly=svd)
+            #bp__(ts, dn, unit, gwls, odir, var, freq, opt='0',
+            #     ap='ID{}'.format(i))
+        ts0 = ts + [ii - ts[0] for ii in ts[1:]]
+        ts1 = np.asarray([np.nanmean(ii, axis=-1) for ii in ts0])
+        m_ = np.nanmean(ts1, axis=-1)
+        iqr_ = (np.nanpercentile(ts1, 75, axis=-1) -
+                np.nanpercentile(ts1, 25, axis=-1))
+        for ii in range(len(m_)):
+            shp0.loc[shp_.ID==i, 'mean{}'.format(ii)] = m_[ii]
+            shp0.loc[shp_.ID==i, 'iqr{}'.format(ii)] = iqr_[ii]
+    _map(shp0, gwls, unit, odir, var, freq, f)
+
+
+def _q_file(odir__, cubeLL, sc, freq, gwls, cref=None):
+    fnam = ['{}am_{}_{}.nc'.format(odir__, freq, i)
+            for i in ['current'] + gwls]
+    fnai = ['{}ai_{}_{}.nc'.format(odir__, freq, i)
+            for i in ['current'] + gwls]
+    fnbm = ['{}bm_{}_{}.nc'.format(odir__, freq, i) for i in gwls]
+    fnbi = ['{}bi_{}_{}.nc'.format(odir__, freq, i) for i in gwls]
+    if all([os.path.isfile(i) for i in fnam + fnai + fnbm + fnbi]):
+        am, ai, bm, bi = [[iris.load_cube(ii) for ii in i]
+                          for i in (fnam, fnai, fnbm, fnbi)]
+    else:
+        msk = cref.data.mask if (cref and np.ma.isMaskedArray(cref.data) and
+                                 np.ma.is_masked(cref.data)) else None
+        os.makedirs(odir__, exist_ok=True)
+        am, ai, bm, bi = get_clm_clmidx_(cubeLL, sc, cref=cref)
+        for i, ii in zip((am, ai, bm, bi), (fnam, fnai, fnbm, fnbi)):
+            for i_, ii_ in zip(i, ii):
+                if msk is not None:
+                    i_ = iris.util.mask_cube(i_, robust_bc2_(msk, i_.shape))
+                iris.save(i_, ii_)
+    return (am, ai, bm, bi)
+
+
+def _get_freq(vdict, var):
+    freqs = []
+    if 'year' in vdict['freq'][var]:
+        freqs += ['year']
+    if 'season' in vdict['freq'][var]:
+        freqs += ['djf', 'mam', 'jja', 'son']
+    if 'month' in  vdict['freq'][var]:
+        freqs += ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    return freqs
+
+
+def main():
+    mpl.style.use('seaborn')
+    #####################################################################PARSER
+    parser = argparse.ArgumentParser('PLOT CLIMIDX')
+    parser.add_argument("opt", type=int, default=0,
+                        help="options for dataset on BI")
+    parser.add_argument("-c", "--config", type=str, default="2", help="")
+    parser.add_argument("-s", "--start", type=int, help="")
+    parser.add_argument("-e", "--end", type=int, help="")
+    parser.add_argument("-l", "--log", type=str, default="", help="")
+    args = parser.parse_args()
+    opt_, log_ = args.opt, args.log
+    sss_, eee_ = args.start, args.end
+    ####################################################################LOGGING
+    lfn = 'plt-{}-{}'.format(opt_, log_)
+    nlog = len(schF_keys_('', lfn, ext='.log'))
+    logging.basicConfig(filename='{}{}.log'.format(lfn, '_' * nlog),
+                        filemode='w',
+                        level=logging.INFO)
+    logging.info(' {:_^42}'.format('start of program'))
+    logging.info(strftime(" %a, %d %b %Y %H:%M:%S +0000", localtime()))
+    logging.info(' ')
+    ##################################################################CONFIGURE
+    if os.path.isfile(args.config):
+        yf = args.config
+    elif args.config == '2':
+        yf = _here_ + 'cfg_plt_climidx_gwls.yml'
+    elif args.config == '4':
+        yf = _here_ + 'cfg_plt_climidx_gwls_.yml'
+    else:
+        raise ValueError("unknown configuration!")
+    with open(yf, 'r') as ymlfile:
+        cfg = yaml.safe_load(ymlfile)
+    version = cfg['version']
+    gg, gwls = cfg['gg'], cfg['gwls']
+    #gg = ['gwl15', 'gwl2']
+    #gwls = ['current', '1.5 K warming', '2 K wariming']
+    #gg = ['gwl15', 'gwl2', 'gwl25', 'gwl3', 'gwl35', 'gwl4']
+    #gwls = ['current', '1.5 K warming', '2 K wariming', '2.5 K warming',
+    #                    '3 K wariming', '3.5 K warming', '4 K warming']
+    root = cfg['root']
+    ddir, fxdir = cfg['ddir'], cfg['fxdir']
+    ######################################################INDEPENDENT VARIABLES
+    vf = _here_ + 'var_dict.yml'
+    with open(vf, 'r') as ymlfile:
+        vdict = yaml.safe_load(ymlfile)
+    yf = _here_ + 'rg_dict.yml'
+    with open(yf, 'r') as ymlfile:
+        rdict = yaml.safe_load(ymlfile)
+    #######################################VARIABLES VARY CORRISPONDING TO OPT_
+    rn = 'EUR' if opt_ in (0, 1) else 'GLB'
+    idir = '{}{}/'.format(ddir, rn)
+    #odir = '{}DATA/energi/{}/fig{}K/'.format(root, version, gg[-1][3:])
+    odir = 'fig{}K/'.format(gg[-1][3:])
+    _rn = 'SWE/' if opt_ == 0 else ('EUR/' if opt_ == 1 else 'SS/')
+    _od0 = odir + '{}/' + _rn
+    _od1 = odir.replace('/fig', '/nc') + '{}/'
+    #r24 = os.environ.get('r24')
+    #odir = '{}DATA/energi/2/fig{}K/'.format(r24, gg[-1][3:])
+    #os.makedirs(odir, exist_ok=True)
+    #idir = '/nobackup/rossby22/sm_chali/DATA/energi/res/gwls/EUR/'
+    #fxdir = '/nobackup/rossby22/sm_chali/DATA/fx/'
+    if opt_ == 0:
+        ne50 = gpd_read(_here_ + 'ne_50m/ne_50m_admin_0_countries.shp')
+        sv = poly_to_path_(list(ne50.loc[ne50.NAME=='Sweden', 'geometry']))
+        shp, shp_ = _shps(len(gwls) * 2 - 1)
+        rD_map = rdict[0]['SWE']
+        if len(gwls) == 3:
+            figD = None
+        elif len(gwls) < 5:
+            figD = dict(fx=len(gwls) * 4, h=.05, w=.1,
+                        t=.95, b=.02, l=.01, r=.98)
+        else:
+            figD = dict(fx=len(gwls) * 2, fy=12,
+                        h =.15, w=.01, t=.95, b=.02, l=.01, r=.925)
+        mD = dict()
+    else:
+        rD_map = rdict[0]['EUR']
+        ix = 2.5 if opt_ == 1 else 2.75
+        if len(gwls) < 5:
+            figD = dict(fx=len(gwls) * ix * 2,
+                        h=.02, w=.15, t=.925, b=.025, l=.01, r=.98)
+        else:
+            figD = dict(fx=len(gwls) * ix, fy=12,
+                        h=.15, w=.01, t=.95, b=.02, l=.01, r=.925)
+        mD = dict(ap='EUR')
+    if opt_ in (0, 1):
+        vvv_ = vdict['vars'][sss_:eee_]
+        lD = dict()
+        tsD = dict(fxdir=fxdir)
+        cref = iris.load_cube('{}{}'.format(idir,
+               'PR_ICHEC-EC-EARTH_historical_r12i1p1_'
+               'SMHI-RCA4_v1_EUR_year_current.nc'))[0, :, :]
+    else:
+        vvv_ = ['SST', 'SIC']
+        tsD = lD = dict(folder='cmip5')
+        cref = iris.load_cube('{}{}'.format(idir,
+               'SST_HadGEM2-ES_rcp85_r1i1p1_GLB_year_gwl15.nc'))[0, :, :]
+    ############################################################DOING SOMETHING
+    f = open('cbi/colorbar_info_{}_{}_{}.txt'.format(opt_, args.config, log_),
+             'w')
+    for var in vvv_:
+        freqs = _get_freq(vdict, var)
+        #freqs = ['Nov', 'Dec']
+        odir_ = _od0.format(vdict['odir'][var])
+        odir__ = _od1.format(vdict['odir'][var])
+        os.makedirs(odir_, exist_ok=True)
+        for freq in freqs:
+            t000 = l__('{} >>>>>> {}'.format(var, freq))
+            a, dn = load_clmidx_(idir, var, gwls=gg, freq=freq, rn=rn,
+                                 newestV=True, **lD)
+            ##################################################fixing SNWmax
+            if var in ['SNWmax', 'R5OScw', 'R1OScw']:
+                a, dn = slct_cubeLL_dnL_(a, dn, slctStrL_, excl='KNMI')
+            ##################################################fixing SNWmax
+            ll_('< load', t000)
+            if len(dn) == 0:
+                continue
+            sc, unit = sc_unit_clmidx_(a[0][0], var)
+            if opt_ == 0:
+                id__(a, dn, gwls, sc, unit, odir_, var, freq, shp, shp_,
+                     f)
+                ll_('<< id', t000)
+            am, ai, bm, bi = _q_file(odir__, a, sc, freq, gg, cref=cref)
+            ll_('< clm', t000)
+            map__(am, ai, bm, bi, unit, rD_map, odir_, var, freq, f,
+                  **mD)
+            ll_('<< map', t000)
+    f.close()
+
+
+if __name__ == '__main__':
+    start_time = time.time()
+    main()
+    logging.info(' ')
+    logging.info(' {:_^42}'.format('end of program'))
+    logging.info(' {:_^42}'.format('TOTAL'))
+    logging.info(' ' + rTime_(time.time() - start_time))
+    logging.info(strftime(" %a, %d %b %Y %H:%M:%S +0000", localtime()))

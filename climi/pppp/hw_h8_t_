@@ -71,11 +71,13 @@ def _violin(ax, dataL, p, color, hch=None, p_=0):
     boxes = ax.boxplot(dataL,
                        positions=pos,
                        vert=False, widths=.1*.2, patch_artist=True,
+                       showmeans=True,
+                       meanprops=dict(mec='white', marker='x', ms=3),
                        medianprops=dict(color='white', linewidth=1.5),
                        flierprops=dict(mfc=color,
                                        mec=color,
                                        ms=4,
-                                       marker='x'),
+                                       marker='+'),
                        capprops=dict(color=color),
                        whiskerprops=dict(color=color))
 

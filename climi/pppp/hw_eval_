@@ -233,6 +233,8 @@ def _violin(ax, dataL, tiL, vl=None):
 
     boxes = ax.boxplot(dataL,
                        vert=False, widths=.2, sym='r+', patch_artist=True,
+                       showmeans=True,
+                       meanprops=dict(mec='white', marker='x', ms=4),
                        medianprops=dict(color='white', linewidth=1.5))
 
     for pc in boxes['boxes']:
