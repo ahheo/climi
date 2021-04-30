@@ -72,7 +72,8 @@ def _is_crcl(x2d, isyx):
 
 
 def rgd_scipy_(src_cube, target_cube,
-              method='linear', fill_value=None, rescale=False):
+               method='linear', fill_value=None, rescale=False,
+               cp_target_mask=False):
     #from scipy.interpolate import griddata
     dmap = _dmap(src_cube, target_cube)
     loT, laT = get_loa_(target_cube)
@@ -101,6 +102,7 @@ def rgd_scipy_(src_cube, target_cube,
     nsh = tuple(nsh)
     data = np.empty(nsh)
     dataS = nanMask_(src_cube.data)
+    dataT = target_cube[ind_shape_i_(shT, 0, axis=xydimT)].data
     if nSlice_(shS, xydimS) > 20:
         ax_fn_mp_(dataS, xydimS, _regrid_slice, data, xS, yS, xT, yT,
                   method, np.nan, rescale)
@@ -111,6 +113,8 @@ def rgd_scipy_(src_cube, target_cube,
                                       method, np.nan, rescale)
     #masking
     nmsk = np.isnan(data)
+    if cp_target_mask and np.ma.is_masked(dataT):
+        nmsk |= robust_bc2_(dataT.mask, nsh, axes=xydimS)
     fill_value = fill_value if fill_value\
                  else (src_cube.data.fill_value
                        if hasattr(src_cube.data, 'fill_value') else 1e+20)
@@ -193,7 +197,7 @@ def _dmap(src_cube, target_cube):
             target_cube.coord_dims(xT)[0]: src_cube.coord_dims(xS)[0]}
 
 
-def rgd_iris_(src_cube, target_cube, scheme=None):
+def rgd_iris_(src_cube, target_cube, scheme=None, cp_target_mask=False):
     scheme = scheme if scheme else\
              iris.analysis.Linear(extrapolation_mode='mask')
     tmp = src_cube.regrid(target_cube, scheme)
@@ -202,14 +206,19 @@ def rgd_iris_(src_cube, target_cube, scheme=None):
         dim = target_cube.coord_dims(c)
         if dim and all([dim_ in dmap.keys() for dim_ in dim]):
             tmp.add_aux_coord(c, tuple(dmap[dim_] for dim_ in dim))
+    dataT = target_cube[ind_shape_i_(target_cube.shape, 0,
+                                     axis=tuple(dmap.keys()))].data
+    if cp_target_mask and np.ma.is_masked(dataT):
+        tmp.data.mask |= robust_bc2_(dataT.mask, tmp.shape,
+                                     axes=tuple(dmap.values()))
     return tmp
 
 
-def rgd_li_opt0_(src_cube, target_cube):
+def rgd_li_opt0_(src_cube, target_cube, ctm=False):
     try:
-        tmp = rgd_iris_(src_cube, target_cube)
+        tmp = rgd_iris_(src_cube, target_cube, cp_target_mask=ctm)
     except:
-        tmp = rgd_scipy_(src_cube, target_cube)
+        tmp = rgd_scipy_(src_cube, target_cube, cp_target_mask=ctm)
     return tmp
 
 
@@ -447,18 +456,19 @@ class POLYrgd:
         if out:
             return self._regrid_info
 
-    def __call__(self, src):
+    def __call__(self, src, valid_check=True):
         # Validity checks.
-        if not isinstance(src, iris.cube.Cube):
-            raise TypeError("'src' must be a Cube")
-        loG, laG = get_loa_(self._src_cube)
-        src_grid = (loG.copy(), laG.copy())
-        loS, laS = get_loa_(src)
-        #if (loS, laS) != src_grid:
-        if not (np.array_equiv(loS.points, loG.points) and 
-                np.array_equiv(laS.points, laG.points)):
-            raise ValueError("The given cube is not defined on the same "
-                             "source grid as this regridder.")
+        if valid_check:
+            if not isinstance(src, iris.cube.Cube):
+                raise TypeError("'src' must be a Cube")
+            loG, laG = get_loa_(self._src_cube)
+            src_grid = (loG.copy(), laG.copy())
+            loS, laS = get_loa_(src)
+            #if (loS, laS) != src_grid:
+            if not (np.array_equiv(loS.points, loG.points) and 
+                    np.array_equiv(laS.points, laG.points)):
+                raise ValueError("The given cube is not defined on the same "
+                                 "source grid as this regridder.")
 
         dmap = _dmap(src, self._target_cube)
         xydT = tuple(dmap.keys())

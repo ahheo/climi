@@ -112,8 +112,8 @@ def _cmip5_dir(incl, dL=None):
         return (out[0], fn)
 
 
-def _cordex_dirs(cfg, gcm, rcm, rip):
-    _dir = _smhi_dir if rcm == 'SMHI-RCA4' else _imp_dir
+def _cordex_dirs(cfg, gcm, rcm, rip, dL=None, sY=None):
+    _dir, _dirA = (_smhi_dir, sY) if rcm == 'SMHI-RCA4' else (_imp_dir, dL)
     try:
         freq = cfg['f_opts']['freq']
     except KeyError:
@@ -134,14 +134,15 @@ def _cordex_dirs(cfg, gcm, rcm, rip):
                 ver = 'v0'
         return '_'.join([gcm, cfg['ehr'], rip, rcm, ver])
     else:
-        o0, o1 = _dir(incl + [cfg['ehr']])
+        o0, o1 = _dir(incl + [cfg['ehr']], _dirA)
         if o1:
             o0 += '{}/'.format(freq)
             if cfg['ehr'] == 'evaluation':
                 cfg.update({'rdir': o0, 'ddir': o0})
             else:
-                _o0 = '{}{}/'.format(_dir(incl + ['rcp85'])[0], freq)
-                o0_ = '{}{}/'.format(_dir(incl + ['historical'])[0], freq)
+                _o0 = '{}{}/'.format(_dir(incl + ['rcp85'], _dirA)[0], freq)
+                o0_ = '{}{}/'.format(_dir(incl + ['historical'], _dirA)[0],
+                                     freq)
                 cfg.update({'rdir': [o0_, _o0]})
                 if 'periods' in cfg:
                     if cfg['ehr'][:3] == 'rcp':
@@ -541,6 +542,8 @@ def hwmi_cordex_(cfg):
     """
     odir = _mk_odir(cfg)
     hORc = cfg['hORc'] if 'hORc' in cfg else 'heat'
+    pathL = cfg['pathL'] if 'pathL' in cfg else None
+    sYML = cfg['sYML'] if 'sYML' in cfg else None
     _d = cfg['_d'] if '_d' in cfg else False
     var = _var(cfg, hORc)
     warnings.filterwarnings("ignore", message="Missing CF-netCDF ")
@@ -555,7 +558,7 @@ def hwmi_cordex_(cfg):
             rips = [rips] if isinstance(rips, str) else rips
             for rip in rips:
                 t0___ = l__(' >>>>> {}'.format(rip))
-                fn0 = _cordex_dirs(cfg, gcm, rcm, rip)
+                fn0 = _cordex_dirs(cfg, gcm, rcm, rip, dL=pathL, sY=sYML)
                 if fn0 is None:
                     ll_(' XXX {}_{}_{}'.format(gcm, rip, rcm))
                     continue

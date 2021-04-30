@@ -16,10 +16,10 @@ gcms:
 - IPSL-CM5A-MR
 - MPI-ESM-LR
 rcms_:
-#- CCLM4-8-17
 - RCA4
 - HIRHAM5
 - RACMO22E
+#- CCLM4-8-17
 - REMO2015
 gcms_:
 - EC-EARTH
@@ -35,6 +35,7 @@ m:
   REMO2015: GERICS-REMO2015
   RCA4: SMHI-RCA4
   ERAI: ERA-Interim
+  EERRAAII: ECMWF-ERAINT
   EOBS: EOBS20
   EC-EARTH: ICHEC-EC-EARTH
   HadGEM2-ES: MOHC-HadGEM2-ES
@@ -46,14 +47,14 @@ idir:
   obss: /nobackup/rossby22/sm_chali/DATA/hc/res/obs/90/
   rcms: /nobackup/rossby22/sm_chali/DATA/hc/res/cordex/90/
   gcms: /nobackup/rossby22/sm_chali/DATA/hc/res/cmip5/90/
-ddir: /nobackup/rossby26/users/sm_chali/DATA/hw2018/data/h8/
+ddir: /nobackup/rossby24/users/sm_chali/DATA/hw2018/data/h8/
 fdir: /nobackup/rossby24/users/sm_chali/DATA/hw2018/fig/h8/
 tdir: /nobackup/rossby24/users/sm_chali/DATA/hw2018/txt/h8/
 #freq: j-d
 rcp: rcp85
 ref:
-- 1981
-- 2010
+- 1989
+- 2008
 rgs:
 - swe
 - eur

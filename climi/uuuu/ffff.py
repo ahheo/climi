@@ -3,6 +3,7 @@
 >------------------------------whoknows functions-----------------------------<
 >--#########################################################################--<
 * b2l_endian_           : return little endian copy
+* compressLL_           : compress 2D list
 * cyl_                  : values in cylinder axis           --> extract_win_
 * dgt_                  : digits of the int part of a number
 * ext_                  : get extension of file name
@@ -73,6 +74,7 @@ from typing import Iterable, Iterator
 
 
 __all__ = ['b2l_endian_',
+           'compressLL_',
            'cyl_',
            'dgt_',
            'ext_',
@@ -564,22 +566,46 @@ def ll_(msg, t0=None):
         logging.info(' ')
 
 
-def slctStrL_(strl, incl=None, excl=None, incl_or=False, excl_and=False):
+def slctStrL_(strl, incl=None, excl=None): #, incl_or=False, excl_and=False):
     """
     ... select items including/excluding sts(s) for a list of str ...
     """
+    def _in(s, L):
+        if isinstance(L, str):
+            return L in s
+        else:
+            return _inc(s, L)
+    def _inc(s, L):
+        return all([i in s if isinstance(i, str) else _incl(s, i) for i in L])
+    def _incl(s, L):
+        return any([i in s if isinstance(i, str) else _inc(s, i) for i in L])
+    def _ex(s, L):
+        if isinstance(L, str):
+            return L not in s
+        else:
+            return _exc(s, L)
+    def _exc(s, L):
+        return any([i not in s if isinstance(i, str) else _excl(s, i)
+                    for i in L])
+    def _excl(s, L):
+        return all([i not in s if isinstance(i, str) else _exc(s, i)
+                    for i in L])
     if incl:
-        incl = [incl] if isinstance(incl, str) else incl
-        if incl_or:
-            strl = [i for i in strl if any([ii in i for ii in incl])]
-        else:
-            strl = [i for i in strl if all([ii in i for ii in incl])]
+        strl = [i for i in strl if _in(i, incl)]
     if excl:
-        excl = [excl] if isinstance(excl, str) else excl
-        if excl_and:
-            strl = [i for i in strl if not all([ii in i for ii in excl])]
-        else:
-            strl = [i for i in strl if not any([ii in i for ii in excl])]
+        strl = [i for i in strl if _ex(i, excl)]
+    #if incl:
+    #    incl = [incl] if isinstance(incl, str) else incl
+    #    if incl_or:
+    #        strl = [i for i in strl if any([ii in i for ii in incl])]
+    #    else:
+    #        strl = [i for i in strl if all([ii in i for ii in incl])]
+    #if excl:
+    #    excl = [excl] if isinstance(excl, str) else excl
+    #    if excl_and:
+    #        strl = [i for i in strl if not all([ii in i for ii in excl])]
+    #    else:
+    #        strl = [i for i in strl if not any([ii in i for ii in excl])]
     return strl
 
 
@@ -597,11 +623,20 @@ def p_least_(pl, y0, y1):
     ... select periods within [y0, y1] from a list of periods ...
     """
     pl.sort()
-    a = lambda x: y0 <= int(x) <= y1
+    y0_, y1_ = str(y0), str(y1)
+    def _cmp(x0, x1):
+        n = min(len(x0), len(x1))
+        return x0[:n] <= x1[:n]
+    a = lambda x: _cmp(y0_, x) and _cmp(x, y1_)
     b = lambda x, y: a(x) or a(y)
-    c = lambda x, y: int(x) <= y0 and int(y) >= y1
-    return [i for i in pl if b(i.split('-')[0][:4], i.split('-')[-1][:4])
-            or c(i.split('-')[0][:4], i.split('-')[-1][:4])]
+    c = lambda x, y: _cmp(x, y0_) and _cmp(y1_, y)
+    return [i for i in pl if b(i.split('-')[0], i.split('-')[-1])
+            or c(i.split('-')[0], i.split('-')[-1])]
+    #a = lambda x: y0 <= int(x) <= y1
+    #b = lambda x, y: a(x) or a(y)
+    #c = lambda x, y: int(x) <= y0 and int(y) >= y1
+    #return [i for i in pl if b(i.split('-')[0][:4], i.split('-')[-1][:4])
+    #        or c(i.split('-')[0][:4], i.split('-')[-1][:4])]
 
 
 def p_deoverlap_(pl):
@@ -722,3 +757,11 @@ def haversine_(x0, y0, x1, y1):
 
     a = np.sin(dlat/2)**2 + np.cos(lat0)*np.cos(lat1)*np.sin(dlon/2)**2
     return 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
+
+
+def compressLL_(LL):
+    TF = np.asarray([[i is None for i in L] for L in LL])
+    TFx = np.where(~np.all(TF, axis=0))[0]
+    TFy = np.where(~np.all(TF, axis=1))[0]
+    LL_ = l_ind_([l_ind_(L, TFx) for L in LL], TFy)
+    return (LL_, TFx, TFy)

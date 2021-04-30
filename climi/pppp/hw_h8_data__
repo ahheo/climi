@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+
+import climi.uuuu as u
+import iris
+import warnings
+import os
+
+
+MD = {'RCA4': 'SMHI-RCA4',
+      'HIRHAM5': 'DMI-HIRHAM5',
+      'RACMO22E': 'KNMI-RACMO22E',
+      'REMO2015': 'GERICS-REMO2015',
+      'REMO2009': 'MPI-CSC-REMO2009',
+      'CCLM4-8-17': 'CLMcom-CCLM4-8-17',
+      'EOBS': 'EOBS20'}
+
+
+def main():
+    from iris.fileformats.netcdf import UnknownCellMethodWarning
+    warnings.filterwarnings("ignore", category=UnknownCellMethodWarning)
+    ldir = '/nobackup/rossby22/sm_chali/DATA/fx/'
+    ddir = '/nobackup/rossby24/users/sm_chali/DATA/hw2018/data/h8/eval/'
+    odir = '{}interp/'.format(ddir)
+    fns = u.schF_keys_(ddir, 'mp')
+    fns = u.slctStrL_(fns, incl=['_g_', 'ERAI', ['tx', 'tn']])
+    print(*fns,'n={}'.format(len(fns)), sep='\n')
+    OK = input('Is it OK with the file list?: ')
+    if OK not in ('yes', 'y', 'YES', 'Yes'):
+        return
+    skip = input('Skip existing files?: ') in ('yes', 'y', 'YES', 'Yes')
+    rd = {'longitude': [-10., 30.], 'latitude': [35., 70.]}
+    ttt = 'ECMWF-ERAINT'
+    fn0 = '/nobackup/rossby22/sm_chali/DATA/fx/' \
+          'sftlf_fx_ECMWF-ERAINT_rean_r0i0p0.nc'
+    o0 = u.intersection_(iris.load_cube(fn0), **rd)
+    for i, fn in enumerate(fns):
+        print(u.prg_(i+1, len(fns)), fn)
+        pfn = u.pure_fn_(fn)
+        fn_ = '{}{}.nc'.format(odir, pfn)
+        if os.path.isfile(fn_) and skip:
+            continue
+        fff = pfn.split('_')
+        if 'g' in fff:
+            sss = fff[3]
+            if sss == 'ERAI':
+                o = iris.load_cube(fn)
+                o = u.rgd_li_opt0_(o, o0, ctm=True)
+            else:
+                o = iris.load_cube(fn)
+                #oo = u.load_fx_(ldir, sss)['sftlf']
+                #for c in u.get_loa_(oo):
+                #    o.replace_coord(c)
+                o = u.intersection_(o, **rd)
+                o = u.prgd_mm_(o, sss, ttt, region='EUR', valid_check=False)
+        elif 'r' in fff:
+            sss = MD[fff[4]]
+            o = iris.load_cube(fn)
+            #oo = u.load_fx_(ldir, sss)['sftlf']
+            #for c in u.get_loa_(oo):
+            #    o.replace_coord(c)
+            o = u.prgd_mm_(o, sss, ttt, region='EUR', valid_check=False)
+        else:
+            if fff[3] == 'ERAI':
+                o = iris.load_cube(fn)
+                o = u.rgd_li_opt0_(o, o0, ctm=True)
+            else:
+                sss = MD[fff[3]]
+                o = iris.load_cube(fn)
+                #oo = iris.load_cube('/nobackup/rossby22/sm_chali/DATA/'
+                #                    'hc/res/obs/90/hwmid-tx_EOBS20_ALL'
+                #                    '_ref1981-2010_j-d.nc')[0,:,:]
+                #for c in u.get_loa_(oo):
+                #    o.replace_coord(c)
+                o = u.prgd_mm_(o, sss, ttt, region='EUR', valid_check=False)
+        ####################################
+        #if 'o' in fff and fff[3] == 'ERAI':
+        #    o = iris.load_cube(fn)
+        #    o = u.rgd_li_opt0_(o, o0)
+        #else:
+        #    continue
+        ####################################
+        #o = u.prgd_mm_(o, sss, ttt, region='EUR', valid_check=False)
+        print('save to', fn_)
+        u.cubesv_(o, fn_)
+
+
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,192 @@
+#!/usr/bin/env python3
+
+import matplotlib as mpl
+mpl.use('pdf', force=True)
+import matplotlib.pyplot as plt
+import numpy as np
+import pickle
+import argparse
+import yaml
+import os
+import warnings
+import datetime
+import iris
+from scipy.stats import pearsonr, linregress, t
+from climi.pppp import *
+from climi.uuuu import *
+from climi.uuuu.cccc import _get_ind_lolalim as lllim_
+from skextremes.models.classic import GEV
+from sklearn.metrics import mean_squared_error as mse_, r2_score as r2_
+
+_here_ = get_path_(__file__)
+
+
+def _vlabel(var, year=None, ts=None):
+    v = var.split('-')[0]
+    yl = v[:4].upper() + v[4:]
+    if isinstance(year, str) and year[0] == 'g':
+        return 'Number of years with {}$\geq${}'.format(yl, year[1:])
+    if isinstance(ts, str) and ts[0] == 'g':
+        return '% land area \n with {}$\geq${}'.format(yl, ts[1:])
+    else:
+        return yl
+
+
+def mbe_cube_(y0, y1):
+    return rgMean_cube(y1.copy(y1.data - y0.data)).data
+
+
+def rmse_cube_(y0, y1):
+    data = (y1.data - y0.data)**2
+    return np.sqrt(rgMean_cube(y1.copy(data)).data)
+
+
+def d_m_(cube):
+    if np.ma.is_masked(cube.data):
+        d_, m_ = cube.data.data, cube.data.mask
+    else:
+        d_ = cube.data.data if np.ma.isMaskedArray(cube.data) else cube.data
+        m_ = np.full(d_.shape, False)
+    return (d_, m_)
+
+
+def cc_cube_(y0, y1):
+    d0_, m0_ = d_m_(y0)
+    d1_, m1_ = d_m_(y1)
+    M_ = np.logical_and(~m0_, ~m1_)
+    return pearsonr(d0_[M_], d1_[M_])
+
+
+def _ec(cl, cref=None):
+    return en_mm_cubeL_(cl, cref=cref)
+
+
+def _cl(idir, dns, mD, **lD):
+    o, dns_ = [], []
+    for dn in dns:
+        tmp = load_h248_(idir, m=mD[dn], **lD)
+        if tmp:
+            if len(tmp) > 1:
+                warnings.warn("multiple files found; first one selected!")
+            o.append(tmp[0][0])
+            dns_.append(dn)
+    return (o, dns_)
+
+
+def _t_collapsed(cl, mtd):
+    if isinstance(mtd, str) and mtd[0] == 'g':
+        return [i.collapsed('time', iris.analysis.COUNT,
+                            function=lambda x: x >= int(mtd[1:]))
+                if i else None for i in cl]
+    elif mtd == 'mean':
+        return [i.collapsed('time', iris.analysis.MEAN) if i else None
+                for i in cl]
+    elif isinstance(mtd, int):
+        return [extract_period_cube(i, mtd, mtd) if i else None for i in cl]
+
+
+def _mp(fn, clo, clr, obss, rcms, mtd, mD):
+    from itertools import combinations as _cb
+    rd = {'longitude': [-10., 30.], 'latitude': [35., 70.]}
+    fn0 = '/nobackup/rossby22/sm_chali/DATA/fx/' \
+          'sftlf_fx_ECMWF-ERAINT_rean_r0i0p0.nc'
+    o0 = intersection_(iris.load_cube(fn0), **rd)
+    def _em(cl):
+        tmp = en_mean_(_ec(cl))
+        rm_sc_cube(tmp)
+        return tmp
+    oo = _t_collapsed(clr, mtd)
+    ecs = _em(oo)
+    ens = rcms[0]
+    oooo = _t_collapsed(clo, mtd)
+    oo = [prgd_mm_(o, mD[sss], 'ECMWF-ERAINT', region='EUR',
+                   valid_check=False) for o, sss in zip(oo, rcms)]
+    ecs = prgd_mm_(ecs, mD[ens], 'ECMWF-ERAINT', region='EUR',
+                   valid_check=False)
+    oooo = [prgd_mm_(o, mD[sss], 'ECMWF-ERAINT', region='EUR',
+                     valid_check=False) if sss != 'ERAI' else
+            rgd_li_opt0_(o, o0) for o, sss in zip(oooo, obss)]
+    ss = '{:10s} vs {:10s}: '
+    ss1 = '{:8.3f}, {:8.3f}, {:8.3f} ({:5.3f})\n'
+    with open(fn, 'w') as f:
+        f.write('{:_^80}\n'.format('MBE, RMSE, CORR COEF(P-VALUE)'))
+        if len(obss) > 1:
+            for i, i_ in _cb(range(len(obss)), 2):
+                f.write(ss.format(obss[i], obss[i_]))
+                f.write(ss1.format(mbe_cube_(oooo[i], oooo[i_]),
+                                   rmse_cube_(oooo[i], oooo[i_]),
+                                   *cc_cube_(oooo[i], oooo[i_])))
+                f.write('\n')
+        for i, ii in zip(obss, oooo):
+            for iii, iiii in zip(rcms + ['RCM mean'], oo + [ecs]):
+                f.write(ss.format(iii, i))
+                f.write(ss1.format(mbe_cube_(ii, iiii),
+                                   rmse_cube_(ii, iiii),
+                                   *cc_cube_(ii, iiii)))
+
+
+def main():
+    warnings.filterwarnings("ignore", category=UserWarning)
+    parser = argparse.ArgumentParser('HWMId Evaluation')
+    parser.add_argument("--test", action="store_true",
+                        help="as in testing mode")
+    args = parser.parse_args()
+    with open(_here_ + 'cfg_plt_hwmid_eval.yml', 'r') as ymlfile:
+        cfg = yaml.safe_load(ymlfile)
+    #output dirs
+    ddir, fdir, tdir = cfg['ddir'], cfg['fdir'], cfg['tdir']
+    os.makedirs(ddir, exist_ok=True)
+    os.makedirs(fdir, exist_ok=True)
+    os.makedirs(tdir, exist_ok=True)
+    #constans
+    obss, rcms, rcms_, mD = cfg['obss'], cfg['rcms'], cfg['rcms_'], cfg['m']
+    rcms_.sort()
+    rcp, ref, rgDs = cfg['rcp'], cfg['ref'], cfg['rgDs']
+    idir, idir_ = cfg['idir']['obss'], cfg['idir']['rcms']
+    rgD_eur = rgDs['eur']
+    #loop variables
+    if args.test:
+        rr = ['eur']
+        vv = ['hwmid-tx']
+        ff = ['j-d']
+        yy = ['mean']
+    else:
+        #rr = cfg['rgs']
+        #vv = ['hwmid-tx', 'hwmid-tn', 'wsdi-tx', 'wsdi-tn']
+        #ff = ['j-d', 'mjja', 'ndjf']
+        rr = ['eur']
+        vv = ['hwmid-tx', 'hwmid-tn', 'wsdi-tx']
+        ff = ['j-d']
+        yy = [1994, 2003, 2006, 2007, 'mean', 'g15']
+        #yy = ['mean']
+    #loop 0
+    for var in vv:
+        print('{}'.format(var))
+        #loop 1
+        for freq in ff:
+            print('  {}'.format(freq))
+            y0y1 = [1990, 2008] if freq == 'ndjf' else [1989, 2008]
+            epcD = {} if freq == 'j-d' else dict(ccsn='seasonyr', mmm=freq)
+            lD = dict(var=var, ref=ref, freq=freq, y0y1=y0y1, epcD=epcD)
+            (clo, obss0) = _cl(idir, obss, mD, **lD)
+            (clr, rcms0)= _cl(idir_, rcms_, mD, rcp=rcp, **lD)
+            for year in yy:
+                if isinstance(year, str) and year[0] == 'g':
+                    hh = range(1, 6)
+                    if var[0] == 'w':
+                        continue
+                elif year == 'mean':
+                    hh = range(6, 11)
+                else:
+                    hh = range(6, 16)
+                vl = _vlabel(var, year)
+                ffmt = '{}{}_{}_ref{}-{}_{}_{}.txt'
+                print('    {} map'.format(year))
+                _mp(
+                    ffmt.format(tdir, 'mp', var, *ref, freq, year),
+                    clo, clr, obss0, rcms0, year, mD
+                    )
+
+
+if __name__ == '__main__':
+    main()

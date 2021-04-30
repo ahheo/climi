@@ -156,7 +156,7 @@ def _mp22(fn, cgL, cgL1, crLL, crLL1, gcms, rcms, prds, pD, dpD, rgD, vl):
     axs, axs_, pchs, pchs_ = [], [], [], []
     for i, (cubeL, yi, dy) in enumerate(zip(cubeLL, prds * 2,
                                             [0, 0, -.02, -.02])):
-        for ii, (cube, xi) in enumerate(zip(cubeL, ['GCM'] + rcms)):
+        for ii, (cube, xi) in enumerate(zip(cubeL, ['Driving data'] + rcms)):
             xi_ = xi if i == 0 else None
             yi_ = yi if ii == 0 else None
             pD_.update(dpD if dy != 0 else pD)
@@ -169,9 +169,9 @@ def _mp22(fn, cgL, cgL1, crLL, crLL1, gcms, rcms, prds, pD, dpD, rgD, vl):
                     axs.append(ax)
                     pchs.append(pch)
                 _tx_rgmean(fig, ax, cube, rgD)
-    axs_abc_(fig, axs, '(a)', dx=.025)                                          
+    axs_abc_(fig, axs, '(a)')                                          
     aligned_tx_(fig, axs, 'mean', rpo='lc', itv=.03, **tiD)
-    axs_abc_(fig, axs_, '(b)', dx=.025)                                          
+    axs_abc_(fig, axs_, '(b)')                                          
     aligned_tx_(fig, axs_, 'spread', rpo='lc', itv=.03, **tiD)
     cbw = wspace_ax_(*axs[-2:])
     cb = aligned_cb_(fig, axs, pchs[-1], [cbw, .02],
@@ -211,6 +211,7 @@ def main():
     ff = ['j-d']
     yy = ['g15', 'mean', 'p10', 'p50', 'p90']
     pp = [[1981, 2020], [2021, 2060], [2061, 2100]]
+    #vv = ['hwmid-tn']
     #loop 0
     for var in vv:
         print('{}'.format(var))

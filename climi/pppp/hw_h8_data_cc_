@@ -1,0 +1,194 @@
+#!/usr/bin/env python3
+
+import numpy as np
+import yaml
+import os
+import warnings
+import iris
+from climi.pppp import *
+from climi.uuuu import *
+
+
+_here_ = get_path_(__file__)
+
+
+def _msk(cube, dn, fxdir):
+    if fxdir:
+        fn = schF_keys_(fxdir, '_{}_'.format(dn), 'sftlf')
+        if fn:
+            sftlf = iris.load_cube(fn[0])
+            maskLS_cube(cube, sftlf, thr=50)
+
+
+def _clcdx(idir, gcms, rcms, mD, var0, var1, ref, lD, ddir, rgD, fxdir=None):
+    ffmt0 = '{}cc_r_{}_{}_{}-{}_{}_{}-{}.nc'
+    for gcm in gcms:
+        for rcm in rcms:
+            print('cc(), {}-{}'.format(gcm, rcm))
+            tmp0 = load_h248_(idir, m=(mD[gcm], mD[rcm]), var=var0, ref=ref,
+                              **lD)
+            tmp1 = load_h248_(idir, m=(mD[gcm], mD[rcm]), var=var1, **lD)
+            if tmp0 and tmp1:
+                if len(tmp0[0]) > 1 or len(tmp1[0]) > 1:
+                    warnings.warn("multiple files found; first one selected!")
+                o = _cc2cube(tmp0[0][0], tmp1[0][0])
+                _msk(o, mD[rcm], fxdir)
+                fn_ = ffmt0.format(ddir, gcm, rcm,                      
+                                   *lD['y0y1'], lD['freq'],                 
+                                   var0, var1)
+                print('save to {}'.format(fn_))
+                cubesv_(o, fn_)
+            else:
+                warnings.warn("None files found; return None instead!")
+
+
+def _clcmp(idir, gcms, mD, var0, var1, ref, lD, ddir, rgD,
+           go_='g', fxdir=None):
+    ffmt0 = '{}cc_{}_{}_{}-{}_{}_{}-{}.nc'
+    for gcm in gcms:
+        print('cc(), {}'.format(gcm))
+        tmp0 = load_h248_(idir, m=gcm if go_=='g' else mD[gcm],
+                          var=var0, ref=ref, **lD)
+        tmp1 = load_h248_(idir, m=gcm if go_=='g' else mD[gcm], var=var1, **lD)
+        if tmp0 and tmp1:
+            if len(tmp0[0]) > 1 and len(tmp1[0]) > 1:
+                warnings.warn("multiple files found; first one selected!")
+            o = _cc2cube(tmp0[0][0], tmp1[0][0])
+            _msk(o, gcm, fxdir)
+            fn_ = ffmt0.format(ddir, go_, gcm,                      
+                               *lD['y0y1'], lD['freq'],                 
+                               var0, var1)
+            print('save to {}'.format(fn_))
+            cubesv_(o, fn_)
+        else:
+            warnings.warn("None files found; return None instead!")
+
+
+def _checktime(c0, c1):
+    yy0, yy1 = y0y1_of_cube(c0), y0y1_of_cube(c1)
+    if not np.array_equal(yy0, yy1):
+        return [max(yy0[0], yy1[0]), min(yy0[1], yy1[1])]
+
+
+def _checkspace(c0, c1):
+    x0, y0 = get_xy_dim_(c0)
+    x1, y1 = get_xy_dim_(c1)
+    if not (np.array_equal(x0.points, x1.points) and
+            np.array_equal(y0.points, y1.points)):
+        if x0.shape != x1.shape or y0.shape != y1.shape:
+            return True
+        elif (np.max(np.abs(x0.points - x1.points)) > 1e-10 or 
+              np.max(np.abs(y0.points - y1.points)) > 1e-10):
+            return True
+        else:
+            replace_coord_(c1, x0) 
+            replace_coord_(c1, y0) 
+
+
+def _cc2cube(c0, c1):
+    from iris.analysis.stats import pearsonr
+    yy = _checktime(c0, c1)
+    if yy:
+        print('>>>>>>>>>>> Proccess Extract')
+        c0 = extract_period_cube(c0, *yy)
+        c1 = extract_period_cube(c1, *yy)
+    rgd_ = _checkspace(c0, c1)
+    if rgd_:
+        print('>>>>>>>>>>> Proccess Regrid')
+        c1 = rgd_li_opt0_(c1, c0, ctm=True)
+    rm_t_aux_cube((c0, c1))
+    replace_coord_(c1, c0.coord('time'))
+    return pearsonr(c0, c1, corr_coords='time', common_mask=True)
+
+
+def _t1cube(c, mtd):
+    if isinstance(mtd, str):
+        if mtd[0] == 'g':
+            tmp = c.collapsed('time', iris.analysis.COUNT,
+                              function=lambda x: x >= int(mtd[1:]))
+            return tmp.copy(tmp.data * 100 /c.shape[axT_cube(c)])
+        elif mtd[0] == 'p':
+            return c.collapsed('time', iris.analysis.PERCENTILE,
+                               percent=float(mtd[1:]))
+        elif mtd == 'mean':
+            return c.collapsed('time', iris.analysis.MEAN)
+        elif mtd[:4] == 'sumG':
+            data_ = np.where(c.data<int(mtd[4:]), 0, c.data)
+            return c.copy(data_).collapsed('time', iris.analysis.SUM)
+        elif mtd == 'std':
+            return c.collapsed('time', iris.analysis.STD_DEV)
+    else:
+        return extract_period_cube(c, mtd, mtd)
+
+
+def _m1cube(c, rgD, mtd):
+    if mtd == 'mean':
+        return rgMean_cube(c, rgD=rgD)
+    elif mtd[0] == 'p':
+        return rgF_cube(c, iris.analysis.PERCENTILE, percent=float(mtd[1:]),
+                        rgD=rgD)
+    elif mtd[0] == 'g':
+        return rgCount_cube(c, function=lambda x: x >= int(mtd[1:]), rgD=rgD)
+
+
+def main():
+    #warnings.filterwarnings("ignore", category=UserWarning)
+    with open(_here_ + 'cfg_plt_hwmid_h8.yml', 'r') as ymlfile:
+        cfg = yaml.safe_load(ymlfile)
+    #output dirs
+    ddir = cfg['ddir']
+    #constans
+    obss = cfg['obss']
+    gcms = cfg['gcms_']
+    #gcms = ['MPI-ESM-LR']
+    rcms = cfg['rcms_']
+    #rcms = ['HIRHAM5']
+    rcms.sort()
+    mD = cfg['m']
+    rcp, ref, rgDs = cfg['rcp'], cfg['ref'], cfg['rgDs']
+    idir = cfg['idir']['obss']
+    idir_ = cfg['idir']['gcms']
+    idir__ = cfg['idir']['rcms']
+    rgD_eur = rgDs['eur']
+    fxdir = '/nobackup/rossby22/sm_chali/DATA/fx/'
+    #loop variables
+    vv = ['hwmid-tx']
+    ff = ['j-d']
+    yy = ['g15', 'mean', 'std', 'p10', 'p50', 'p90']
+    tt = ['mean', 'g15']
+    pp = [[1981, 2020], [2021, 2060], [2061, 2100]]
+    VV = ['DryDays']
+    #vv = ['DryDays', 'TX', 'TN']
+    #vv = ['EffPR']
+    #ff = ['year']
+    #yy = ['mean']
+    #tt = []
+    #loop 0
+    for var0 in vv:
+        print('{}'.format(var0))
+        #loop 1
+        for var1 in VV:
+            print('{}'.format(var1))
+            for freq in ff:
+                print('  {}'.format(freq))
+                epcD = dict(ccsn='year') if freq in ('j-d', 'year') else\
+                       dict(ccsn='seasonyr', mmm=freq)
+                for y0y1 in pp:
+                    print('    {}-{}'.format(*y0y1))
+                    lD = dict(freq=freq, y0y1=y0y1, epcD=epcD)
+                    #print('      RCM')
+                    #_clcdx(idir__, gcms, rcms, mD, var0, var1, ref,
+                    #       dict(rcp=rcp, **lD),
+                    #       ddir, rgD_eur, fxdir=fxdir)
+                    print('      GCM')
+                    _clcmp(idir_, gcms, mD, var0, var1, ref,
+                           dict(rcp=rcp, **lD),
+                           ddir, rgD_eur, fxdir=fxdir)
+                    if y0y1[1] < 2021:
+                        print('      OBS')
+                        _clcmp(idir, obss, mD, var0, var1, ref, lD,
+                               ddir, rgD_eur, 'o', fxdir=fxdir)
+
+
+if __name__ == '__main__':
+    main()

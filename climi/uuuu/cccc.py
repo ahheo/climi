@@ -56,6 +56,7 @@
 * purefy_cubeL_         : prepare for concat or merge
 * repair_cs_            : bug fix for save cube to nc
 * repair_lccs_          : bug fix for save cube to nc (LamgfortComfort)
+* replace_coord_        : replace coord data according to coord.name()
 * rgCount_cube          : regional count
 * rgCount_poly_cube     : regional count over in polygon only
 * rgF_cube              : regional function
@@ -147,6 +148,7 @@ __all__ = ['alng_axis_',
            'purefy_cubeL_',
            'repair_cs_',
            'repair_lccs_',
+           'replace_coord_',
            'rgCount_cube',
            'rgCount_poly_cube',
            'rgF_cube',
@@ -429,7 +431,7 @@ def extract_month_cube(cube, Mmm):
 
 
 def f_allD_cube(cube, rg=None, f='MAX', **f_opts):
-    warnings.filterwarnings("ignore", category=UserWarning)
+    #warnings.filterwarnings("ignore", category=UserWarning)
     if isinstance(cube, iris.cube.Cube):
         if rg:
             cube = intersection_(cube, **rg)
@@ -874,7 +876,7 @@ def getGridAL_cube(cubeD, sftlf=None, areacella=None):
 
 
 def rgF_cube(cubeD, function, rgD=None, **functionD):
-    warnings.filterwarnings("ignore", category=UserWarning)
+    #warnings.filterwarnings("ignore", category=UserWarning)
     if rgD:
         ind = _get_ind_lolalim(cubeD, **rgD)
         tmp = iris.util.mask_cube(cubeD.copy(), ~ind)
@@ -885,7 +887,7 @@ def rgF_cube(cubeD, function, rgD=None, **functionD):
 
 
 def rgF_poly_cube(cubeD, poly, function, **functionD):
-    warnings.filterwarnings("ignore", category=UserWarning)
+    #warnings.filterwarnings("ignore", category=UserWarning)
     ind = inpolygons_cube(poly, cubeD, **kwArgs)
     tmp = iris.util.mask_cube(cubeD.copy(), ~ind)
     xc, yc = get_xy_dim_(tmp)
@@ -893,7 +895,7 @@ def rgF_poly_cube(cubeD, poly, function, **functionD):
 
 
 def rgCount_cube(cubeD, sftlf=None, areacella=None, rgD=None, function=None):
-    warnings.filterwarnings("ignore", category=UserWarning)
+    #warnings.filterwarnings("ignore", category=UserWarning)
     if function is None:
         function = lambda values: values > 0
         warnings.warn("'function' not provided; count values greater than 0.")
@@ -919,7 +921,7 @@ def rgCount_cube(cubeD, sftlf=None, areacella=None, rgD=None, function=None):
 
 def rgCount_poly_cube(cubeD, poly, sftlf=None, areacella=None, function=None,
                       **kwArgs):
-    warnings.filterwarnings("ignore", category=UserWarning)
+    #warnings.filterwarnings("ignore", category=UserWarning)
     if function is None:
         function = lambda values: values > 0
         warnings.warn("'function' not provided; count values greater than 0.")
@@ -944,7 +946,7 @@ def rgMean_cube(cubeD, sftlf=None, areacella=None, rgD=None):
     """
     ... regional mean; try weighted if available ...
     """
-    warnings.filterwarnings("ignore", category=UserWarning)
+    #warnings.filterwarnings("ignore", category=UserWarning)
     ga = getGridAL_cube(cubeD, sftlf, areacella)
     if rgD:
         ind = _get_ind_lolalim(cubeD, **rgD)
@@ -1041,7 +1043,7 @@ def maskPOLY_cube(poly, cube, masked_out=True, **kwArgs):
 
 
 def rgMean_poly_cube(cubeD, poly, sftlf=None, areacella=None, **kwArgs):
-    warnings.filterwarnings("ignore", category=UserWarning)
+    #warnings.filterwarnings("ignore", category=UserWarning)
     ga = getGridAL_cube(cubeD, sftlf, areacella)
     ind = inpolygons_cube(poly, cubeD, **kwArgs)
     xc, yc = get_xy_dim_(cubeD)
@@ -1524,25 +1526,32 @@ def pSTAT_cube(cube, method, *freq, valid_season=True, **method_otps):
                       'PROPORTION', 'STD_DEV', 'RMS', 'VARIANCE', 'HMEAN',
                       'COUNT', 'PEAK']:
         raise Exception('method {} unknown!'.format(method))
-    if (len(freq) == 0 or
-        not any([x in ['day', 'month', 'season', 'year'] for x in freq])):
+    freqs = uniqL_(flt_l([i.split('-') if '-' in i else i for i in freq]))
+    if (len(freqs) == 0 or
+        not any([x in ['hour', 'day', 'month', 'season', 'year']
+                 for x in freqs])):
         freq = ('year',)
-    if 'year' in freq or 'month' in freq or 'day' in freq:
+    if any(i in freqs for i in ('hour', 'day', 'month', 'year')):
         try:
             cat.add_year(cube, 'time', name='year')
         except ValueError:
             pass
-    if 'day' in freq:
+    if 'hour' in freqs:
+        try:
+            cat.add_hour(cube, 'time', name='hour')
+        except ValueError:
+            pass
+    if 'day' in freqs:
         try:
             cat.add_day_of_year(cube, 'time', name='doy')
         except ValueError:
             pass
-    if 'month' in freq:
+    if 'month' in freqs:
         try:
             cat.add_month(cube, 'time', name='month')
         except ValueError:
             pass
-    if 'season' in freq:
+    if 'season' in freqs:
         try:
             cat.add_season(cube, 'time', name='season',
                            seasons=('djf', 'mam', 'jja', 'son'))
@@ -1553,15 +1562,24 @@ def pSTAT_cube(cube, method, *freq, valid_season=True, **method_otps):
                                 seasons=('djf', 'mam', 'jja', 'son'))
         except ValueError:
             pass
-    d = dict(year='year', season=('season', 'seasonyr'),
-             month=('month', 'year'), day=('doy', 'year'))
+    d = dict(year='year',
+             season=('season', 'seasonyr'),
+             month=('month', 'year'),
+             day=('doy', 'year'),
+             hour=('hour', 'year'))
     o = ()
-    for ff in freq:
-        tmp = cube.aggregated_by(d[ff], eval('iris.analysis.' + method),
+    for ff in [i.split('-') if '-' in i else i for i in freq]:
+        if isinstance(ff, str):
+            dff = d[ff]
+        else:
+            dff = uniqL_(flt_l([d[i] for i in ff]))
+            if 'seasonyr' in dff:
+                dff.remove('year')
+        tmp = cube.aggregated_by(dff, eval('iris.analysis.' + method),
                                  **method_otps)
         if ff == 'season' and valid_season:
             tmp = extract_byAxes_(tmp, 'time', np.s_[1:-1])
-        rm_t_aux_cube(tmp, keep=d[ff])
+        rm_t_aux_cube(tmp, keep=dff)
         o += (tmp,)
     return o[0] if len(o) == 1 else o
 
@@ -1725,4 +1743,21 @@ def nine_points_cube(cube, longitude, latitude):
             ii += 1
         ind[i] = ind_ + ii
     return cube[tuple(ind)]
-            
+
+
+def replace_coord_(cube, new_coord):
+    """
+    Replace the coordinate whose metadata matches the given coordinate.
+
+    """
+    old_coord = cube.coord(new_coord.name())
+    dims = cube.coord_dims(old_coord)
+    was_dimensioned = old_coord in cube.dim_coords
+    cube._remove_coord(old_coord)
+    if was_dimensioned and isinstance(new_coord, iris.coords.DimCoord):
+        cube.add_dim_coord(new_coord, dims[0])
+    else:
+        cube.add_aux_coord(new_coord, dims)
+
+    for factory in cube.aux_factories:
+        factory.update(old_coord, new_coord)

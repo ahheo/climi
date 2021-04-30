@@ -333,7 +333,7 @@ def aligned_cb_(fig, ax, ppp, iw,
 def axs_abc_(fig, ax, s='(a)', dx=.005, dy=.005,
              fontdict=dict(fontweight='bold'), **kwArgs):
     xmin, _, _, ymax = _minmaxXYlm(ax)
-    kD = dict(ha='right')
+    kD = dict(ha='right') if dx > 0 else dict(ha='left')
     kD.update(kwArgs)
     fig.text(xmin - dx, ymax + dy, s, fontdict=fontdict, **kD)
 

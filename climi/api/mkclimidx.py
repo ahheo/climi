@@ -7,6 +7,7 @@ import iris.coord_categorisation as cat
 import os
 import yaml
 import time
+import warnings
 import logging
 import argparse
 
@@ -16,127 +17,320 @@ from time import localtime, strftime
 _here_ = get_path_(__file__)
 
 
-i__ = {'ET': (1, 0, ['et'], None, ['year']),
-       'HumiWarmDays': (2, 1, ['hurs', 't'], dHumiWarmDays_cube, ['season']),
-       'EffPR': (3, 0, ['et', 'pr'], None, ['season', 'year']),
-       'PR7Dmax': (4, 1, ['pr'], dPr7_, ['year']),
-       'LnstDryDays': (5, 1, ['pr'], dLongestDryDays_, ['season']),
-       'DryDays': (6, 1, ['pr'], dDryDays_, ['month']),
-       'PR': (7, 0, ['pr'], None, ['season', 'year']),
-       #'PR': (7, 0, ['pr'], None, ['month']),
-       'PRmax': (8, 1, ['pr'], 'MAX', ['month', 'year']),
-       #'PRmax': (8, 1, ['pr'], 'MAX', ['month']),
-       'PRRN': (9, 0, ['pr', 'prsn'], None, ['season', 'year']),
-       'PRSN': (10, 0, ['pr', 'prsn'], None, ['season', 'year']),
-       'NetRO': (11, 0, ['ro'], None, ['year']),
-       'SD': (12, 0, ['sd'], None, ['year']),
-       'RLDS': (13, 0, ['rl'], None, ['season']),
-       'RSDS': (14, 0, ['rs'], None, ['season']),
-       'CoolingDegDay': (15, 1, ['tx'], dDegDay_, ['month', 'year']),
-       'ConWarmDays': (16, 1, ['tx'], dConWarmDays_, ['year']),
-       'TX': (17, 0, ['tx'], None, ['season', 'year']),
-       #'TX': (17, 0, ['tx'], None, ['month']),
-       'WarmDays': (18, 1, ['tx'], dWarmDays_, ['season', 'year']),
-       'ColdDays': (19, 1, ['tx'], dColdDays_, ['season', 'year']),
-       'DegDay20': (20, 1, ['t'], dDegDay_, ['year']),
-       'DegDay8': (21, 1, ['t'], dDegDay8_vegSeason_, ['year']),
-       'DegDay17': (22, 1, ['t'], dDegDay_, ['year']),
-       'TN': (23, 0, ['tn'], None, ['season', 'year']),
-       #'TN': (23, 0, ['tn'], None, ['month']),
-       'SpringFrostDayEnd': (24, 1, ['tn'], dEndSpringFrost_, ['year']),
-       'FrostDays': (25, 1, ['tn'], dFrostDays_, ['season', 'year']),
-       'TropicNights': (26, 1, ['tn'], dTropicNights_, ['year']),
-       #'ZeroCrossingDays': (27, 1, ['tx', 'tn'],
-       #                     dZeroCrossingDays_cube, ['year']),
-       'ZeroCrossingDays': (27, 1, ['tx', 'tn'],
-                            dZeroCrossingDays_cube, ['season']), # SVT_ERIK
-       'VegSeasonDayEnd-5': (28, 1, ['t'], dStartEndVegSeason_, ['year']),
-       'VegSeasonDayEnd-2': (29, 1, ['t'], dStartEndVegSeason_, ['year']),
-       'VegSeasonDayStart-5': (30, 1, ['t'], dStartEndVegSeason_, ['year']),
-       'VegSeasonDayStart-2': (31, 1, ['t'], dStartEndVegSeason_, ['year']),
-       'VegSeasonLength-5': (32, 1, ['t'], dStartEndVegSeason_, ['year']),
-       'VegSeasonLength-2': (33, 1, ['t'], dStartEndVegSeason_, ['year']),
-       #'SfcWind': (34, 1, ['ws'], None, ['month', 'season', 'year']),
-       'SfcWind': (34, 1, ['ws'], None, ['month']),
-       'WindGustMax': (35, 1, ['wsgs'], 'MAX', ['year']),
-       'WindyDays': (36, 1, ['wsgs'], dWindyDays_, ['season', 'year']),
-       'PRgt10Days': (37, 1, ['pr'], dExtrPrDays_, ['season', 'year']),
-       'PRgt25Days': (38, 1, ['pr'], dExtrPrDays_, ['season', 'year']),
-       'SncDays': (39, 1, ['snc'], dSncDays_, ['year']),
-       'Snd10Days': (40, 1, ['snd'], dSndGT10LE20Days_, ['year']),
-       'Snd20Days': (41, 1, ['snd'], dSndGT10LE20Days_, ['year']),
-       'SNWmax': (42, 1, ['snw'], 'MAX', ['year']),
-       'TAS': (43, 0, ['t'], None, ['season', 'year']),
-       #'TAS': (43, 0, ['t'], None, ['month']),
-       'DTR': (44, 0, ['tx', 'tn'], mDTR_, ['month']),
-       'Rho925': (45, 1, ['t925', 'hus925', 'ps'], None, ['month']),
-       'RhoS': (46, 1, ['t', 'huss', 'ps'], None, ['month']),
-       'SuperCooledPR': (47, 1, ['t', 'pr', 'ps', 't925', 't850', 't700',
-                                 'hus925', 'hus850', 'hus700'],
-                         dFreezRainDays_, ['year']),
-       'Snc25Days': (48, 1, ['snc'], dSncDays_, ['year']),
-       #'R5OScw': (49, 1, ['pr', 't', 'prsn', 'snc', 'snw']),
-       #'R1OScw': (50, 1, ['pr', 't', 'prsn', 'snc', 'snw']),
-       #'R5OSc': (51, 1, ['pr', 't', 'prsn', 'snc']),
-       #'R1OSc': (52, 1, ['pr', 't', 'prsn', 'snc']),
-       'R5OScw': (49, 1, ['pr', 't', 'snc', 'snw'], dRainOnSnow_, ['year']),
-       'R1OScw': (50, 1, ['pr', 't', 'snc', 'snw'], dRainOnSnow_, ['year']),
-       'R5OSc': (51, 1, ['pr', 't', 'snc'], dRainOnSnow_, ['year']),
-       'R1OSc': (52, 1, ['pr', 't', 'snc'], dRainOnSnow_, ['year']),
-       'PRSNmax': (53, 1, ['prsn'], 'MAX', ['year']),
-       'CalmDays': (54, 1, ['ws'], dCalmDays_, ['season', 'year']),
-       'ConCalmDays': (55, 1, ['ws'], dConCalmDays_, ['year']),
-       'Wind975': (56, 1, ['u975', 'v975', 'ps'],
-                   None, ['month', 'season', 'year']),
-       'Wind975toSfc': (57, 1, ['u975', 'v975', 'ws', 'ps'],
-                        None, ['season', 'year']),
-       'ColdRainDays': (58, 1, ['pr', 't'], dColdRainDays_, ['year']),
-       'ColdRainGT10Days': (59, 1, ['pr', 't'], dColdRainDays_, ['year']),
-       'ColdRainGT20Days': (60, 1, ['pr', 't'], dColdRainDays_, ['year']),
-       'WarmSnowDays': (61, 1, ['pr', 't'], dWarmSnowDays_, ['year']),
-       'WarmSnowGT10Days': (62, 1, ['pr', 't'], dWarmSnowDays_, ['year']),
-       'WarmSnowGT20Days': (63, 1, ['pr', 't'], dWarmSnowDays_, ['year']),
-       'ColdPRRNdays': (64, 1, ['pr', 't', 'prsn'], dColdPRRNdays_, ['year']),
-       'ColdPRRNgt10Days': (65, 1, ['pr', 't', 'prsn'],
-                            dColdPRRNdays_, ['year']),
-       'ColdPRRNgt20Days': (66, 1, ['pr', 't', 'prsn'],
-                            dColdPRRNdays_, ['year']),
-       'WarmPRSNdays': (67, 1, ['t', 'prsn'], dWarmPRSNdays_, ['year']),
-       'WarmPRSNgt10Days': (68, 1, ['t', 'prsn'], dWarmPRSNdays_, ['year']),
-       'WarmPRSNgt20Days': (69, 1, ['t', 'prsn'], dWarmPRSNdays_, ['year']),
-       'SST': (70, 0, ['sst'], None, ['season', 'year']),
-       'SIC': (71, 0, ['sic'], None, ['season', 'year']),
-       'Rho975': (72, 1, ['t975', 'hus975', 'ps'], None, ['month']),
-       'hSuperCooledPR': (73, 2, ['t', 'pr', 'ps', 't925', 't850', 't700',
-                                  'hus925', 'hus850', 'hus700'],
-                          dFreezRainDays_, ['year']),
-       'Wind925': (74, 1, ['u925', 'v925', 'ps'],
-                   None, ['month', 'season', 'year']),
-       'Wind925toSfc': (75, 1, ['u925', 'v925', 'ws', 'ps'],
-                        None, ['season', 'year']),
-       'FirstDayWithoutFrost': (76, 1, ['tn'],
-                                dFirstDayWithoutFrost_, ['year']),
-       'CalmDays925': (77, 1, ['u925', 'v925', 'ps'], dCalmDays_, ['year']),
-       'ConCalmDays925': (78, 1, ['u925', 'v925', 'ps'],
-                          dConCalmDays_, ['year']),
-       'CalmDays975': (79, 1, ['u975', 'v975', 'ps'], dCalmDays_, ['year']),
-       'ConCalmDays975': (80, 1, ['u975', 'v975', 'ps'],
-                          dConCalmDays_, ['year']),
-       'MinusDays': (81, 1, ['t'], dMinusDays_, ['year']),
-       'FreezingDays': (82, 1, ['tx'], dFreezingDays_, ['year']),
-       'ColdRainWarmSnowDays': (83, 1, ['pr', 't'],
-                                dColdRainWarmSnowDays_, ['year'])}
+#INDEX DICT: FORMAT:
+#    NAME: (#, TR_i, VARIABLES, FUNCTION, TR_o, GROUPS)
+#where TR_i, TR_o are input and output temporal resolution.
+i__ = {
+    'ET': (1, 0, ['et'],
+        None, ['year'], 'p'),
+    'HumiWarmDays': (2, 1, ['hurs', 't'],
+        dHumiWarmDays_cube, ['season'], 'ht'),
+    'EffPR': (3, 0, ['et', 'pr'],
+        None, ['season', 'year'], 'p'),
+    'PR7Dmax': (4, 1, ['pr'],
+        dPr7_, ['year'], 'p'),
+    'LnstDryDays': (5, 1, ['pr'],
+        dLongestDryDays_, ['season'], 'p'),
+    #'DryDays': (6, 1, ['pr'],
+    #    dDryDays_, ['month'], 'p'),
+    'DryDays': (6, 1, ['pr'],
+        dDryDays_, ['year'], 'p'),
+    'PR': (7, 0, ['pr'],
+        None, ['season', 'year'], 'p'),
+    #'PR': (7, 0, ['pr'],
+    #    None, ['month'], 'p'),
+    'PRmax': (8, 1, ['pr'],
+        'MAX', ['month', 'year'], 'p'),
+    #'PRmax': (8, 1, ['pr'],
+    #    'MAX', ['month'], 'p'),
+    'PRRN': (9, 0, ['pr', 'prsn'],
+        None, ['season', 'year'], 'p'),
+    'PRSN': (10, 0, ['pr', 'prsn'],
+        None, ['season', 'year'], 'p'),
+    'NetRO': (11, 0, ['ro'],
+        None, ['year'], 'p'),
+    'SD': (12, 0, ['sd'],
+        None, ['year'], 's'),
+    'RLDS': (13, 0, ['rl'],
+        None, ['season'], 's'),
+    'RSDS': (14, 0, ['rs'],
+        None, ['season'], 's'),
+    'CoolingDegDay': (15, 1, ['tx'],
+        dDegDay_, ['month', 'year'], 't'),
+    'ConWarmDays': (16, 1, ['tx'],
+        dConWarmDays_, ['year'], 't'),
+    'TX': (17, 0, ['tx'],
+        None, ['year'], 't'),
+    #'TX': (17, 0, ['tx'],
+    #    None, ['season', 'year'], 't'),
+    #'TX': (17, 0, ['tx'],
+    #    None, ['month'], 't'),
+    'WarmDays': (18, 1, ['tx'],
+        dWarmDays_, ['season', 'year'], 't'),
+    'ColdDays': (19, 1, ['tx'],
+        dColdDays_, ['season', 'year'], 't'),
+    'DegDay20': (20, 1, ['t'],
+        dDegDay_, ['year'], 't'),
+    'DegDay8': (21, 1, ['t'],
+        dDegDay8_vegSeason_, ['year'], 't'),
+    'DegDay17': (22, 1, ['t'],
+        dDegDay_, ['year'], 't'),
+    'TN': (23, 0, ['tn'],
+        None, ['year'], 't'),
+    #'TN': (23, 0, ['tn'],
+    #    None, ['season', 'year'], 't'),
+    #'TN': (23, 0, ['tn'],
+    #    None, ['month'], 't'),
+    'SpringFrostDayEnd': (24, 1, ['tn'],
+        dEndSpringFrost_, ['year'], 't'),
+    'FrostDays': (25, 1, ['tn'],
+        dFrostDays_, ['season', 'year'], 't'),
+    'TropicNights': (26, 1, ['tn'],
+        dTropicNights_, ['year'], 't'),
+    #'ZeroCrossingDays': (27, 1, ['tx', 'tn'],
+    #    dZeroCrossingDays_cube, ['year'], 't'),
+    'ZeroCrossingDays': (27, 1, ['tx', 'tn'],
+        dZeroCrossingDays_cube, ['season'], 't'), # SVT_ERIK
+    'VegSeasonDayEnd-5': (28, 1, ['t'],
+        dStartEndVegSeason_, ['year'], 't'),
+    'VegSeasonDayEnd-2': (29, 1, ['t'],
+        dStartEndVegSeason_, ['year'], 't'),
+    'VegSeasonDayStart-5': (30, 1, ['t'],
+        dStartEndVegSeason_, ['year'], 't'),
+    'VegSeasonDayStart-2': (31, 1, ['t'],
+        dStartEndVegSeason_, ['year'], 't'),
+    'VegSeasonLength-5': (32, 1, ['t'],
+        dStartEndVegSeason_, ['year'], 't'),
+    'VegSeasonLength-2': (33, 1, ['t'],
+        dStartEndVegSeason_, ['year'], 't'),
+    'SfcWind': (34, 1, ['ws', 'us', 'vs'],
+        None, ['month', 'season', 'year'], 'w'),
+    #'SfcWind': (34, 1, ['ws', 'us', 'vs'],
+    #    None, ['month'], 'w'),
+    'WindGustMax': (35, 1, ['wsgs'],
+        'MAX', ['year'], 'w'),
+    'WindyDays': (36, 1, ['wsgs'],
+        dWindyDays_, ['season', 'year'], 'w'),
+    'PRgt10Days': (37, 1, ['pr'],
+        dExtrPrDays_, ['season', 'year'], 'p'),
+    'PRgt25Days': (38, 1, ['pr'],
+        dExtrPrDays_, ['season', 'year'], 'p'),
+    'SncDays': (39, 1, ['snc'],
+        dSncDays_, ['year'], 'p'),
+    'Snd10Days': (40, 1, ['snd'],
+        dSndGT10LE20Days_, ['year'], 'p'),
+    'Snd20Days': (41, 1, ['snd'],
+        dSndGT10LE20Days_, ['year'], 'p'),
+    'SNWmax': (42, 1, ['snw'],
+        'MAX', ['year'], 'p'),
+    'TAS': (43, 0, ['t'],
+        None, ['year'], 't'),
+    #'TAS': (43, 0, ['t'],
+    #    None, ['season', 'year'], 't'),
+    #'TAS': (43, 0, ['t'],
+    #    None, ['month'], 't'),
+    'DTR': (44, 0, ['tx', 'tn'],
+        mDTR_, ['month'], 't'),
+    'Rho925': (45, 1, ['t925', 'hus925', 'ps'],
+        None, ['month'], 'w'),
+    'RhoS': (46, 1, ['t', 'huss', 'ps'],
+        None, ['month'], 'w'),
+    'SuperCooledPR': (47, 1, ['t', 'pr', 'ps', 't925', 't850', 't700',
+                              'hus925', 'hus850', 'hus700'],
+        dFreezRainDays_, ['year'], 'p'),
+    'Snc25Days': (48, 1, ['snc'],
+        dSncDays_, ['year'], 'p'),
+    'R5OScw': (49, 1, ['pr', 't', 'snc', 'snw'],
+        dRainOnSnow_, ['year'], 'p'),
+    'R1OScw': (50, 1, ['pr', 't', 'snc', 'snw'],
+        dRainOnSnow_, ['year'], 'p'),
+    'R5OSc': (51, 1, ['pr', 't', 'snc'],
+        dRainOnSnow_, ['year'], 'p'),
+    'R1OSc': (52, 1, ['pr', 't', 'snc'],
+        dRainOnSnow_, ['year'], 'p'),
+    'PRSNmax': (53, 1, ['prsn'],
+        'MAX', ['year'], 'p'),
+    'CalmDays': (54, 1, ['ws', 'us', 'vs'],
+        dCalmDays_, ['season', 'year'], 'w'),
+    'ConCalmDays': (55, 1, ['ws', 'us', 'vs'],
+        dConCalmDays_, ['year'], 'w'),
+    'Wind975': (56, 1, ['u975', 'v975', 'ps'],
+        None, ['month', 'season', 'year'], 'w'),
+    'Wind975toSfc': (57, 1, ['u975', 'v975', 'ws', 'ps', 'us', 'vs'],
+        None, ['season', 'year'], 'w'),
+    'ColdRainDays': (58, 1, ['pr', 't'],
+        dColdRainDays_, ['year'], 'p'),
+    'ColdRainGT10Days': (59, 1, ['pr', 't'],
+        dColdRainDays_, ['year'], 'p'),
+    'ColdRainGT20Days': (60, 1, ['pr', 't'],
+        dColdRainDays_, ['year'], 'p'),
+    'WarmSnowDays': (61, 1, ['pr', 't'],
+        dWarmSnowDays_, ['year'], 'p'),
+    'WarmSnowGT10Days': (62, 1, ['pr', 't'],
+        dWarmSnowDays_, ['year'], 'p'),
+    'WarmSnowGT20Days': (63, 1, ['pr', 't'],
+        dWarmSnowDays_, ['year'], 'p'),
+    'ColdPRRNdays': (64, 1, ['pr', 't', 'prsn'],
+        dColdPRRNdays_, ['year'], 'p'),
+    'ColdPRRNgt10Days': (65, 1, ['pr', 't', 'prsn'],
+        dColdPRRNdays_, ['year'], 'p'),
+    'ColdPRRNgt20Days': (66, 1, ['pr', 't', 'prsn'],
+        dColdPRRNdays_, ['year'], 'p'),
+    'WarmPRSNdays': (67, 1, ['t', 'prsn'],
+        dWarmPRSNdays_, ['year'], 'p'),
+    'WarmPRSNgt10Days': (68, 1, ['t', 'prsn'],
+        dWarmPRSNdays_, ['year'], 'p'),
+    'WarmPRSNgt20Days': (69, 1, ['t', 'prsn'],
+        dWarmPRSNdays_, ['year'], 'p'),
+    'SST': (70, 0, ['sst'],
+        None, ['season', 'year'], 't'),
+    'SIC': (71, 0, ['sic'],
+        None, ['season', 'year'], 'ti'),
+    'Rho975': (72, 1, ['t975', 'hus975', 'ps'],
+        None, ['month'], 'w'),
+    'h6SuperCooledPR': (73, 2, ['t', 'pr', 'ps', 't925', 't850', 't700',
+                                'hus925', 'hus850', 'hus700'],
+        dFreezRainDays_, ['year'], 'p'),
+    'Wind925': (74, 1, ['u925', 'v925', 'ps'],
+        None, ['month', 'season', 'year'], 'w'),
+    'Wind925toSfc': (75, 1, ['u925', 'v925', 'ws', 'ps', 'us', 'vs'],
+        None, ['season', 'year'], 'w'),
+    'FirstDayWithoutFrost': (76, 1, ['tn'],
+        dFirstDayWithoutFrost_, ['year'], 't'),
+    'CalmDays925': (77, 1, ['u925', 'v925', 'ps'],
+        dCalmDays_, ['year'], 'w'),
+    'ConCalmDays925': (78, 1, ['u925', 'v925', 'ps'],
+        dConCalmDays_, ['year'], 'w'),
+    'CalmDays975': (79, 1, ['u975', 'v975', 'ps'],
+        dCalmDays_, ['year'], 'w'),
+    'ConCalmDays975': (80, 1, ['u975', 'v975', 'ps'],
+        dConCalmDays_, ['year'], 'w'),
+    'MinusDays': (81, 1, ['t'],
+        dMinusDays_, ['year'], 't'),
+    'FreezingDays': (82, 1, ['tx'],
+        dFreezingDays_, ['year'], 't'),
+    'ColdRainWarmSnowDays': (83, 1, ['pr', 't'],
+        dColdRainWarmSnowDays_, ['year'], 'p'),
+    'Wind50m': (84, 1, ['u50m', 'v50m'],
+        None, ['month', 'season', 'year'], 'w'),
+    'Rho50m': (85, 1, ['t50m', 'hus50m', 'p50m'],
+        None, ['month'], 'w'),
+    'Wind100m': (86, 1, ['u100m', 'v100m'],
+        None, ['month', 'season', 'year'], 'w'),
+    'Rho100m': (87, 1, ['t100m', 'hus100m', 'p100m'],
+        None, ['month'], 'w'),
+    'Wind200m': (88, 1, ['u200m', 'v200m'],
+        None, ['month', 'season', 'year'], 'w'),
+    'Rho200m': (89, 1, ['t200m', 'hus200m', 'p200m'],
+        None, ['month'], 'w'),
+    'Wind950': (90, 1, ['u950', 'v950'],
+        None, ['month', 'season', 'year'], 'w'),
+    'Rho950': (91, 1, ['t950', 'hus950', 'ps'],
+        None, ['month'], 'w'),
+    'Wind950toSfc': (92, 1, ['u950', 'v950', 'ws', 'ps', 'us', 'vs'],
+        None, ['season', 'year'], 'w'),
+    'CalmDays50m': (93, 1, ['u50m', 'v50m'],
+        dCalmDays_, ['year'], 'w'),
+    'ConCalmDays50m': (94, 1, ['u50m', 'v50m'],
+        dConCalmDays_, ['year'], 'w'),
+    'CalmDays100m': (95, 1, ['u100m', 'v100m'],
+        dCalmDays_, ['year'], 'w'),
+    'ConCalmDays100m': (96, 1, ['u100m', 'v100m'],
+        dConCalmDays_, ['year'], 'w'),
+    'CalmDays200m': (97, 1, ['u200m', 'v200m'],
+        dCalmDays_, ['year'], 'w'),
+    'ConCalmDays200m': (98, 1, ['u200m', 'v200m'],
+        dConCalmDays_, ['year'], 'w'),
+    'CalmDays950': (99, 1, ['u950', 'v950', 'ps'],
+        dCalmDays_, ['year'], 'w'),
+    'ConCalmDays950': (100, 1, ['u950', 'v950'],
+        dConCalmDays_, ['year'], 'w'),
+    'h3SfcWind': (101, 3, ['ws', 'us', 'vs'],
+        None, ['hour-month', 'hour-season', 'hour'], 'w'),
+    'h3RhoS': (102, 3, ['t', 'huss', 'ps'],
+        None, ['hour-month'], 'w'),
+    'h3Wind975': (103, 3, ['u975', 'v975'],
+        None, ['hour-month', 'hour-season', 'hour'], 'w'),
+    'h3Rho975': (104, 3, ['t925', 'hus925', 'ps'],
+        None, ['hour-month'], 'w'),
+    'h3Wind950': (105, 3, ['u950', 'v950'],
+        None, ['hour-month', 'hour-season', 'hour'], 'w'),
+    'h3Rho950': (106, 3, ['t950', 'hus950', 'ps'],
+        None, ['hour-month'], 'w'),
+    'h3Wind925': (107, 3, ['u925', 'v925'],
+        None, ['hour-month', 'hour-season', 'hour'], 'w'),
+    'h3Rho925': (108, 3, ['t925', 'hus925', 'ps'],
+        None, ['hour-month'], 'w'),
+    'h3Wind50m': (109, 3, ['u50m', 'v50m'],
+        None, ['hour-month', 'hour-season', 'hour'], 'w'),
+    'h3Rho50m': (110, 3, ['t50m', 'hus50m', 'p50m'],
+        None, ['hour-month'], 'w'),
+    'h3Wind100m': (111, 3, ['u100m', 'v100m'],
+        None, ['hour-month', 'hour-season', 'hour'], 'w'),
+    'h3Rho100m': (112, 3, ['t100m', 'hus100m', 'p100m'],
+        None, ['hour-month'], 'w'),
+    'h3Wind200m': (113, 3, ['u200m', 'v200m'],
+        None, ['hour-month', 'hour-season', 'hour'], 'w'),
+    'h3Rho200m': (114, 3, ['t200m', 'hus200m', 'p200m'],
+        None, ['hour-month'], 'w')
+    }
 
 
-var_ = {'pr': 'pr', 'et': 'evspsbl', 'prsn': 'prsn', 'ro': 'mrro',
-        'sd': 'sund', 'rs': 'rsds', 'rl': 'rlds', 't': 'tas',
-        'tx': 'tasmax', 'tn': 'tasmin', 'ws': 'sfcWind',
-        'wsgs': 'wsgsmax', 'snc': 'snc', 'snd': 'snd', 'snw': 'snw',
-        'hurs': 'hurs', 'huss': 'huss', 'ps': 'ps', 't975': 'ta975',
-        't925': 'ta925', 't850': 'ta850', 't700': 'ta700', 'hus975': 'hus975',
-        'hus925': 'hus925', 'hus850': 'hus850', 'hus700': 'hus700',
-        'u975': 'ua975', 'v975': 'va975', 'u925': 'ua925', 'v925': 'va925',
-        'sst': 'tos', 'sic': 'sic'}
+var_ = {
+    'et': 'evspsbl',
+    'hurs': 'hurs',
+    'huss': 'huss',
+    'hus975': 'hus975',
+    'hus950': 'hus950',
+    'hus925': 'hus925',
+    'hus850': 'hus850',
+    'hus700': 'hus700',
+    'hus50m': 'hus50m',
+    'hus100m': 'hus100m',
+    'hus200m': 'hus200m',
+    'pr': 'pr',
+    'prsn': 'prsn',
+    'ps': 'ps',
+    'p50m': 'p50m',
+    'p100m': 'p100m',
+    'p200m': 'p200m',
+    'rl': 'rlds',
+    'rs': 'rsds',
+    'ro': 'mrro',
+    'sd': 'sund',
+    'snc': 'snc',
+    'snd': 'snd',
+    'snw': 'snw',
+    'sst': 'tos',
+    'sic': 'sic',
+    't': 'tas',
+    'tx': 'tasmax',
+    'tn': 'tasmin',
+    't975': 'ta975',
+    't950': 'ta950',
+    't925': 'ta925',
+    't850': 'ta850',
+    't700': 'ta700',
+    't50m': 'ta50m',
+    't100m': 'ta100m',
+    't200m': 'ta200m',
+    'us': 'uas',
+    'u975': 'ua975',
+    'u950': 'ua950',
+    'u925': 'ua925',
+    'u50m': 'ua50m',
+    'u100m': 'ua100m',
+    'u200m': 'ua200m',
+    'vs': 'vas',
+    'v975': 'va975',
+    'v950': 'va950',
+    'v925': 'va925',
+    'v50m': 'va50m',
+    'v100m': 'va100m',
+    'v200m': 'va200m',
+    'ws': 'sfcWind',
+    'wsgs': 'wsgsmax'
+    }
 
 
 def _vv2(a, xvn=9):
@@ -161,13 +355,17 @@ def _vv(ii_, tint, subg=None, xvn=9):
         nn = 1
     elif tint == '6hr':
         nn = 2
-    if nn == 1 and subg is None:
+    elif tint == '3hr':
+        nn = 3
+    elif tint == '1hr':
+        nn = 4
+    if nn > 0 and subg is None:
         tmp = [(i, i__[i][2]) for i in ii_ if i__[i][1] == nn]
         return list(_vv2(tmp, xvn))
     else:
         tmp = [i__[i][2] for i in ii_ if i__[i][1] == nn]
         tmp_ = set(flt_l(tmp))
-        if nn == 1 and len(tmp_) > xvn:
+        if nn > 0 and len(tmp_) > xvn:
             if subg == 'v':
                 tmp__ = ss_fr_sl_(list(map(set, tmp)))
                 return [([ii for ii in ii_
@@ -207,7 +405,15 @@ def _xyz(il_, tint, pi_, dn, gwl, y0y1, po_, reg_d, folder='cordex'):
         if y0y1:
             ka0.update(dict(y0y1=y0y1))
     elif tint == '6hr':
-        f__ = _hclimidx
+        f__ = _h6climidx
+        if y0y1:
+            ka0.update(dict(y0y1=y0y1))
+    elif tint == '3hr':
+        f__ = _h3climidx
+        if y0y1:
+            ka0.update(dict(y0y1=y0y1))
+    elif tint == '1hr':
+        f__ = _h1climidx
         if y0y1:
             ka0.update(dict(y0y1=y0y1))
     def __xyz(vd):
@@ -217,15 +423,20 @@ def _xyz(il_, tint, pi_, dn, gwl, y0y1, po_, reg_d, folder='cordex'):
             ll_(', '.join(vd[1].keys()))
             ll_(', '.join(vd[0]))
             tmp, tmp_, tmp__ = [], [], []
+            wsyes = False # SURFACE WIND SPEED
             for kk in vd[1].keys():
+                if wsyes and kk in ('c_us', 'c_vs'): # SURFACE WIND SPEED
+                    continue # SURFACE WIND SPEED
                 if y0y1:
                     cc, ee = rf__(pi_, tint, var=vd[1][kk], period=y0y1,
                                   reg_d=reg_d, folder=folder)
                 else:
                     cc, ee = rf__(pi_, tint, var=vd[1][kk], reg_d=reg_d,
-                              folder=folder)
+                                  folder=folder)
                 if cc:
                     tmp.append(kk)
+                    if kk == 'c_ws': # SURFACE WIND SPEED
+                        wsyes = True # SURFACE WIND SPEED
                 if ee == 'cce':
                     tmp_.append(kk)
                 elif ee == 'yye':
@@ -249,53 +460,115 @@ def _xyz(il_, tint, pi_, dn, gwl, y0y1, po_, reg_d, folder='cordex'):
     ll_('<<<{}'.format(tint), t1)
 
 
-def _mclimidx(c_pr=None, c_et=None, c_prsn=None, c_ro=None, c_sd=None,
-              c_rs=None, c_rl=None, c_t=None, c_tx=None, c_tn=None,
-              c_sst=None, c_sic=None,
-              dn=None, gwl=None, po_=None, il_=None):
+s4 = ('djf', 'mam', 'jja', 'son')
 
-    if any([i is None for i in [dn, gwl, po_, il_]]):
+
+def _sv(v_, o, dgpi, freq=None):
+    fn = '{}{}.nc'
+    dn, gwl, po_ = dgpi[:3]
+    freq = freq if freq else i__[v_][4]
+    if len(freq) == 1:
+        cubesv_(o, fn.format(po_, '_'.join((v_, dn, freq[0], gwl))))
+    else:
+        for oo, ff in zip(o, freq):
+            cubesv_(oo, fn.format(po_, '_'.join((v_, dn, ff, gwl))))
+
+
+def _dd(v_, cube, dgpi, freq=None):
+    freq = freq if freq else i__[v_][4]
+    if v_ in dgpi[-1] and cube:
+        t000 = l__('{} {}'.format(i__[v_][0], v_))
+        o = pSTAT_cube(cube, i__[v_][3] if i__[v_][3] else 'MEAN',
+                       *freq)
+        _sv(v_, o, dgpi, freq=freq)
+        ll_(v_, t000)
+
+
+def _d0(v_, cube, dgpi, fA_=(), fK_={}, pK_=None, freq=None):
+    if isIter_(v_):
+        vk_ = v_[0]
+        lmsg = '/'.join(('{}',) * len(v_)) + ' {}'
+        vids = [i__[i][0] for i in v_]
+        lmsg_ = lmsg.format(*vids, v_[0][:8])
+    else:
+        vk_ = v_
+        lmsg_ = '{} {}'.format(i__[v_][0], v_)
+    t000 = l__(lmsg_)
+    freq = freq if freq else i__[vk_][4]
+    cc = cube if isMyIter_(cube) else (cube,)
+    o = i__[vk_][3](*cc, freq, *fA_, **fK_)
+    if pK_:
+        pst_(o, **pK_)
+    if not isIter_(v_) or len(v_) == 1:
+        _sv(vk_, o, dgpi, freq=freq)
+    else:
+        for i, ii in zip(v_, o):
+            _sv(i, ii, dgpi, freq=freq)
+    ll_(lmsg_, t000)
+
+
+def _tt(cube, y0y1=None):
+    rm_t_aux_cube(cube)
+    yr_doy_cube(cube)
+    cat.add_season(cube, 'time', name='season', seasons=s4)
+    tyrs, tdoy = cube.coord('year').points, cube.coord('doy').points
+    y_y_ = y0y1 if y0y1 else tyrs[[0, -1]]
+    tsss = cube.coord('season').points
+    seasonyr_cube(cube, s4)
+    tsyr = cube.coord('seasonyr').points
+    ax_t = cube.coord_dims('time')[0]
+    return (ax_t, y_y_, tyrs, tdoy, tsss, tsyr)
+
+
+def _d1(v_, cube, dgpi, ax_t, y_y_,
+        cK_={}, fA_=(), fK_={}, freq=None, out=False):
+    def _inic(icK_):
+        return initAnnualCube_(cube[0] if isMyIter_(cube) else cube,
+                               y_y_, **icK_)
+    if isIter_(v_):
+        vk_ = v_[0]
+        lmsg = '/'.join(('{}',) * len(v_)) + ' {}'
+        vids = [i__[i][0] for i in v_]
+        lmsg_ = lmsg.format(*vids, v_[0][:8])
+    else:
+        vk_ = v_
+        lmsg_ = '{} {}'.format(i__[v_][0], v_)
+    if ((freq and len(freq) != 1) or
+        (freq is None and len(i__[vk_][4]) != 1)):
+        raise Exception("exec-freq more than 1 currently not available!")
+    t000 = l__(lmsg_)
+    if isinstance(cK_, dict):
+        o = _inic(cK_)
+    else:
+        o = iris.cube.CubeList([_inic(i) for i in cK_])
+    o_ = _afm_n(cube, ax_t, i__[vk_][3], o, *fA_, **fK_)
+    o = o_ if o_ else o
+    if not isIter_(v_) or len(v_) == 1:
+        _sv(vk_, o, dgpi, freq=freq)
+    else:
+        for i, ii in zip(v_, o):
+            _sv(i, ii, dgpi, freq=freq)
+    ll_(lmsg_, t000)
+    if out:
+        return o
+
+
+def _mclimidx(dn=None, gwl=None, po_=None, il_=None,
+              c_pr=None, c_et=None, c_prsn=None, c_ro=None, c_sd=None,
+              c_rs=None, c_rl=None, c_t=None, c_tx=None, c_tn=None,
+              c_sst=None, c_sic=None):
+
+    dgpi = [dn, gwl, po_, il_]
+    if any([i is None for i in dgpi]):
         raise ValueError("input of 'dn', 'gwl', 'po_', 'il_' is mandotory!")
 
     os.makedirs(po_, exist_ok=True)
 
-    def _sv(v_, o, freq=None):
-        fn = '{}{}.nc'
-        freq = freq if freq else i__[v_][4]
-        if len(freq) == 1:
-            cubesv_(o, fn.format(po_, '_'.join((v_, dn, freq[0], gwl))))
-        else:
-            for oo, ff in zip(o, freq):
-                cubesv_(oo, fn.format(po_, '_'.join((v_, dn, ff, gwl))))
-
     def _mm(v_, cube, freq=None):
-        fn = '{}{}.nc'
         if v_ in il_ and cube:
             o = pSTAT_cube(cube, i__[v_][3] if i__[v_][3] else 'MEAN',
                            *i__[v_][4])
-            _sv(v_, o, freq=freq)
-
-    def _m0(v_, cube, fA_=(), fK_={}, pK_=None, freq=None):
-        if isIter_(v_):
-            vk_ = v_[0]
-            lmsg = '/'.join(('{}',) * len(v_)) + ' {}'
-            vids = [i__[i][0] for i in v_]
-            lmsg_ = lmsg.format(*vids, v_[0][:8])
-        else:
-            vk_ = v_
-            lmsg_ = '{} {}'.format(i__[v_][0], v_)
-        t000 = l__(lmsg_)
-        freq = freq if freq else i__[vk_][4]
-        cc = cube if isMyIter_(cube) else (cube,) 
-        o = i__[vk_][3](*cc, freq, *fA_, **fK_)
-        if pK_:
-            pst_(o, **pK_)
-        if not isIter_(v_) or len(v_) == 1:
-            _sv(vk_, o, freq=freq)
-        else:
-            for i, ii in zip(v_, o):
-                _sv(i, ii, freq=freq)
-        ll_(lmsg_, t000)
+            _sv(v_, o, dgpi, freq=freq)
 
     _mm('PR', c_pr)                                                         #PR
     _mm('ET', c_et)                                                         #ET
@@ -321,243 +594,252 @@ def _mclimidx(c_pr=None, c_et=None, c_prsn=None, c_ro=None, c_sd=None,
     _mm('TN', c_tn)                                                         #TN
     v_ = 'DTR'
     if v_ in il_ and c_tx is not None and c_tn is not None:
-        _m0(v_, (c_tx, c_tn))                                              #DTR
+        _d0(v_, (c_tx, c_tn), dgpi)                                        #DTR
     _mm('SST', c_sst)                                                      #SST
     _mm('SIC', c_sic)                                                      #SIC
 
 
-def _dclimidx(c_pr=None, c_t=None, c_tx=None, c_tn=None, c_wsgs=None,
-              c_snc=None, c_snd=None, c_snw=None, c_hurs=None, c_huss=None,
-              c_ps=None, c_t975=None, c_t925=None, c_t850=None, c_t700=None,
-              c_hus975=None, c_hus925=None, c_hus850=None, c_hus700=None,
-              c_prsn=None, c_ws=None, c_u975=None, c_v975=None, c_u925=None,
-              c_v925=None,
-              dn=None, gwl=None, po_=None, il_=None, y0y1=None):
+def _dclimidx(dn=None, gwl=None, po_=None, il_=None, y0y1=None,
+              c_hurs=None, c_huss=None, c_hus975=None, c_hus950=None,
+              c_hus925=None, c_hus850=None, c_hus700=None, c_hus50m=None,
+              c_hus100m=None, c_hus200m=None, c_pr=None, c_prsn=None,
+              c_ps=None, c_p50m=None, c_p100m=None, c_p200m=None,
+              c_snc=None, c_snd=None, c_snw=None, c_t=None,
+              c_tx=None, c_tn=None, c_t975=None, c_t950=None,
+              c_t925=None, c_t850=None, c_t700=None, c_t50m=None,
+              c_t100m=None, c_t200m=None, c_u975=None, c_u950=None,
+              c_u925=None, c_u50m=None, c_u100m=None, c_u200m=None,
+              c_us=None, c_v975=None, c_v950=None, c_v925=None,
+              c_v50m=None, c_v100m=None, c_v200m=None, c_vs=None,
+              c_ws=None, c_wsgs=None):
 
-    if any([i is None for i in [dn, gwl, po_, il_]]):
+    dgpi = [dn, gwl, po_, il_]
+    if any([i is None for i in dgpi]):
         raise ValueError("input of 'dn', 'gwl', 'po_', 'il_' is mandotory!")
 
     os.makedirs(po_, exist_ok=True)
 
-    s4 = ('djf', 'mam', 'jja', 'son')
-
-    def _sv(v_, o, freq=None):
-        fn = '{}{}.nc'
-        freq = freq if freq else i__[v_][4]
-        if len(freq) == 1:
-            cubesv_(o, fn.format(po_, '_'.join((v_, dn, freq[0], gwl))))
-        else:
-            for oo, ff in zip(o, freq):
-                cubesv_(oo, fn.format(po_, '_'.join((v_, dn, ff, gwl))))
-
-    def _dd(v_, cube, freq=None):
-        freq = freq if freq else i__[v_][4]
-        if v_ in il_ and cube:
-            t000 = l__('{} {}'.format(i__[v_][0], v_))
-            o = pSTAT_cube(cube, i__[v_][3] if i__[v_][3] else 'MEAN',
-                           *freq)
-            _sv(v_, o, freq=freq)
-            ll_(v_, t000)
-
-    def _d0(v_, cube, fA_=(), fK_={}, pK_=None, freq=None):
-        if isIter_(v_):
-            vk_ = v_[0]
-            lmsg = '/'.join(('{}',) * len(v_)) + ' {}'
-            vids = [i__[i][0] for i in v_]
-            lmsg_ = lmsg.format(*vids, v_[0][:8])
-        else:
-            vk_ = v_
-            lmsg_ = '{} {}'.format(i__[v_][0], v_)
-        t000 = l__(lmsg_)
-        freq = freq if freq else i__[vk_][4]
-        cc = cube if isMyIter_(cube) else (cube,) 
-        o = i__[vk_][3](*cc, freq, *fA_, **fK_)
-        if pK_:
-            pst_(o, **pK_)
-        if not isIter_(v_) or len(v_) == 1:
-            _sv(vk_, o, freq=freq)
-        else:
-            for i, ii in zip(v_, o):
-                _sv(i, ii, freq=freq)
-        ll_(lmsg_, t000)
-
-    def _tt(cube):
-        rm_t_aux_cube(cube)
-        yr_doy_cube(cube)
-        cat.add_season(cube, 'time', name='season', seasons=s4)
-        tyrs, tdoy = cube.coord('year').points, cube.coord('doy').points
-        y_y_ = y0y1 if y0y1 else tyrs[[0, -1]]
-        tsss = cube.coord('season').points
-        seasonyr_cube(cube, s4)
-        tsyr = cube.coord('seasonyr').points
-        ax_t = cube.coord_dims('time')[0]
-        return (ax_t, y_y_, tyrs, tdoy, tsss, tsyr)
-
-    def _d1(v_, cube, ax_t, y_y_,
-            cK_={}, fA_=(), fK_={}, freq=None, out=False):
-        def _inic(icK_):
-            return initAnnualCube_(cube[0] if isMyIter_(cube) else cube,
-                                   y_y_, **icK_)
-        if isIter_(v_):
-            vk_ = v_[0]
-            lmsg = '/'.join(('{}',) * len(v_)) + ' {}'
-            vids = [i__[i][0] for i in v_]
-            lmsg_ = lmsg.format(*vids, v_[0][:8])
-        else:
-            vk_ = v_
-            lmsg_ = '{} {}'.format(i__[v_][0], v_)
-        if ((freq and len(freq) != 1) or
-            (freq is None and len(i__[vk_][4]) != 1)):
-            raise Exception("exec-freq more than 1 currently not available!")
-        t000 = l__(lmsg_)
-        if isinstance(cK_, dict):
-            o = _inic(cK_)
-        else:
-            o = iris.cube.CubeList([_inic(i) for i in cK_])
-        o_ = _afm_n(cube, ax_t, i__[vk_][3], o, *fA_, **fK_)
-        o = o_ if o_ else o
-        if not isIter_(v_) or len(v_) == 1:
-            _sv(vk_, o, freq=freq)
-        else:
-            for i, ii in zip(v_, o):
-                _sv(i, ii, freq=freq)
-        ll_(lmsg_, t000)
-        if out:
-            return o
-
     if c_wsgs is not None:
-        _dd('WindGustMax', c_wsgs)                                 #WindGustMax
-        _d0('WindyDays', c_wsgs)                                     #WindyDays
+        _dd('WindGustMax', c_wsgs, dgpi)                           #WindGustMax
+        v_ = 'WindyDays'
+        if v_ in il_:
+            _d0(v_, c_wsgs, dgpi)                                    #WindyDays
+    if (c_ws is None and c_us and c_vs and
+        any([i in il_ for i in ['sfcWind', 'CalmDays', 'ConCalmDays',
+                                'Wind975toSfc', 'Wind925toSfc',
+                                'Wind950toSfc']])):
+        #c_ws = c_us.copy(np.sqrt(c_us.data**2 + c_vs.data**2))
+        c_ws = ws_cube(c_us, c_vs)
+        pst_(c_ws, 'surface wind speed', var_name='sfcWind')
     o = None
     if any([i in il_ for i in ['Wind975', 'Wind975toSfc', 'CalmDays975',
                                'ConCalmDays975']]):
         if c_u975 and c_v975:
-            o = c_u975.copy(np.sqrt(c_u975.data**2 + c_v975.data**2))
+            #o = c_u975.copy(np.sqrt(c_u975.data**2 + c_v975.data**2))
+            o = ws_cube(c_u975, c_v975)
             if c_ps:
                 o = iris.util.mask_cube(o, c_ps.data < 97500.)
             pst_(o, 'wind speed at 975 mb', var_name='w975')
-    _dd('Wind975', o)                                                  #Wind975
+    _dd('Wind975', o, dgpi)                                            #Wind975
     if o:
         v_ = 'CalmDays975'
         if v_ in il_:
-            _d0(v_, o)                                             #CalmDays975
+            _d0(v_, o, dgpi)                                       #CalmDays975
         v_ = 'ConCalmDays975'
         if v_ in il_:
-            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(o)
+            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(o, y0y1)
             cK_ = dict(name='continue calm days', units='days')
             fA_ = (tyrs,)
-            _d1(v_, o, ax_t, y_y_, cK_=cK_, fA_=fA_)            #ConCalmDays975
+            _d1(v_, o, dgpi, ax_t, y_y_, cK_=cK_, fA_=fA_)      #ConCalmDays975
     if 'Wind975toSfc' in  il_ and o and c_ws:
         o = o.copy(o.data / c_ws.data)
         pst_(o, 'wsr_975_to_sfc', '1')
-        _dd('Wind975toSfc', o)                                    #Wind975toSfc
+        _dd('Wind975toSfc', o, dgpi)                              #Wind975toSfc
+    o = None
+    if any([i in il_ for i in ['Wind950', 'Wind950toSfc', 'CalmDays950',
+                               'ConCalmDays950']]):
+        if c_u950 and c_v950:
+            #o = c_u950.copy(np.sqrt(c_u950.data**2 + c_v950.data**2))
+            o = ws_cube(c_u950, c_v950)
+            if c_ps:
+                o = iris.util.mask_cube(o, c_ps.data < 95000.)
+            pst_(o, 'wind speed at 950 mb', var_name='w950')
+    _dd('Wind950', o, dgpi)                                            #Wind950
+    if o:
+        v_ = 'CalmDays950'
+        if v_ in il_:
+            _d0(v_, o, dgpi)                                       #CalmDays950
+        v_ = 'ConCalmDays950'
+        if v_ in il_:
+            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(o, y0y1)
+            cK_ = dict(name='continue calm days', units='days')
+            fA_ = (tyrs,)
+            _d1(v_, o, dgpi, ax_t, y_y_, cK_=cK_, fA_=fA_)      #ConCalmDays950
+    if 'Wind950toSfc' in  il_ and o and c_ws:
+        o = o.copy(o.data / c_ws.data)
+        pst_(o, 'wsr_950_to_sfc', '1')
+        _dd('Wind950toSfc', o, dgpi)                              #Wind950toSfc
     o = None
     if any([i in il_ for i in ['Wind925', 'Wind925toSfc', 'CalmDays925',
                                'ConCalmDays925']]):
         if c_u925 and c_v925:
-            o = c_u925.copy(np.sqrt(c_u925.data**2 + c_v925.data**2))
+            #o = c_u925.copy(np.sqrt(c_u925.data**2 + c_v925.data**2))
+            o = ws_cube(c_u925, c_v925)
             if c_ps:
                 o = iris.util.mask_cube(o, c_ps.data < 92500.)
             pst_(o, 'wind speed at 925 mb', var_name='w925')
-    _dd('Wind925', o)                                                  #Wind925
+    _dd('Wind925', o, dgpi)                                            #Wind925
     if o:
         v_ = 'CalmDays925'
         if v_ in il_:
-            _d0(v_, o)                                             #CalmDays925
+            _d0(v_, o, dgpi)                                       #CalmDays925
         v_ = 'ConCalmDays925'
         if v_ in il_:
-            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(o)
+            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(o, y0y1)
             cK_ = dict(name='continue calm days', units='days')
             fA_ = (tyrs,)
-            _d1(v_, o, ax_t, y_y_, cK_=cK_, fA_=fA_)            #ConCalmDays925
+            _d1(v_, o, dgpi, ax_t, y_y_, cK_=cK_, fA_=fA_)      #ConCalmDays925
     if 'Wind925toSfc' in  il_ and o and c_ws:
         o = o.copy(o.data / c_ws.data)
         pst_(o, 'wsr_925_to_sfc', '1')
-        _dd('Wind925toSfc', o)                                    #Wind925toSfc
-    _dd('SfcWind', c_ws)                                               #SfcWind
+        _dd('Wind925toSfc', o, dgpi)                              #Wind925toSfc
+    o = None
+    if any([i in il_ for i in ['Wind50m', 'CalmDays50m', 'ConCalmDays50m']]):
+        if c_u50m and c_v50m:
+            #o = c_u50m.copy(np.sqrt(c_u50m.data**2 + c_v50m.data**2))
+            o = ws_cube(c_u50m, c_v50m)
+            pst_(o, 'wind speed at 50m', var_name='w50m')
+    _dd('Wind50m', o, dgpi)                                            #Wind50m
+    if o:
+        v_ = 'CalmDays50m'
+        if v_ in il_:
+            _d0(v_, o, dgpi)                                       #CalmDays50m
+        v_ = 'ConCalmDays50m'
+        if v_ in il_:
+            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(o, y0y1)
+            cK_ = dict(name='continue calm days', units='days')
+            fA_ = (tyrs,)
+            _d1(v_, o, dgpi, ax_t, y_y_, cK_=cK_, fA_=fA_)      #ConCalmDays50m
+    o = None
+    if any([i in il_ for i in ['Wind100m', 'CalmDays100m', 'ConCalmDays100m']]):
+        if c_u100m and c_v100m:
+            #o = c_u100m.copy(np.sqrt(c_u100m.data**2 + c_v100m.data**2))
+            o = ws_cube(c_100m, c_v100m)
+            pst_(o, 'wind speed at 100m', var_name='w100m')
+    _dd('Wind100m', o, dgpi)                                          #Wind100m
+    if o:
+        v_ = 'CalmDays100m'
+        if v_ in il_:
+            _d0(v_, o, dgpi)                                      #CalmDays100m
+        v_ = 'ConCalmDays100m'
+        if v_ in il_:
+            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(o, y0y1)
+            cK_ = dict(name='continue calm days', units='days')
+            fA_ = (tyrs,)
+            _d1(v_, o, dgpi, ax_t, y_y_, cK_=cK_, fA_=fA_)     #ConCalmDays100m
+    o = None
+    if any([i in il_ for i in ['Wind200m', 'CalmDays200m', 'ConCalmDays200m']]):
+        if c_u200m and c_v200m:
+            #o = c_u200m.copy(np.sqrt(c_u200m.data**2 + c_v200m.data**2))
+            o = ws_cube(c_200m, c_v200m)
+            pst_(o, 'wind speed at 200m', var_name='w200m')
+    _dd('Wind200m', o, dgpi)                                          #Wind200m
+    if o:
+        v_ = 'CalmDays200m'
+        if v_ in il_:
+            _d0(v_, o, dgpi)                                      #CalmDays200m
+        v_ = 'ConCalmDays200m'
+        if v_ in il_:
+            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(o, y0y1)
+            cK_ = dict(name='continue calm days', units='days')
+            fA_ = (tyrs,)
+            _d1(v_, o, dgpi, ax_t, y_y_, cK_=cK_, fA_=fA_)     #ConCalmDays200m
+    _dd('SfcWind', c_ws, dgpi)                                         #SfcWind
     if c_ws:
         v_ = 'CalmDays'
         if v_ in il_:
-            _d0(v_, c_ws)                                             #CalmDays
+            _d0(v_, c_ws, dgpi)                                       #CalmDays
         v_ = 'ConCalmDays'
         if v_ in il_:
-            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(c_ws)
+            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(c_ws, y0y1)
             cK_ = dict(name='continue calm days', units='days')
             fA_ = (tyrs,)
-            _d1(v_, c_ws, ax_t, y_y_, cK_=cK_, fA_=fA_)            #ConCalmDays
+            _d1(v_, c_ws, dgpi, ax_t, y_y_, cK_=cK_, fA_=fA_)      #ConCalmDays
     if c_tx:
         v_ = 'WarmDays'
         if v_ in il_:
-            _d0(v_, c_tx)                                             #WarmDays
+            _d0(v_, c_tx, dgpi)                                       #WarmDays
         v_ = 'ColdDays'
         if v_ in il_:
-            _d0(v_, c_tx)                                             #ColdDays
+            _d0(v_, c_tx, dgpi)                                       #ColdDays
         v_ = 'FreezingDays'
         if v_ in il_:
-            _d0(v_, c_tx)                                         #FreezingDays
+            _d0(v_, c_tx, dgpi)                                   #FreezingDays
         v_ = 'CoolingDegDay'
         if v_ in il_:
-            _d0(v_, c_tx, fK_=dict(thr=20),
+            _d0(v_, c_tx, dgpi, fK_=dict(thr=20),
                 pK_=dict(name='degree day cooling', var_name='dd20x_'))
                                                                  #CoolingDegDay
         v_ = 'ConWarmDays'
         if v_ in il_:
-            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(c_tx)
+            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(c_tx, y0y1)
             cK_ = dict(name='continue warm days', units='days')
             fA_ = (tyrs,)
-            _d1(v_, c_tx, ax_t, y_y_, cK_=cK_, fA_=fA_)            #ConWarmDays
+            _d1(v_, c_tx, dgpi, ax_t, y_y_, cK_=cK_, fA_=fA_)      #ConWarmDays
     if c_tn:
         v_ = 'FrostDays'
         if v_ in il_:
-            _d0(v_, c_tn)                                            #FrostDays
+            _d0(v_, c_tn, dgpi)                                      #FrostDays
         v_ = 'TropicNights'
         if v_ in il_:
-            _d0(v_, c_tn)                                          #TropicNight
+            _d0(v_, c_tn, dgpi)                                    #TropicNight
         if any([i in il_ for i in ['SpringFrostDayEnd',
                                    'FirstDayWithoutFrost']]):
-            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(c_tn)
+            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(c_tn, y0y1)
         v_ = 'SpringFrostDayEnd'
         if v_ in il_:
             cK_ = dict(name='spring frost end-day', units=1,
                        var_name='frost_end')
             fA_ = (tyrs, tdoy)
-            _d1(v_, c_tn, ax_t, y_y_, cK_=cK_, fA_=fA_)      #SpringFrostDayEnd
+            _d1(v_, c_tn, dgpi, ax_t, y_y_, cK_=cK_, fA_=fA_)
+                                                             #SpringFrostDayEnd
         v_ = 'FirstDayWithoutFrost'
         if v_ in il_:
             cK_ = dict(name='first day without frost', units=1,
                        var_name='day1nofrost')
             fA_ = (tyrs, tdoy)
-            _d1(v_, c_tn, ax_t, y_y_, cK_=cK_, fA_=fA_)   #FirstDayWithoutFrost 
+            _d1(v_, c_tn, dgpi, ax_t, y_y_, cK_=cK_, fA_=fA_)
+                                                          #FirstDayWithoutFrost
     v_ = 'ZeroCrossingDays'
     if v_ in il_ and c_tx and c_tn:
-        _d0(v_, (c_tx, c_tn))                                 #ZeroCrossingDays
+        _d0(v_, (c_tx, c_tn), dgpi)                           #ZeroCrossingDays
     if c_t:
         v_ = 'MinusDays'
         if v_ in il_:
-            _d0(v_, c_t)                                             #MinusDays
+            _d0(v_, c_t, dgpi)                                       #MinusDays
         v_ = 'DegDay20'
         if v_ in il_:
-            _d0(v_, c_t, fK_=dict(thr=20))                            #DegDay20
+            _d0(v_, c_t, dgpi, fK_=dict(thr=20))                      #DegDay20
         v_ = 'DegDay17'
         if v_ in il_:
-            _d0(v_, c_t, fK_=dict(thr=17, left=True))                 #DegDay17
+            _d0(v_, c_t, dgpi, fK_=dict(thr=17, left=True))           #DegDay17
         if any([i in il_ for i in ['DegDay8',
                                    'VegSeasonDayStart-5',
                                    'VegSeasonDayEnd-5', 'VegSeasonLength-5',
                                    'VegSeasonDayStart-2',
                                    'VegSeasonDayEnd-2', 'VegSeasonLength-2',
                                    'SuperCooledPR']]):
-            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(c_t)
+            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(c_t, y0y1)
         v_ = 'DegDay8'
         if v_ in il_:
             cK_ = dict(name='degree day g8 vegetation season',
                        var_name='dd8_')
             fA_ = (tyrs,)
-            _d1(v_, c_t, ax_t, y_y_, cK_=cK_, fA_=fA_)                 #DegDay8
+            _d1(v_, c_t, dgpi, ax_t, y_y_, cK_=cK_, fA_=fA_)           #DegDay8
         if any([i in il_ for i in ['VegSeasonDayStart-5', 'VegSeasonDayEnd-5',
                                    'VegSeasonLength-5']]):
             o = _d1(['VegSeasonDayStart-5', 'VegSeasonDayEnd-5'],
-                    c_t, ax_t, y_y_,
+                    c_t, dgpi, ax_t, y_y_,
                     cK_=(dict(name='vegetation season day-start', units=1,
                               var_name='veg_s'),
                          dict(name='vegetation season day-end', units=1,
@@ -569,12 +851,12 @@ def _dclimidx(c_pr=None, c_t=None, c_tx=None, c_tn=None, c_wsgs=None,
             t000 = l__('{} {} ... predata'.format(i__[v_][0], v_))
             o = o[1] - o[0]
             pst_(o, 'vegetation season length', 'days', 'veg_l')
-            _sv(v_, o)
+            _sv(v_, o, dgpi)
             ll_(v_, t000)                                          #VegSeason-5
         if any([i in il_ for i in ['VegSeasonDayStart-2', 'VegSeasonDayEnd-2',
                                    'VegSeasonLength-2']]):
             o = _d1(['VegSeasonDayStart-2', 'VegSeasonDayEnd-2'],
-                    c_t, ax_t, y_y_,
+                    c_t, dgpi, ax_t, y_y_,
                     cK_=(dict(name='vegetation season day-start', units=1,
                               var_name='veg_s'),
                          dict(name='vegetation season day-end', units=1,
@@ -586,18 +868,18 @@ def _dclimidx(c_pr=None, c_t=None, c_tx=None, c_tn=None, c_wsgs=None,
             t000 = l__('{} {} ... predata'.format(i__[v_][0], v_))
             o = o[1] - o[0]
             pst_(o, 'vegetation season length', 'days', 'veg_l')
-            _sv(v_, o)
+            _sv(v_, o, dgpi)
             ll_(v_, t000)                                          #VegSeason-2
     v_ = 'HumiWarmDays'
     if v_ in il_ and c_hurs and c_t:
-        _d0(v_, (c_hurs, c_t))                                    #HumiWarmDays
+        _d0(v_, (c_hurs, c_t), dgpi)                              #HumiWarmDays
     v_ = 'RhoS'
     if v_ in il_ and all([i is not None for i in (c_t, c_huss, c_ps)]):
         t000 = l__('{} {} ... predata'.format(i__[v_][0], v_))
         o = c_t.copy(rho_fr_t_q_p_(c_t.data, c_huss.data, c_ps.data))
         pst_(o, 'surface air density', 'kg m-3', 'rho')
         ll_('{} {} ... predata'.format(i__[v_][0], v_), t000)
-        _dd(v_, o)                                                        #RhoS
+        _dd(v_, o, dgpi)                                                  #RhoS
     v_ = 'Rho975'
     if v_ in il_ and all([i is not None for i in [c_t975, c_hus975]]):
         t000 = l__('{} {} ... predata'.format(i__[v_][0], v_))
@@ -606,7 +888,16 @@ def _dclimidx(c_pr=None, c_t=None, c_tx=None, c_tn=None, c_wsgs=None,
             o = iris.util.mask_cube(o, c_ps.data < 97500.)
         pst_(o, 'air density', 'kg m-3', 'rho')
         ll_('{} {} ... predata'.format(i__[v_][0], v_), t000)
-        _dd(v_, o)                                                      #Rho975
+        _dd(v_, o, dgpi)                                                #Rho975
+    v_ = 'Rho950'
+    if v_ in il_ and all([i is not None for i in [c_t950, c_hus950]]):
+        t000 = l__('{} {} ... predata'.format(i__[v_][0], v_))
+        o = c_t950.copy(rho_fr_t_q_p_(c_t950.data, c_hus950.data, 95000.))
+        if c_ps is not None:
+            o = iris.util.mask_cube(o, c_ps.data < 95000.)
+        pst_(o, 'air density', 'kg m-3', 'rho')
+        ll_('{} {} ... predata'.format(i__[v_][0], v_), t000)
+        _dd(v_, o, dgpi)                                                #Rho950
     v_ = 'Rho925'
     if v_ in il_ and all([i is not None for i in [c_t925, c_hus925]]):
         t000 = l__('{} {} ... predata'.format(i__[v_][0], v_))
@@ -615,24 +906,48 @@ def _dclimidx(c_pr=None, c_t=None, c_tx=None, c_tn=None, c_wsgs=None,
             o = iris.util.mask_cube(o, c_ps.data < 92500.)
         pst_(o, 'air density', 'kg m-3', 'rho')
         ll_('{} {} ... predata'.format(i__[v_][0], v_), t000)
-        _dd(v_, o)                                                      #Rho925
+        _dd(v_, o, dgpi)                                                #Rho925
+    v_ = 'Rho50m'
+    if v_ in il_ and all([i is not None for i in [c_t50m, c_hus50m, c_p50m]]):
+        t000 = l__('{} {} ... predata'.format(i__[v_][0], v_))
+        o = c_t50m.copy(rho_fr_t_q_p_(c_t50m.data, c_hus50m.data, c_p50m.data))
+        pst_(o, 'air density', 'kg m-3', 'rho')
+        ll_('{} {} ... predata'.format(i__[v_][0], v_), t000)
+        _dd(v_, o, dgpi)                                                #Rho50m
+    v_ = 'Rho100m'
+    if v_ in il_ and all([i is not None
+                          for i in [c_t100m, c_hus100m, c_p100m]]):
+        t000 = l__('{} {} ... predata'.format(i__[v_][0], v_))
+        o = c_t100m.copy(rho_fr_t_q_p_(c_t100m.data, c_hus100m.data,
+                                       c_p100m.data))
+        pst_(o, 'air density', 'kg m-3', 'rho')
+        ll_('{} {} ... predata'.format(i__[v_][0], v_), t000)
+        _dd(v_, o, dgpi)                                               #Rho100m
+    v_ = 'Rho200m'
+    if v_ in il_ and all([i is not None
+                          for i in [c_t200m, c_hus200m, c_p200m]]):
+        t000 = l__('{} {} ... predata'.format(i__[v_][0], v_))
+        o = c_t200m.copy(rho_fr_t_q_p_(c_t200m.data, c_hus200m.data,
+                                       c_p200m.data))
+        pst_(o, 'air density', 'kg m-3', 'rho')
+        ll_('{} {} ... predata'.format(i__[v_][0], v_), t000)
+        _dd(v_, o, dgpi)                                               #Rho200m
     if c_pr:
         v_ = 'DryDays'
         if v_ in il_:
-            _d0(v_, c_pr)                                              #DryDays
+            _d0(v_, c_pr, dgpi)                                        #DryDays
         v_ = 'PRmax'
-        if v_ in il_:
-            _dd(v_, c_pr)                                                #PRmax
+        _dd(v_, c_pr, dgpi)                                              #PRmax
         if any([i in il_ for i in ['PRgt10Days', 'PRgt25Days']]):
-            _d0(['PRgt10Days', 'PRgt25Days'], c_pr)                  #ExtrPrDay
+            _d0(['PRgt10Days', 'PRgt25Days'], c_pr, dgpi)            #ExtrPrDay
         if any([i in il_ for i in ['LnstDryDays', 'SuperCooledPR',
                                    'PR7Dmax']]):
-            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(c_pr)
+            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(c_pr, y0y1)
         v_ = 'PR7Dmax'
         if v_ in il_:
             cK_ = dict(name='max 7-day precipitation', var_name='pr7d')
             fA_ = (tyrs,)
-            _d1(v_, c_pr, ax_t, y_y_, cK_=cK_, fA_=fA_)                #PR7Dmax
+            _d1(v_, c_pr, dgpi, ax_t, y_y_, cK_=cK_, fA_=fA_)          #PR7Dmax
         v_ = 'LnstDryDays'
         if v_ in il_:
             t000 = l__('{} {} LL'.format(i__[v_][0], v_))
@@ -640,7 +955,8 @@ def _dclimidx(c_pr=None, c_t=None, c_tx=None, c_tn=None, c_wsgs=None,
             for ss in s4:
                 yy = [y_y_[0] + 1, y_y_[-1]] if ss == s4[0] else y_y_
                 ind = np.logical_and(tsss==ss, ind_inRange_(tsyr, *yy))
-                _d1(v_, extract_byAxes_(c_pr, ax_t, ind), ax_t, yy, cK_=cK_,
+                _d1(v_, extract_byAxes_(c_pr, ax_t, ind), dgpi,
+                    ax_t, yy, cK_=cK_,
                     fA_=(tsyr[ind],), freq=(ss,))
             ll_(v_, t000)                                          #LnstDryDays
     v_ = 'SuperCooledPR'
@@ -650,48 +966,48 @@ def _dclimidx(c_pr=None, c_t=None, c_tx=None, c_tn=None, c_wsgs=None,
         cK_ = dict(name='supercooled precipitation day', units='days')
         fA_ = (tyrs,)
         _d1(v_, (c_pr, c_ps, c_t, c_t925, c_t850, c_t700,
-                 c_hus925, c_hus850, c_hus700),
+                 c_hus925, c_hus850, c_hus700), dgpi,
             ax_t, y_y_, cK_=cK_, fA_=fA_)                        #SuperCooledPR
     if c_snc:
         v_ = 'SncDays'
         if v_ in il_:
-            _d0(v_, c_snc)                                             #SncDays
+            _d0(v_, c_snc, dgpi)                                       #SncDays
         v_ = 'Snc25Days'
         if v_ in il_:
-            _d0(v_, c_snc, fK_=dict(thr=25))                         #Snc25Days
+            _d0(v_, c_snc, dgpi, fK_=dict(thr=25))                   #Snc25Days
     if c_snd:
         v_ = 'Snd10Days'
         if v_ in il_:
-            _d0(v_, c_snd)                                           #Snd10Days
+            _d0(v_, c_snd, dgpi)                                     #Snd10Days
         v_ = 'Snd20Days'
         if v_ in il_:
-            _d0(v_, c_snd)                                           #Snd20Days
+            _d0(v_, c_snd, dgpi)                                     #Snd20Days
     v_ = 'SNWmax'
     if v_ in il_ and c_snw:
-        _dd(v_, c_snw)                                                  #SNWmax
+        _dd(v_, c_snw, dgpi)                                            #SNWmax
     v_ = 'PRSNmax'
     if v_ in il_ and c_prsn:
-        _dd(v_, c_prsn)                                                #PRSNmax
+        _dd(v_, c_prsn, dgpi)                                          #PRSNmax
     v_ = 'ColdRainWarmSnowDays'
     if v_ in il_ and c_pr and c_t:
-        _d0(v_, (c_pr, c_t))                              #ColdRainWarmSnowDays
+        _d0(v_, (c_pr, c_t), dgpi)                        #ColdRainWarmSnowDays
     if (any([i in il_ for i in ['ColdRainDays', 'ColdRainGT10Days',
                                 'ColdRainGT20Days']]) and c_pr and c_t):
         _d0(['ColdRainDays', 'ColdRainGT10Days', 'ColdRainGT20Days'],
-            (c_pr, c_t))                                          #ColdRainDays
+            (c_pr, c_t), dgpi)                                    #ColdRainDays
     if (any([i in il_ for i in ['WarmSnowDays', 'WarmSnowGT10Days',
                                 'WarmSnowGT20Days']]) and c_pr and c_t):
         _d0(['WarmSnowDays', 'WarmSnowGT10Days', 'WarmSnowGT20Days'],
-            (c_pr, c_t))                                          #WarmSnowDays
+            (c_pr, c_t), dgpi)                                    #WarmSnowDays
     if (any([i in il_ for i in ['WarmPRSNdays', 'WarmPRSNgt10Days',
                                 'WarmPRSNgt20Days']]) and c_prsn and c_t):
         _d0(['WarmPRSNdays', 'WarmPRSNgt10Days', 'WarmPRSNgt20Days'],
-            (c_prsn, c_t))                                        #WarmPRSNDays
+            (c_prsn, c_t), dgpi)                                  #WarmPRSNDays
     if (any([i in il_ for i in ['ColdPRRNdays', 'ColdPRRNgt10Days',
                                 'ColdPRRNgt20Days']])
         and c_prsn and c_pr and c_t):
         _d0(['ColdPRRNdays', 'ColdPRRNgt10Days', 'ColdPRRNgt20Days'],
-            (c_pr, c_prsn, c_t))                                  #ColdPRRNDays
+            (c_pr, c_prsn, c_t), dgpi)                            #ColdPRRNDays
     if (any([i in il_ for i in ['R5OScw', 'R1OScw', 'R5OSc', 'R1OSc']]) and
         c_pr and c_t):
         #c_prsn = dPRSN_fr_PR_T_(c_pr, c_t)
@@ -703,49 +1019,173 @@ def _dclimidx(c_pr=None, c_t=None, c_tx=None, c_tn=None, c_wsgs=None,
         fK_ = dict(cSnw=c_snw, attr=attr)
         v_ = 'R5OScw'
         if v_ in il_:
-            _d0(v_, (o, c_snc), fK_=fK_)                                #R5OScw
+            _d0(v_, (o, c_snc), dgpi, fK_=fK_)                          #R5OScw
         v_ = 'R1OScw'
         if v_ in il_:
-            _d0(v_, (o, c_snc), fK_=dict(thr_r=1., **fK_))              #R1OScw
+            _d0(v_, (o, c_snc), dgpi, fK_=dict(thr_r=1., **fK_))        #R1OScw
     if o and c_snc:
         attr = None if 'PRRN' not in o.attributes else o.attributes['PRRN']
         fK_ = dict(attr=attr)
         v_ = 'R5OSc'
         if v_ in il_:
-            _d0(v_, (o, c_snc), fK_=fK_)                                 #R5OSc
+            _d0(v_, (o, c_snc), dgpi, fK_=fK_)                           #R5OSc
         v_ = 'R1OSc'
         if v_ in il_:
-            _d0(v_, (o, c_snc), fK_=dict(thr_r=1., **fK_))               #R1OSc
+            _d0(v_, (o, c_snc), dgpi, fK_=dict(thr_r=1., **fK_))         #R1OSc
 
 
-def _hclimidx(c_pr=None, c_ps=None, c_t=None, c_t925=None, c_t850=None,
+def _h6climidx(**kwArgs):
+    __hclimidx(tint='h6', **kwArgs)
+
+
+def _h3climidx(**kwArgs):
+    __hclimidx(tint='h3', **kwArgs)
+
+
+def _h1climidx(**kwArgs):
+    __hclimidx(tint='h1', **kwArgs)
+
+
+def _hclimidx(tint='h6', dn=None, gwl=None, po_=None, il_=None, y0y1=None,
+              c_pr=None, c_ps=None, c_t=None, c_t925=None, c_t850=None,
               c_t700=None, c_hus925=None, c_hus850=None, c_hus700=None,
-              dn=None, gwl=None, po_=None, il_=None, y0y1=None):
-    if any([i is None for i in [dn, gwl, po_, il_]]):
+              c_hus975=None, c_hus950=None, c_hus50m=None, c_hus100m=None,
+              c_hus200m=None, c_t975=None, c_t950=None, c_t50m=None,
+              c_t100m=None, c_t200m=None, c_p50m=None, c_p100m=None,
+              c_p200m=None, c_ws=None, c_us=None, c_u975=None,
+              c_u950=None, c_u925=None, c_u50m=None, c_u100m=None,
+              c_u200m=None, c_vs=None, c_v975=None, c_v950=None,
+              c_v925=None, c_v50m=None, c_v100m=None, c_v200m=None):
+
+    dgpi = [dn, gwl, po_, il_]
+    if any([i is None for i in dgpi]):
         raise ValueError("input of 'dn', 'gwl', 'po_', 'il_' is mandotory!")
     os.makedirs(po_, exist_ok=True)
-    v_ = 'hSuperCooledPR'
+
+    v_ = tint+'sfcWind'
+    if c_ws is None and c_us and c_vs and v_ in il_:
+        #c_ws = c_us.copy(np.sqrt(c_us.data**2 + c_vs.data**2))
+        c_ws = ws_cube(c_us, c_vs)
+        pst_(c_ws, 'surface wind speed', var_name='sfcWind')
+    _dd(v_, c_ws, dgpi)                                              #hxSfcWind
+    v_ = tint+'Wind975'
+    o = None
+    if v_ in il and c_u975 and c_v975:
+        #o = c_u975.copy(np.sqrt(c_u975.data**2 + c_v975.data**2))
+        o = ws_cube(c_u975, c_v975)
+        if c_ps:
+            o = iris.util.mask_cube(o, c_ps.data < 97500.)
+        pst_(o, 'wind speed at 975 mb', var_name='w975')
+    _dd(v_, o, dgpi)                                                 #hxWind975
+    v_ = tint+'Wind950'
+    o = None
+    if v_ in il and c_u950 and c_v950:
+        #o = c_u950.copy(np.sqrt(c_u950.data**2 + c_v950.data**2))
+        o = ws_cube(c_u950, c_v950)
+        if c_ps:
+            o = iris.util.mask_cube(o, c_ps.data < 95000.)
+        pst_(o, 'wind speed at 950 mb', var_name='w950')
+    _dd(v_, o, dgpi)                                                 #hxWind950
+    v_ = tint+'Wind925'
+    o = None
+    if v_ in il and c_u925 and c_v925:
+        #o = c_u925.copy(np.sqrt(c_u925.data**2 + c_v925.data**2))
+        o = ws_cube(c_u925, c_v925)
+        if c_ps:
+            o = iris.util.mask_cube(o, c_ps.data < 92500.)
+        pst_(o, 'wind speed at 925 mb', var_name='w925')
+    _dd(v_, o, dgpi)                                                 #hxWind925
+    v_ = tint+'Wind50m'
+    o = None
+    if v_ in il and c_u50m and c_v50m:
+        #o = c_u50m.copy(np.sqrt(c_u50m.data**2 + c_v50m.data**2))
+        o = ws_cube(c_u50m, c_v50m)
+        pst_(o, 'wind speed at 50m', var_name='w50m')
+    _dd(v_, o, dgpi)                                                 #hxWind50m
+    v_ = tint+'Wind100m'
+    o = None
+    if v_ in il and c_u100m and c_v100m:
+        #o = c_u100m.copy(np.sqrt(c_u100m.data**2 + c_v100m.data**2))
+        o = ws_cube(c_u100m, c_v100m)
+        pst_(o, 'wind speed at 100m', var_name='w100m')
+    _dd(v_, o, dgpi)                                                #hxWind100m
+    v_ = tint+'Wind200m'
+    o = None
+    if v_ in il and c_u200m and c_v200m:
+        #o = c_u200m.copy(np.sqrt(c_u200m.data**2 + c_v200m.data**2))
+        o = ws_cube(c_u200m, c_v200m)
+        pst_(o, 'wind speed at 200m', var_name='w200m')
+    _dd(v_, o, dgpi)                                                #hxWind200m
+    v_ = tint+'RhoS'
+    if v_ in il_ and all([i is not None for i in (c_t, c_huss, c_ps)]):
+        t000 = l__('{} {} ... predata'.format(i__[v_][0], v_))
+        o = c_t.copy(rho_fr_t_q_p_(c_t.data, c_huss.data, c_ps.data))
+        pst_(o, 'surface air density', 'kg m-3', 'rho')
+        ll_('{} {} ... predata'.format(i__[v_][0], v_), t000)
+        _dd(v_, o, dgpi)                                                #hxRhoS
+    v_ = tint+'Rho975'
+    if v_ in il_ and all([i is not None for i in [c_t975, c_hus975]]):
+        t000 = l__('{} {} ... predata'.format(i__[v_][0], v_))
+        o = c_t975.copy(rho_fr_t_q_p_(c_t975.data, c_hus975.data, 97500.))
+        if c_ps is not None:
+            o = iris.util.mask_cube(o, c_ps.data < 97500.)
+        pst_(o, 'air density', 'kg m-3', 'rho')
+        ll_('{} {} ... predata'.format(i__[v_][0], v_), t000)
+        _dd(v_, o, dgpi)                                              #hxRho975
+    v_ = tint+'Rho950'
+    if v_ in il_ and all([i is not None for i in [c_t950, c_hus950]]):
+        t000 = l__('{} {} ... predata'.format(i__[v_][0], v_))
+        o = c_t950.copy(rho_fr_t_q_p_(c_t950.data, c_hus950.data, 95000.))
+        if c_ps is not None:
+            o = iris.util.mask_cube(o, c_ps.data < 95000.)
+        pst_(o, 'air density', 'kg m-3', 'rho')
+        ll_('{} {} ... predata'.format(i__[v_][0], v_), t000)
+        _dd(v_, o, dgpi)                                              #hxRho950
+    v_ = tint+'Rho925'
+    if v_ in il_ and all([i is not None for i in [c_t925, c_hus925]]):
+        t000 = l__('{} {} ... predata'.format(i__[v_][0], v_))
+        o = c_t925.copy(rho_fr_t_q_p_(c_t925.data, c_hus925.data, 92500.))
+        if c_ps is not None:
+            o = iris.util.mask_cube(o, c_ps.data < 92500.)
+        pst_(o, 'air density', 'kg m-3', 'rho')
+        ll_('{} {} ... predata'.format(i__[v_][0], v_), t000)
+        _dd(v_, o, dgpi)                                              #hxRho925
+    v_ = tint+'Rho50m'
+    if v_ in il_ and all([i is not None for i in [c_t50m, c_hus50m, c_p50m]]):
+        t000 = l__('{} {} ... predata'.format(i__[v_][0], v_))
+        o = c_t50m.copy(rho_fr_t_q_p_(c_t50m.data, c_hus50m.data, c_p50m.data))
+        pst_(o, 'air density', 'kg m-3', 'rho')
+        ll_('{} {} ... predata'.format(i__[v_][0], v_), t000)
+        _dd(v_, o, dgpi)                                              #hxRho50m
+    v_ = tint+'Rho100m'
+    if v_ in il_ and all([i is not None
+                          for i in [c_t100m, c_hus100m, c_p100m]]):
+        t000 = l__('{} {} ... predata'.format(i__[v_][0], v_))
+        o = c_t100m.copy(rho_fr_t_q_p_(c_t100m.data, c_hus100m.data,
+                                       c_p100m.data))
+        pst_(o, 'air density', 'kg m-3', 'rho')
+        ll_('{} {} ... predata'.format(i__[v_][0], v_), t000)
+        _dd(v_, o, dgpi)                                             #hxRho100m
+    v_ = tint+'Rho200m'
+    if v_ in il_ and all([i is not None
+                          for i in [c_t200m, c_hus200m, c_p200m]]):
+        t000 = l__('{} {} ... predata'.format(i__[v_][0], v_))
+        o = c_t200m.copy(rho_fr_t_q_p_(c_t200m.data, c_hus200m.data,
+                                       c_p200m.data))
+        pst_(o, 'air density', 'kg m-3', 'rho')
+        ll_('{} {} ... predata'.format(i__[v_][0], v_), t000)
+        _dd(v_, o, dgpi)                                             #hxRho200m
+    v_ = tint+'SuperCooledPR'
     if v_ in il_ and all([i is not None for i in
                           (c_pr, c_ps, c_t, c_t925, c_t850, c_t700,
                            c_hus925, c_hus850, c_hus700)]):
-        t000 = l__('data loading c_pr')
-        rm_t_aux_cube(c_pr)
-        yr_doy_cube(c_pr)
-        tyrs, tdoy = c_pr.coord('year').points, c_pr.coord('doy').points
-        if y0y1 is None:
-            y0y1 = tyrs[[0, -1]]
-        ax_t = c_pr.coord_dims('time')[0]
-        ll_('data loading c_pr', t000)                #########################
-        t000 = l__('{} {}'.format(i__[v_][0], v_))
-        au = dict(CLIMIDX='6hr events')
-        c = initAnnualCube_(c_pr, y0y1, 'supercooled precipitation events',
-                            '1', var_name='prsc', attr_updt=au)
-        c_ = _afm_n((c_pr, c_ps, c_t, c_t925, c_t850, c_t700,
-                     c_hus925, c_hus850, c_hus700), ax_t, dFreezRainDays_,
-                     c, tyrs)
-        c = c_ if c_ else c
-        cubesv_(c, po_ + '_'.join((v_, dn, 'year', gwl)) + '.nc')
-        ll_(v_, t000)                                           #hSuperCooledPR
+        ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(c_pr, y0y1)
+        cK_ = dict(name='supercooled precipitation events', units='1',
+                   var_name='prsc')
+        fA_ = (tyrs,)
+        _d1(v_, (c_pr, c_ps, c_t, c_t925, c_t850, c_t700,
+                 c_hus925, c_hus850, c_hus700), dgpi,
+            ax_t, y_y_, cK_=cK_, fA_=fA_)                      #hxSuperCooledPR
 
 
 def _szG(cL):
@@ -781,42 +1221,54 @@ def _afm_n(cL, ax, func, out, *args, npr=32, xm=160, **kwargs):
 
 def _xx(pi_, freq):
     if isinstance(pi_, str):
-        return pi_ + freq + '/'
+        return pi_ + '*' + freq + '/'
     elif isinstance(pi_, (tuple, list, set, np.ndarray)):
         return [_xx(i, freq) for i in pi_]
     else:
         raise ValueError("'pi_' must be str type or array-like of str")
 
 
-def _3hr_to_6hr(cube):
+def _to_xhr(cube, x=6, valid=True):
+    nh = 24 / x
     cat.add_categorised_coord(cube, 'xxx', 'time',
-                              lambda coord, x: np.round(x * 4) / 4)
+                              lambda coord, v: np.ceil(v * nh) / nh)
     o = cube.aggregated_by('xxx',iris.analysis.MEAN)
+    if valid:
+        dpo = np.diff(o.coord('xxx').points)
+        ddpo = np.diff(np.where(dpo != 0)[0])[1]
+        sss = None if dpo[ddpo-1] != 0 else 1
+        eee = None if dpo[-ddpo] != 0 else -1
+    else:
+        sss, eee = None, None
     cube.remove_coord('xxx')
-    n0 = len(cube.coord('time').points[::2])
-    n1 = len(o.coord('time').points)
-    end = None if n0 == n1 else n0 - n1
-    return extract_byAxes_(o, 'time', np.s_[:end])
+    return extract_byAxes_(o, 'time', np.s_[sss:eee])
 
 
 def _xxx(cube, freq0, freq1):
-    freqs = ['mon', 'day', '6hr', '3hr']
+    freqs = ['mon', 'day', '6hr', '3hr', '1hr']
     if any([i not in freqs for i in [freq0, freq1]]):
         raise ValueError("unknown frequency names!")
     if freqs.index(freq1) > freqs.index(freq0):
         raise ValueError("cannot convert from low to high frequency!")
     if freq1 == 'mon':
         return pSTAT_cube(cube, 'MEAN', 'month')
-    if freq1 == 'day':
+    elif freq1 == 'day':
         return pSTAT_cube(cube, 'MEAN', 'day')
-    elif cube.cell_methods and cube.cell_methods[0].method.upper() == 'MEAN':
-        return _3hr_to_6hr(cube)
+    elif freq1 == '6hr':
+        if cube.cell_methods and cube.cell_methods[0].method.upper() == 'MEAN':
+            return _to_xhr(cube)
+        else:
+            nn = 2 if freq0 == '3hr' else 6
+            return extract_byAxes_(cube, 'time', np.s_[::nn])
     else:
-        return extract_byAxes_(cube, 'time', np.s_[::2])
+        if cube.cell_methods and cube.cell_methods[0].method.upper() == 'MEAN':
+            return _to_xhr(cube, x=3)
+        else:
+            return extract_byAxes_(cube, 'time', np.s_[::3])
 
 
 def rf__(pi_, freq, folder='cordex', reg_d=None, **kwargs):
-    freqs = ['mon', 'day', '6hr', '3hr']
+    freqs = ['mon', 'day', '6hr', '3hr', '1hr']
     _rf = eval('{}_dir_cubeL'.format(folder))
     o = None
     e = None
@@ -870,31 +1322,50 @@ def _yy_dn(pD, dn, gwl, gg, curr):
     elif gwl == 'curr0130':
         y0y1 = curr
     else:
-        y0y1 = None
+        y0y1 = curr
     return (y0y1, dn)
 
 
-def cmip5_imp_rcp_(il_, reg_d, reg_n, po_, sss=None, eee=None):
-    pp = _pp(_here_ + 'cmip5_import_.yml')
-    ppp = pp['p_'][sss:eee]
-    for p_ in ppp:
+def cmip6_rcp_(il_, reg_d, reg_n, po_,
+               sss=None, eee=None, idx=None, yml=None, tii=None):
+    pp = _pp(yml) if yml else _pp(_here_ + 'cmip6_smhi_len.yml')
+    pp_ = l_ind_(pp['p_'], [int(i) for i in idx.split(',')]) if idx else\
+          pp['p_'][sss:eee]
+    for p_ in pp_:
+        tmp = path2cmip6_info_(p_)
+        dn = '_'.join((tmp['gcm'], tmp['rcp'], tmp['rip'], reg_n))
+        t0 = l__('>>>>>>>' + dn)
+        pi_ = pp['root'] + p_
+        tis = ['mon', 'day'] if tii is None else tii.split(',')
+        for tint in tis:
+            _xyz(il_, tint, pi_, dn, '', None, po_, reg_d, folder='cmip6')
+        ll_('<<<<<<<' + dn, t0)
+
+
+def cmip5_imp_rcp_(il_, reg_d, reg_n, po_,
+                   sss=None, eee=None, idx=None, yml=None, tii=None):
+    pp = _pp(yml) if yml else _pp(_here_ + 'cmip5_import_.yml')
+    pp_ = l_ind_(pp['p_'], [int(i) for i in idx.split(',')]) if idx else\
+          pp['p_'][sss:eee]
+    for p_ in pp_:
         tmp = path2cmip5_info_(p_)
         dn = '_'.join((tmp['gcm'], tmp['rcp'], tmp['rip'], reg_n))
         t0 = l__('>>>>>>>' + dn)
         pi_ = pp['root'] + p_
-        tis = ['mon', 'day']
+        tis = ['mon', 'day'] if tii is None else tii.split(',')
         for tint in tis:
             _xyz(il_, tint, pi_, dn, '', None, po_, reg_d, folder='cmip5')
         ll_('<<<<<<<' + dn, t0)
 
 
 def cmip5_imp_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
-                  sss=None, eee=None):
-    pp = _pp(_here_ + 'cmip5_import.yml')
+                  sss=None, eee=None, idx=None, yml=None, tii=None):
+    pp = _pp(yml) if yml else _pp(_here_ + 'cmip5_import.yml')
     #pp = _pp(_here_ + 'cmip5_import_cp.yml')
     gg = _gg('cmip5')
-    ppp = pp['p_'][sss:eee]
-    for p_ in ppp:
+    pp_ = l_ind_(pp['p_'], [int(i) for i in idx.split(',')]) if idx else\
+          pp['p_'][sss:eee]
+    for p_ in pp_:
         tmp = path2cmip5_info_(p_)
         dn = '_'.join((tmp['gcm'], tmp['rcp'], tmp['rip'], reg_n))
         y0y1, dn = _yy_dn(tmp, dn, gwl, gg, curr)
@@ -905,31 +1376,53 @@ def cmip5_imp_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
         pi0 = pi1.replace(tmp['rcp'], 'historical')
         pi_ = pi0 if y0y1[1] <= 2005 else (pi1 if y0y1[0] > 2005 else
                                            [pi0, pi1])
-        tis = ['mon', 'day']
+        tis = ['mon', 'day'] if tii is None else tii.split(',')
         for tint in tis:
             _xyz(il_, tint, pi_, dn, gwl, y0y1, po_, reg_d, folder='cmip5')
         ll_('<<<<<<<' + dn, t0)
 
 
-def eur11_imp_rcp_(il_, reg_d, reg_n, po_, sss=None, eee=None):
-    pp = _pp(_here_ + 'eur-11_import__.yml')
-    for p_ in pp['p_'][sss:eee]:
+def norcp_rcp_(il_, reg_d, reg_n, po_,
+               sss=None, eee=None, idx=None, yml=None, tii=None):
+    pp = _pp(yml) if yml else _pp(_here_ + 'norcp_.yml')
+    pp_ = l_ind_(pp['p_'], [int(i) for i in idx.split(',')]) if idx else\
+          pp['p_'][sss:eee]
+    for p_ in pp_:
+        tmp = path2norcp_info_(p_)
+        dn = '_'.join((tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
+                       tmp['ver'], tmp['prd'], reg_n))
+        t0 = l__('>>>>>>>' + dn)
+        pi_ = pp['root'] + p_
+        tis = ['mon', 'day', '6hr'] if tii is None else tii.split(',')
+        for tint in tis:
+            _xyz(il_, tint, pi_, dn, '', None, po_, reg_d, folder='norcp')
+        ll_('<<<<<<<' + dn, t0)
+
+
+def eur11_imp_rcp_(il_, reg_d, reg_n, po_,
+                   sss=None, eee=None, idx=None, yml=None, tii=None):
+    pp = _pp(yml) if yml else _pp(_here_ + 'eur-11_import__.yml')
+    pp_ = l_ind_(pp['p_'], [int(i) for i in idx.split(',')]) if idx else\
+          pp['p_'][sss:eee]
+    for p_ in pp_:
         tmp = path2cordex_info_(p_)
         dn = '_'.join((tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
                        tmp['ver'], reg_n))
         t0 = l__('>>>>>>>' + dn)
         pi_ = pp['root'] + p_
-        tis = ['mon', 'day', '6hr']
+        tis = ['mon', 'day', '6hr'] if tii is None else tii.split(',')
         for tint in tis:
             _xyz(il_, tint, pi_, dn, '', None, po_, reg_d)
         ll_('<<<<<<<' + dn, t0)
 
 
 def eur11_imp_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
-                  sss=None, eee=None):
-    pp = _pp(_here_ + 'eur-11_import.yml')
+                  sss=None, eee=None, idx=None, yml=None, tii=None):
+    pp = _pp(yml) if yml else _pp(_here_ + 'eur-11_import.yml')
     gg = _gg()
-    for p_ in pp['p_'][sss:eee]:
+    pp_ = l_ind_(pp['p_'], [int(i) for i in idx.split(',')]) if idx else\
+          pp['p_'][sss:eee]
+    for p_ in pp_:
         tmp = path2cordex_info_(p_)
         dn = '_'.join((tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
                        tmp['ver'], reg_n))
@@ -941,28 +1434,31 @@ def eur11_imp_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
         pi0 = pi1.replace(tmp['rcp'], 'historical')
         pi_ = pi0 if y0y1[1] <= 2005 else (pi1 if y0y1[0] > 2005 else
                                            [pi0, pi1])
-        tis = ['mon', 'day', '6hr']
+        tis = ['mon', 'day', '6hr'] if tii is None else tii.split(',')
         for tint in tis:
             _xyz(il_, tint, pi_, dn, gwl, y0y1, po_, reg_d)
         ll_('<<<<<<<' + dn, t0)
 
 
-def eur11_imp_eval(il_, reg_d, reg_n, po_, sss=None, eee=None):
+def eur11_imp_eval(il_, reg_d, reg_n, po_,
+                   sss=None, eee=None, idx=None, yml=None, tii=None):
     gwl = ''
-    pp = _pp(_here_ + 'eur-11_import_eval.yml')
-    for p_ in pp['p_'][sss:eee]:
+    pp = _pp(yml) if yml else _pp(_here_ + 'eur-11_import_eval.yml')
+    pp_ = l_ind_(pp['p_'], [int(i) for i in idx.split(',')]) if idx else\
+          pp['p_'][sss:eee]
+    for p_ in pp_:
         tmp = path2cordex_info_(p_)
         dn = '_'.join((tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
                        tmp['ver'], reg_n))
         t0 = l__('>>>>>>>' + dn)
         pi_ = pp['root'] + p_
-        tis = ['mon', 'day', '6hr']
+        tis = ['mon', 'day', '6hr'] if tii is None else tii.split(',')
         for tint in tis:
             _xyz(il_, tint, pi_, dn, gwl, None, po_, reg_d)
         ll_('<<<<<<<' + dn, t0)
 
 
-def eur11_imp_eval_dmi(il_, reg_d, reg_n, po_):
+def eur11_imp_eval_dmi(il_, reg_d, reg_n, po_, tii=None):
     gwl = ''
     pp = _pp(_here_ + 'eur-11_import_eval.yml')
     y0y1 = [1989, 2010]
@@ -972,15 +1468,15 @@ def eur11_imp_eval_dmi(il_, reg_d, reg_n, po_):
                        tmp['ver'], reg_n))
         t0 = l__('>>>>>>>' + dn)
         pi_ = pp['root'] + p_
-        tis = ['mon', 'day', '6hr']
+        tis = ['mon', 'day', '6hr'] if tii is None else tii.split(',')
         for tint in tis:
             _xyz(il_, tint, pi_, dn, gwl, y0y1, po_, reg_d)
         ll_('<<<<<<<' + dn, t0)
 
 
-def eur11_smhi_eval(il_, reg_d, reg_n, po_):
+def eur11_smhi_eval(il_, reg_d, reg_n, po_, yml=None, tii=None):
     gwl = ''
-    pp = _pp(_here_ + 'eur-11_smhi-rca4.yml')
+    pp = _pp(yml) if yml else _pp(_here_ + 'eur-11_smhi-rca4.yml')
     p_ = pp['root'] + str(pp['eval']) + '/netcdf/'
     gcm = pp[pp['eval']]['gcm']
     rcp = pp[pp['eval']]['rcp']
@@ -989,30 +1485,35 @@ def eur11_smhi_eval(il_, reg_d, reg_n, po_):
     ver = pp[pp['eval']]['ver']
     dn = '_'.join((gcm, rcp, rip, rcm, ver, reg_n))
     t0 = l__('>>>>>>>' + dn)
-    tis = ['mon', 'day', '6hr']
+    tis = ['mon', 'day', '6hr'] if tii is None else tii.split(',')
     for tint in tis:
         _xyz(il_, tint, p_, dn, gwl, None, po_, reg_d)
     ll_('<<<<<<<' + dn, t0)
 
 
-def eur11_smhi_rcp_(il_, reg_d, reg_n, po_, sss=None, eee=None):
-    pp = _pp(_here_ + 'eur-11_smhi-rca4.yml')
-    for ppi in pp['h248'][sss:eee]:
+def eur11_smhi_rcp_(il_, reg_d, reg_n, po_,
+                    sss=None, eee=None, idx=None, yml=None, tii=None):
+    pp = _pp(yml) if yml else _pp(_here_ + 'eur-11_smhi-rca4.yml')
+    pp_ = l_ind_(pp['h248'], [int(i) for i in idx.split(',')]) if idx else\
+          pp['h248'][sss:eee]
+    for ppi in pp_:
         pi_ = '{}{}/netcdf/'.format(pp['root'], ppi)
         dn = '_'.join((pp[ppi]['gcm'], pp[ppi]['rcp'], pp[ppi]['rip'],
                        pp[ppi]['rcm'], pp[ppi]['ver'], reg_n))
         t0 = l__('>>>>>>>' + dn)
-        tis = ['mon', 'day', '6hr']
+        tis = ['mon', 'day', '6hr'] if tii is None else tii.split(',')
         for tint in tis:
             _xyz(il_, tint, pi_, dn, '', None, po_, reg_d)
         ll_('<<<<<<<' + dn, t0)
 
 
 def eur11_smhi_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
-                   sss=None, eee=None):
-    pp = _pp(_here_ + 'eur-11_smhi-rca4.yml')
+                   sss=None, eee=None, idx=None, yml=None, tii=None):
+    pp = _pp(yml) if yml else _pp(_here_ + 'eur-11_smhi-rca4.yml')
     gg = _gg()
-    for p0p1 in pp['rcps'][sss:eee]:
+    pp_ = l_ind_(pp['rcps'], [int(i) for i in idx.split(',')]) if idx else\
+          pp['rcps'][sss:eee]
+    for p0p1 in pp_:
         pi0, pi1 = p0p1[0], p0p1[1]
         pi0_, pi1_ = ('{}{}/netcdf/'.format(pp['root'], pi0),
                       '{}{}/netcdf/'.format(pp['root'], pi1))
@@ -1024,19 +1525,19 @@ def eur11_smhi_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
         pi_ = pi0_ if y0y1[1] <= 2005 else (pi1_ if y0y1[0] > 2005 else
                                             [pi0_, pi1_])
         t0 = l__('>>>>>>>' + dn)
-        tis = ['mon', 'day', '6hr']
+        tis = ['mon', 'day', '6hr'] if tii is None else tii.split(',')
         for tint in tis:
             _xyz(il_, tint, pi_, dn, gwl, y0y1, po_, reg_d)
         ll_('<<<<<<<' + dn, t0)
 
 
-def eobs20_(il_, reg_d, reg_n, po_, y0y1=[1989, 2008]):
-    from uuuu.cccc import _unify_xycoord_points
+def eobs20_(il_, reg_d, reg_n, po_, y0y1=None):
+    from climi.uuuu.cccc import _unify_xycoord_points
     def _eobs_load(idir, var):
         o = iris.load_cube(idir + var + '_ens_mean_0.1deg_reg_v20.0e.nc')
         if reg_d is not None:
             o = intersection_(o, **reg_d)
-        return extract_period_cube(o, *y0y1)
+        return o if y0y1 is None else extract_period_cube(o, *y0y1)
     idir = '/nobackup/rossby22/sm_chali/DATA/hw2018/iii/obs/EOBS20/'
     t0 = l__('>>>loading data')
     c_pr = _eobs_load(idir, 'rr')
@@ -1065,7 +1566,7 @@ def eobs20_(il_, reg_d, reg_n, po_, y0y1=[1989, 2008]):
     ll_('<<<daily', t0)
 
 
-def erai_(il_, reg_d, reg_n, po_, y0y1=[1989, 2008]):
+def erai_(il_, reg_d, reg_n, po_, y0y1=None, tii=None):
     #from uuuu.cccc import _unify_xycoord_points
     #idir = '/nobackup/rossby22/sm_chali/DATA/hw2018/iii/obs/ERAI/'
     #def _erai_load(idir, var):
@@ -1092,36 +1593,60 @@ def erai_(il_, reg_d, reg_n, po_, y0y1=[1989, 2008]):
     #_dclimidx(il_=il_, dn='ERAI_' + reg_n, gwl='', po_=po_, y0y1=y0y1, **d__)
     #ll_('<<<daily', t0)
     idir = '/home/rossby/imports/obs/ECMWF/ERAINT/input/'
-    tis = ['mon', 'day']
+    tis = ['mon', 'day'] if tii is None else tii.split(',')
     for tint in tis:
         _xyz(il_, tint, idir, 'ERAI_{}'.format(reg_n), '', y0y1, po_, reg_d,
              folder='cmip5')
-    ll_('<<<<<<<' + dn, t0)
 
 
 def main():
     parser = argparse.ArgumentParser('RUN CLIMIDX')
-    parser.add_argument("opt", type=int,
+    parser.add_argument("opt",
+                        type=str,
                         help="options for dataset on BI")
     parser.add_argument("-x", "--indices",
-                        type=str, help="indices to be calculated")
+                        type=str,
+                        help="indices to be calculated")
     parser.add_argument("-X", "--indices_excl",
-                        type=str, help="indices not to be calculated")
-    parser.add_argument("-g", "--gwl",
-                        type=str, help="warming levels")
+                        type=str,
+                        help="indices not to be calculated")
+    parser.add_argument("-w", "--gwl",
+                        type=str,
+                        help="warming levels")
     parser.add_argument("-s", "--start",
-                        type=int, help="simulation-loop start")
+                        type=int,
+                        help="simulation-loop start")
     parser.add_argument("-e", "--end",
-                        type=int, help="simulation-loop end")
+                        type=int,
+                        help="simulation-loop end")
+    parser.add_argument("-i", "--idx",
+                        type=str,
+                        help="simulation-loop index")
+    parser.add_argument("-y", "--yml",
+                        type=str,
+                        help="yaml file that stores paths")
+    parser.add_argument("-t", "--tint",
+                        type=str,
+                        help="temporal resolution(s) of input data: mon,day")
+    parser.add_argument("--lll",
+                        type=str,
+                        help="longitude/latitude limits: lo0,lo1,la0,la1")
+    parser.add_argument("-d", "--domain",
+                        type=str,
+                        help="name of domain")
     parser.add_argument("-l", "--log",
-                        type=str, help="exclusive log identifier")
+                        type=str,
+                        help="exclusive log identifier")
     args = parser.parse_args()
-    
+
     xi_ = args.indices
     if xi_:
         if os.path.isfile(xi_):
             with open(xi_, 'r') as yf:
                 il_ = yaml.safe_load(yf)
+        elif xi_[:4] == 'grp_':
+            il_ = [i for i in i__.keys()
+                   if any(ii in i__[i][5] for ii in xi_[4:])]
         else:
             il_ = xi_.split(',')
     else:
@@ -1130,41 +1655,31 @@ def main():
         el_ = args.indices_excl.split(',')
         for i in el_:
             il_.remove(i)
-    #il_ = list(i__.keys())
-    #il_.remove('SIC')
-    #il_.remove('SST')
-    #il_.remove('hSuperCooledPR')
-    #il_.remove('SuperCooledPR')
-    #il_.remove('FirstDayWithoutFrost')
-    #il_.remove('SpringFrostDayEnd')
-    #il_ = ['TAS', 'TX', 'TN', 'PR', 'PRmax']
-    #il_ = ['TX']
-    #il_ = ['SIC', 'SST']
-    #il_ = ['SNWmax', 'R5OScw', 'R1OScw']
-    #il_ = ['CalmDays975', 'ConCalmDays975', 'CalmDays925', 'ConCalmDays925']
-    #       'Wind975toSfc', 'ColdRainDays', 'ColdRainGT10Days',
-    #       'ColdRainGT20Days', 'WarmSnowDays', 'WarmSnowGT10Days',
-    #       'WarmSnowGT20Days', 'ColdPRRNdays', 'ColdPRRNgt10Days',
-    #       'ColdPRRNgt20Days', 'WarmPRSNdays', 'WarmPRSNgt10Days',
-    #       'WarmPRSNgt20Days', 'Rho975', 'Wind925', 'SfcWind',
-    #       'Wind925toSfc', 'SuperCooledPR']
+    if args.lll:
+        lo0, lo1, la0, la1 = [float(i) for i in args.lll.split(',')]
+        reg_d = {'longitude': [lo0, lo1], 'latitude': [la0, la1]}
+    else:
+        reg_d = None
     #reg_d = {'longitude': [10.0, 23.0], 'latitude': [55.0, 69.0]}
     #reg_n = 'SWE'
-    reg_d = None
     #reg_d = {'longitude': [-25.0, 45.0], 'latitude': [25.0, 75.0]}
-    reg_n = 'EUR'
-    rxx = os.environ.get('r24')
+    reg_n = args.domain if args.domain else 'ALL'
+    rxx = os.environ.get('r26')
     #rdir = '/nobackup/rossby22/sm_chali/DATA/energi/res/'
     rdir = '{}DATA/energi/res/'.format(rxx)
-    po_ = rdir + 'eval/' + reg_n + '/'
-    #pcdx = rdir + 'h248/cordex/EUR11/' + reg_n + '/'
-    pcdx = rdir + 'h248/cordex/EUR11/grp1/'
-    pcmp = rdir + 'h248/cmip5/' + reg_n + '/'
-    po__ = rdir + 'gwls/' + reg_n + '/'
-    po___ = rdir + 'obs/' + reg_n + '/'
-    po____ = rdir + 'gwls/' + reg_n + '/'
+    pf_ = lambda x: '{}{}/{}/'.format(rdir, x, reg_n)
+    poe_ = pf_('eval')
+    poo_ = pf_('obs')
+    pcdx = pf_('h248/cordex/EUR11') #rdir + 'h248/cordex/EUR11/' + reg_n + '/'
+    pcmp5 = pf_('h248/cmip5') #rdir + 'h248/cmip5/' + reg_n + '/'
+    pcmp6 = pf_('h248/cmip6') #rdir + 'h248/cmip6/' + reg_n + '/'
+    pnorcp = pf_('h248/norcp') #rdir + 'h248/norcp/' + reg_n + '/'
+    pcdx_ = pf_('gwls/cordex/EUR11') #rdir + 'gwls/' + reg_n + '/'
+    pcmp5_ = pf_('gwls/cmip5') #rdir + 'obs/' + reg_n + '/'
+    pcmp6_ = pf_('gwls/cmip6')
 
-    logn = [reg_n, str(args.opt)]
+    warnings.filterwarnings("ignore", category=UserWarning)
+    logn = [args.opt]
     if args.gwl:
         logn.append(args.gwl)
     if args.log:
@@ -1179,40 +1694,44 @@ def main():
     logging.info(strftime(" %a, %d %b %Y %H:%M:%S +0000", localtime()))
     logging.info(' ')
 
-    if args.opt == 0:
-        eur11_imp_eval(il_, reg_d, reg_n, po_, sss=args.start, eee=args.end)
-    elif args.opt == 1:
-        eur11_imp_eval_dmi(il_, reg_d, reg_n, po_)
-    elif args.opt == 2:
-        eur11_imp_rcp(il_, reg_d, reg_n, po__,
-                      gwl=args.gwl, sss=args.start, eee=args.end)
-    elif args.opt == 22:
-        eur11_imp_rcp(il_, reg_d, reg_n, po__, curr=[2001, 2030],
-                      gwl='curr0130', sss=args.start, eee=args.end)
-    elif args.opt == 3:
-        eur11_smhi_eval(il_, reg_d, reg_n, po_)
-    elif args.opt == 4:
-        eur11_smhi_rcp(il_, reg_d, reg_n, po__,
-                       gwl=args.gwl, sss=args.start, eee=args.end)
-    elif args.opt == 44:
-        eur11_smhi_rcp(il_, reg_d, reg_n, po__, curr=[2001, 2030],
-                       gwl='curr0130', sss=args.start, eee=args.end)
-    elif args.opt == 5:
-        eobs20_(il_, reg_d, reg_n, po___)
-    elif args.opt == 6:
-        erai_(il_, reg_d, reg_n, po___)
-    elif args.opt == 7:
-        cmip5_imp_rcp(il_, reg_d, reg_n, po____,
-                      gwl=args.gwl, sss=args.start, eee=args.end)
-    elif args.opt == 77:
-        cmip5_imp_rcp(il_, reg_d, reg_n, po____, curr=[2001, 2030],
-                      gwl='curr0130', sss=args.start, eee=args.end)
-    elif args.opt == 8:
-        eur11_smhi_rcp_(il_, reg_d, reg_n, pcdx, sss=args.start, eee=args.end)
-    elif args.opt == 9:
-        eur11_imp_rcp_(il_, reg_d, reg_n, pcdx, sss=args.start, eee=args.end)
-    elif args.opt == 10:
-        cmip5_imp_rcp_(il_, reg_d, reg_n, pcmp, sss=args.start, eee=args.end)
+    seiyt = dict(sss=args.start, eee=args.end, idx=args.idx,
+                 yml=args.yml, tii=args.tint)
+
+    if args.opt in ('0', 'eobs20'):
+        eobs20_(il_, reg_d, reg_n, poo_)
+    elif args.opt in ('1', 'erai'):
+        erai_(il_, reg_d, reg_n, poo_, tii=tii)
+    elif args.opt in ('2', 'cdx_eval'):
+        eur11_imp_eval(il_, reg_d, reg_n, poe_, **seiyt)
+    elif args.opt in ('21', 'cdx_eval_dmi'):
+        eur11_imp_eval_dmi(il_, reg_d, reg_n, poe_, tii=tii)
+    elif args.opt in ('22', 'cdx_eval_smhi'):
+        eur11_smhi_eval(il_, reg_d, reg_n, poe_, yml=args.yml, tii=tii)
+    elif args.opt in ('3', 'cdx'):
+        eur11_imp_rcp_(il_, reg_d, reg_n, pcdx, **seiyt)
+    elif args.opt in ('30', 'cdx_smhi'):
+        eur11_smhi_rcp_(il_, reg_d, reg_n, pcdx, **seiyt)
+    elif args.opt in ('31', 'cdx_gwl'):
+        eur11_imp_rcp(il_, reg_d, reg_n, pcdx_, gwl=args.gwl, **seiyt)
+    elif args.opt in ('32', 'cdx_gwl_smhi'):
+        eur11_smhi_rcp(il_, reg_d, reg_n, pcdx_, gwl=args.gwl, **seiyt)
+    elif args.opt in ('33', 'cdx_0130'):
+        eur11_imp_rcp(il_, reg_d, reg_n, pcdx_, curr=[2001, 2030],
+                      gwl='curr0130', **seiyt)
+    elif args.opt in ('34', 'cdx_0130_smhi'):
+        eur11_smhi_rcp(il_, reg_d, reg_n, pcdx_, curr=[2001, 2030],
+                       gwl='curr0130', **seiyt)
+    elif args.opt in ('4', 'norcp'):
+        norcp_rcp_(il_, reg_d, reg_n, pnorcp, **seiyt)
+    elif args.opt in ('5', 'cmp5'):
+        cmip5_imp_rcp_(il_, reg_d, reg_n, pcmp5, **seiyt)
+    elif args.opt in ('51', 'cmp5_gwl'):
+        cmip5_imp_rcp(il_, reg_d, reg_n, pcmp5_, gwl=args.gwl, **seiyt)
+    elif args.opt in ('54', 'cmp5_xxx'):
+        cmip5_imp_rcp(il_, reg_d, reg_n, pcmp5_, curr=[1981, 2100],
+                      gwl='xxx', **seiyt)
+    elif args.opt in ('6', 'cmp6'):
+        cmip6_rcp_(il_, reg_d, reg_n, pcmp6, **seiyt)
     else:
         pass
 

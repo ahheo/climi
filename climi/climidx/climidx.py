@@ -56,6 +56,7 @@
 
 
 import numpy as np
+import dask.array as da
 import iris
 import iris.coord_categorisation as cat
 from climi.uuuu import *
@@ -105,10 +106,22 @@ __all__ = ['mEffPr_',
            'dWarmSnowDays_',
            'dColdPRRNdays_',
            'dWarmPRSNdays_',
-           'dColdRainWarmSnowDays_']
+           'dColdRainWarmSnowDays_',
+           'ws_cube']
 
 
 K0 = 273.15
+
+
+def ws_data_func(u_data, v_data):
+    return da.sqrt( u_data**2 + v_data**2 )
+
+def ws_units_func(u_cube, v_cube):
+    if u_cube.units != getattr(v_cube, 'units', u_cube.units):
+        raise ValueError("units do not match")
+    return u_cube.units
+
+ws_cube = iris.analysis.maths.IFunc(ws_data_func, ws_units_func)
 
 
 def _rl(x):

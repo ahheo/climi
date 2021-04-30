@@ -32,6 +32,8 @@ __all__ = ['bi_cmip5_info_',
            'clmidx_finfo_eval_',
            'cmip5_dir_cubeL',
            'cmip5_dir_finfo',
+           'cmip6_dir_cubeL',
+           'cmip6_dir_finfo',
            'cordex_dir_cubeL',
            'cordex_dir_finfo',
            'en_pmean_cubeL_',
@@ -52,8 +54,12 @@ __all__ = ['bi_cmip5_info_',
            'map_sim_',
            'map_sim_cmip5_',
            'min_fselect_',
+           'norcp_dir_cubeL',
+           'norcp_dir_finfo',
            'path2cmip5_info_',
+           'path2cmip6_info_',
            'path2cordex_info_',
+           'path2norcp_info_',
            'prgd_mm_',
            'pure_ts_dn_',
            'sc_unit_clmidx_',
@@ -63,6 +69,47 @@ __all__ = ['bi_cmip5_info_',
 
 
 _here_ = get_path_(__file__)
+
+
+def cmip6_dir_finfo(idir, var='*', freq='*', gcm='*', exp='*', rip='*',
+                    gl='*', ver='*', p=None, ext='.nc'):
+    """
+    Purpose: get data info from a cmip5 data directory
+    """
+    varL, freqL, gcmL, expL, ripL, glL, pL = [[] for _ in range(7)]
+    def idir_(idir_i, var, gl, ver):
+        return '{}{}/{}/{}/'.format(idir_i, var, gl, ver)
+    s = '_'
+    if isinstance(idir, str):
+        idir = [idir]
+    files = []
+    for i in idir:
+        if p is None:
+            tmp = glob.glob(idir_(i, var, gl, ver) +
+                            s.join([var, '*' + freq, gcm, exp, rip, gl]) +
+                            '*' + ext)
+        else:
+            tmp = glob.glob(idir_(i, var, gl, ver) +
+                            s.join([var, '*' + freq, gcm, exp, rip, gl, p]) +
+                            ext)
+        files += tmp
+    files.sort()
+    for f in files:
+        s_s = pure_fn_(f).split(s)
+        varL.append(s_s[0])
+        gcmL.append(s_s[2])
+        expL.append(s_s[3])
+        ripL.append(s_s[4])
+        glL.append(s_s[5])
+        if s_s[1].upper() != 'FX':
+            freqL.append(s_s[1])
+            pL.append(s_s[6])
+        else:
+            freqL.append(s_s[1][-3:])
+    return {'var': ouniqL_(varL), 'freq': ouniqL_(freqL),
+            'gcm': ouniqL_(gcmL), 'exp': ouniqL_(expL),
+            'rip': ouniqL_(ripL), 'gl':ouniqL_(glL),
+            'p': ouniqL_(pL), 'fn': files}
 
 
 def cmip5_dir_finfo(idir, var='*', freq='*', gcm='*', exp='*', rip='*',
@@ -83,9 +130,7 @@ def cmip5_dir_finfo(idir, var='*', freq='*', gcm='*', exp='*', rip='*',
         files += tmp
     files.sort()
     for f in files:
-        for i in idir:
-            f = f.replace(i, '')
-        s_s = f.replace(ext, '').split(s)
+        s_s = pure_fn_(f).split(s)
         varL.append(s_s[0])
         freqL.append(s_s[1])
         gcmL.append(s_s[2])
@@ -97,6 +142,19 @@ def cmip5_dir_finfo(idir, var='*', freq='*', gcm='*', exp='*', rip='*',
             'gcm': ouniqL_(gcmL), 'exp': ouniqL_(expL),
             'rip': ouniqL_(ripL), 'p': ouniqL_(pL),
             'fn': files}
+
+
+def norcp_dir_finfo(idir, var='*', dm='*', gcm='*', exp='*', rip='*',
+                    rcm='*', ver='*', freq='*', p=None, ext='.nc'):
+    """
+    Purpose: get data info from a cordex data directory
+    """
+    if isinstance(idir, str):
+        idir_ = '{}{}/'.format(idir, var)
+    else:
+        idir_ = ['{}{}/'.format(i, var) for i in idir]
+    return cordex_dir_finfo(idir_, var=var, dm=dm, gcm=gcm, exp=exp, rip=rip,
+                            rcm=rcm, ver=ver, freq=freq, p=p, ext=ext)
 
 
 def cordex_dir_finfo(idir, var='*', dm='*', gcm='*', exp='*', rip='*',
@@ -120,9 +178,7 @@ def cordex_dir_finfo(idir, var='*', dm='*', gcm='*', exp='*', rip='*',
         files += tmp
     files.sort()
     for f in files:
-        for i in idir:
-            f = f.replace(i, '')
-        s_s = f.replace(ext, '').split(s)
+        s_s = pure_fn_(f).split(s)
         varL.append(s_s[0])
         dmL.append(s_s[1])
         gcmL.append(s_s[2])
@@ -146,8 +202,44 @@ def min_fselect_(dir_finfo, period=None):
     """
     pp = p_deoverlap_(p_least_(dir_finfo['p'], *period) if period else
                       dir_finfo['p'])
-    fn = [f for f in dir_finfo['fn'] if any(i for i in pp if i in f)]
+    fn = [f for f in dir_finfo['fn'] if any(i in f for i in pp)]
     dir_finfo.update({'p': pp, 'fn': fn})
+
+
+
+def cmip6_dir_cubeL(idir, var='*', freq='*', gcm='*', exp='*', rip='*',
+                    gl='gr', ver='v20200412',
+                    p='*', ext='.nc', period=None, ifconcat=False):
+    """
+    Purpose: load cube list from a cmip5 data directory
+    """
+    #warnings.filterwarnings("ignore", category=UserWarning)
+    s = '_'
+    info = cmip6_dir_finfo(idir, var=var, freq=freq, gcm=gcm, exp=exp,
+                           rip=rip, gl=gl, ver=ver, p=p, ext=ext)
+    if (len(info['gcm']) * len(info['var']) * len(info['freq'])
+        * len(info['rip'])) > 1 and ifconcat:
+        raise Exception("no idea how to organize kArgs!")
+    min_fselect_(info, period)
+    cubeL = iris.load(info['fn'])
+    if var != '*':
+        varCstr_ = iris.Constraint(cube_func=lambda c: c.var_name == var)
+        cubeL = cubeL.extract(varCstr_)
+    if len(cubeL) == 0:
+        return None
+    elif ifconcat:
+        try:
+            cube = concat_cube_(cubeL, thr=1e-5)
+            p = sorted(info['p'])
+            return {'cube': cube,
+                    'p': '-'.join((p[0].split('-')[0], p[-1].split('-')[-1]))}
+        except:
+            ll_('bbbb: cmip6_dir_cubeL: concat_cube_ error,'
+                ' return None instead')
+            return {'cube': None,
+                    'p': '-'.join((p[0].split('-')[0], p[-1].split('-')[-1]))}
+    else:
+        return {'cube': cubeL, 'p': info['p']}
 
 
 def cmip5_dir_cubeL(idir, var='*', freq='*', gcm='*', exp='*', rip='*',
@@ -155,7 +247,7 @@ def cmip5_dir_cubeL(idir, var='*', freq='*', gcm='*', exp='*', rip='*',
     """
     Purpose: load cube list from a cmip5 data directory
     """
-    warnings.filterwarnings("ignore", category=UserWarning)
+    #warnings.filterwarnings("ignore", category=UserWarning)
     s = '_'
     info = cmip5_dir_finfo(idir, var=var, freq=freq, gcm=gcm, exp=exp,
                            rip=rip, p=p, ext=ext)
@@ -184,13 +276,28 @@ def cmip5_dir_cubeL(idir, var='*', freq='*', gcm='*', exp='*', rip='*',
         return {'cube': cubeL, 'p': info['p']}
 
 
+def norcp_dir_cubeL(idir, var='*', dm='*', gcm='*', exp='*', rcm='*',
+                     freq='*', ver='*', rip='*', p='*', ext='.nc',
+                     period=None, ifconcat=False):
+    """
+    Purpose: load cube list from a cordex data directory
+    """
+    if isinstance(idir, str):
+        idir_ = '{}{}/'.format(idir, var)
+    else:
+        idir_ = ['{}{}/'.format(i, var) for i in idir]
+    return cordex_dir_cubeL(idir_, var=var, dm=dm, gcm=gcm, exp=exp, rcm=rcm,
+                            freq=freq, ver=ver, rip=rip, p=p, ext=ext,
+                            period=period, ifconcat=ifconcat)
+
+
 def cordex_dir_cubeL(idir, var='*', dm='*', gcm='*', exp='*', rcm='*',
                      freq='*', ver='*', rip='*', p='*', ext='.nc',
                      period=None, ifconcat=False):
     """
     Purpose: load cube list from a cordex data directory
     """
-    warnings.filterwarnings("ignore", category=UserWarning)
+    #warnings.filterwarnings("ignore", category=UserWarning)
     s = '_'
     info = cordex_dir_finfo(idir, var=var, dm=dm, gcm=gcm, exp=exp,
                             rip=rip, rcm=rcm, p=p, ext=ext)
@@ -224,7 +331,7 @@ def load_fx_(fxdir, dn):
     """
     Purpose: load fx cubes 'sftlf' & 'areacella' required by rgMean_cube()
     """
-    warnings.filterwarnings("ignore", category=UserWarning)
+    #warnings.filterwarnings("ignore", category=UserWarning)
     if isinstance(dn, str):
         rgm_opts = {}
         fn = schF_keys_(fxdir, '_{}_'.format(dn), 'sftlf')
@@ -326,6 +433,54 @@ def bi_cordex_info_(root, o_o='list'):
                                 o[rr][vv][gg][rip].update({rcp:
                        root + '/'.join((rr, vv, gg, rip, rcp, 'input/'))})
     return o
+
+
+def path2norcp_info_(fn):
+    terms = [i for i in fn.split('/') if i != '']
+    if terms[-1] in ['fx', '3hr', '6hr', 'day']:
+        freq = terms[-1]
+        tmp = terms[-2]
+    else:
+        freq = None
+        tmp = terms[-1]
+    if 'ECE' in tmp:
+        gcm = 'ICHEC-EC-EARTH'
+        rip = 'r12i1p1'
+    elif 'GFDL' in tmp:
+        gcm = 'GFDL-CM3'
+        rip = 'r1i1p1'
+    elif 'ERAI' in tmp:
+        gcm = 'ECMWF-ERAINT'
+        rip = 'r1i1p1'
+    if 'ALADIN' in tmp:
+        rcm = 'HCLIMcom-HCLIM38-ALADIN'
+        ver = 'v1'
+    elif 'AROME' in tmp:
+        rcm = 'HCLIMcom-HCLIM38-AROME'
+        ver = 'x2yn2v1'
+    if 'RCP' in tmp:
+        rcp = re.findall('(?<=\_)RCP\d*(?=\_)', tmp)[0].lower()
+    elif 'ERAI' in tmp:
+        rcp = 'evaluation'
+    else:
+        rcp = 'historical'
+    prd = re.findall('(?<=\_)\d+_\d+', tmp)[0].replace('_', '-')
+    o = {'rcm': rcm, 'ver': ver, 'gcm': gcm,
+         'rip': rip, 'rcp': rcp, 'prd': prd}
+    if freq:
+        o.update({'freq': freq})
+    return o
+
+
+def path2cmip6_info_(fn):
+    terms = [i for i in fn.split('/') if i != '']
+    if re.fullmatch('r\d+i\d+p\d+f\d+', terms[-1]):
+        gcm, rcp, rip = terms[-3:]
+        return {'gcm': gcm, 'rcp': rcp, 'rip': rip}
+    else:
+        gcm, rcp, rip = terms[-4:-1]
+        freq = terms[-1][-3:] if len(terms[-1]) > 3 else terms[-1]
+        return {'gcm': gcm, 'rcp': rcp, 'rip': rip, 'freq': freq}
 
 
 def path2cmip5_info_(fn):
@@ -460,7 +615,7 @@ def clmidx_finfo_eval_(idir, var, gcm='*', rcp='*', rip='*', rcm='*',
 def load_clmidx_eval_(idir, var, freq='year', rn='EUR', period=[1989, 2008]):
     from iris.fileformats.netcdf import UnknownCellMethodWarning
     warnings.filterwarnings("ignore", category=UnknownCellMethodWarning)
-    warnings.filterwarnings("ignore", category=UserWarning)
+    #warnings.filterwarnings("ignore", category=UserWarning)
     def _ilc(fn, *Args, **kwArgs):
         if fn:
             o = iris.load_cube(fn, *Args, **kwArgs)
@@ -502,7 +657,7 @@ def load_clmidx_(idir, var, gwls=['gwl15', 'gwl2'], freq='year', rn='EUR',
                  folder=None, newestV=False, addCurr=True):
     from iris.fileformats.netcdf import UnknownCellMethodWarning
     warnings.filterwarnings("ignore", category=UnknownCellMethodWarning)
-    warnings.filterwarnings("ignore", category=UserWarning)
+    #warnings.filterwarnings("ignore", category=UserWarning)
     finfo_ = (eval('clmidx_finfo_{}_'.format(folder)) if folder else
               clmidx_finfo_)
     aT = (idir, var)
@@ -618,7 +773,7 @@ def get_clm_clmidx_(cubeLL, sc, cref=None):
 
 
 def get_clm_eval_(cubeL, sc, cref=None):
-    warnings.filterwarnings("ignore", category=UserWarning)
+    #warnings.filterwarnings("ignore", category=UserWarning)
     if len(cubeL) > 2:
         a = [i.collapsed('time', iris.analysis.MEAN) if i else None
              for i in cubeL]
@@ -631,7 +786,7 @@ def get_clm_eval_(cubeL, sc, cref=None):
 
 
 def en_pmean_cubeL_(cubeL, cref=None, period=None):
-    warnings.filterwarnings("ignore", category=UserWarning)
+    #warnings.filterwarnings("ignore", category=UserWarning)
     def _c(c):
         return extract_period_cube(c, *period) if period else c
     cl = [_c(c).collapsed('time', iris.analysis.MEAN) for c in cubeL]
@@ -725,7 +880,10 @@ def load_h248_(idir, var='hwmid-tx', m='', rcp='', ref='', freq='j-d',
                      ifn.replace(rcp, 'historical')) #######################rcp
         if len(glob.glob(fnh)) == 0:
             fnh = re.sub(r'_v\d[a-zA-Z]?(?=_)', '_v*', fnh) ########rcm version
-        return fnh
+        if len(glob.glob(fnh)) == 0:
+            return [ifn]
+        else:
+            return [fnh, ifn]
     def _mm(x):
         if isinstance(x, str):
             return ['_{}_'.format(x)] if x else ['']
@@ -739,7 +897,7 @@ def load_h248_(idir, var='hwmid-tx', m='', rcp='', ref='', freq='j-d',
         fn.sort(key=lambda x: x.upper())
         fn_ = pure_fn_(fn)
         if rcp[:3] == 'rcp':
-            fn = [[_hist(i), i] for i in fn]
+            fn = [_hist(i) for i in fn]
             #print(fn)
         o = [iris.load(i) for i in fn]
         o = [i[0] if len(i) == 1 else concat_cube_(i) for i in o]
@@ -836,25 +994,27 @@ def get_period_h248_(cubeL, fnL, period, rcp=None):
         return (l_ind_(tmp, ind), l_ind_(fnL))
 
 
-def prgd_mm_(src_cube, src_m, target_m, region='GLB', target_cube=None):
+def prgd_mm_(src_cube, src_m, target_m,
+             region='GLB', target_cube=None, valid_check=True):
     import pickle
     from .rgd import POLYrgd
     pdir = '{}../regriders/'.format(_here_)
     pn = '_'.join((src_m, target_m, region))
     pfile = pdir + pn + '.p'
-    fns = schF_keys_(pdir, pn, ext='.p')
-    if fns:
-        if len(fns) > 1:
-            warnings.warn("multiple 'rgder' files founded!")
-        with open(fns[0], 'rb') as pf:
+    #fns = schF_keys_(pdir, pn, ext='.p')
+    if os.path.isfile(pfile):
+        #if len(fns) > 1:
+        #    warnings.warn("multiple 'rgder' files founded!")
+        #with open(fns[0], 'rb') as pf:
+        with open(pfile, 'rb') as pf:
             rgder = pickle.load(pf)
-        return rgder(src_cube)
+        return rgder(src_cube, valid_check=valid_check)
     elif target_cube:
         rgder = POLYrgd(src_cube, target_cube)
         rgder._info()
         with open(pfile, 'wb') as pf:
             pickle.dump(rgder, pf)
-        return rgder(src_cube)
+        return rgder(src_cube, valid_check=valid_check)
 
 
 def en_prgd_cubeL_(cubeL, mL, tgt='ECMWF-ERAINT', region='EUR'):

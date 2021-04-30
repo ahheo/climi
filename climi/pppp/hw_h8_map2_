@@ -156,7 +156,7 @@ def _mp2(fn, cgL, crLL, gcms, rcms, pD, dpD, rgD, vl):
         return _pch(fig, nrow, ncol, ii, o, rgD, pdict, tiD, xi, yi)
     axs, axs_, pchs, pchs_ = [], [], [], []
     for i, (cubeL, yi) in enumerate(zip(cubeLL, ['mean', 'spread'])):
-        for ii, (cube, xi) in enumerate(zip(cubeL, ['GCM'] + rcms)):
+        for ii, (cube, xi) in enumerate(zip(cubeL, ['Driving data'] + rcms)):
             xi_ = xi if i == 0 else None
             yi_ = yi if ii == 0 else None
             pD_.update(dpD if 'spread' in yi else pD)

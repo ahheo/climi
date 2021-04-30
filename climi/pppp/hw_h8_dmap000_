@@ -1,0 +1,155 @@
+#!/usr/bin/env python3
+
+import matplotlib as mpl
+mpl.use('pdf', force=True)
+import matplotlib.pyplot as plt
+import numpy as np
+import argparse
+import yaml
+import os
+import warnings
+import datetime
+import iris
+from iris.fileformats.netcdf import UnknownCellMethodWarning
+from itertools import combinations as _cb
+from scipy.stats import pearsonr
+from climi.pppp import *
+from climi.uuuu import *
+from climi.uuuu.cccc import _get_ind_lolalim as lllim_
+
+
+_here_ = get_path_(__file__)
+
+
+def mbe_cube_(y0, y1):
+    return rgMean_cube(y1.copy(y1.data - y0.data)).data
+
+
+def rmse_cube_(y0, y1):
+    data = (y1.data - y0.data)**2
+    return np.sqrt(rgMean_cube(y1.copy(data)).data)
+
+
+def d_m_(cube):
+    if np.ma.is_masked(cube.data):
+        d_, m_ = cube.data.data, cube.data.mask
+    else:
+        d_ = cube.data.data if np.ma.isMaskedArray(cube.data) else cube.data
+        m_ = np.full(d_.shape, False)
+    return (d_, m_)
+
+
+def cc_cube_(y0, y1):
+    d0_, m0_ = d_m_(y0)
+    d1_, m1_ = d_m_(y1)
+    M_ = np.logical_and(~m0_, ~m1_)
+    return pearsonr(d0_[M_], d1_[M_])
+
+
+def _rf(fn):
+    if os.path.isfile(fn):
+        return iris.load_cube(fn)
+
+
+def _clcdx(ddir, gcms, rcms, y_, y0y1, y0y1_, freq, var):
+    ffmt = '{}mp_r_{}_{}_{}_{}-{}_{}_{}.nc'
+    o = []
+    for gcm in gcms:
+        oo = []
+        for rcm in rcms:
+            o0 = _rf(ffmt.format(ddir, y_, gcm, rcm, *y0y1_, freq, var))
+            o1 = _rf(ffmt.format(ddir, y_, gcm, rcm, *y0y1, freq, var))
+            if o0 and o1:
+                oo.append(o1.copy(o1.data - o0.data))
+            else:
+                oo.append(None)
+        o.append(oo)
+    return o
+
+
+def _clcmp(ddir, gcms, y_, y0y1, y0y1_, freq, var, go_='g'):
+    ffmt = '{}mp_{}_{}_{}_{}-{}_{}_{}.nc'
+    o = []
+    for gcm in gcms:
+        o0 = _rf(ffmt.format(ddir, go_, y_, gcm, *y0y1_, freq, var))
+        o1 = _rf(ffmt.format(ddir, go_, y_, gcm, *y0y1, freq, var))
+        if o0 and o1:
+            o.append(o1.copy(o1.data - o0.data))
+        else:
+            o.append(None)
+    return o
+
+
+def _cc_cL(cL, tiL, f):
+    ss = '{:8.3f} ({:5.3f}); '
+    ss0 = ' ' * 16 + '; '
+    for i in range(1, len(tiL)):
+        f.write(tiL[i] + ':\n')
+        for ii in range(i):
+            if cL[ii] and cL[i]:
+                f.write(ss.format(*cc_cube_(cL[ii], cL[i])))
+            else:
+                f.write(ss0)
+        f.write('\n')
+
+
+def _mp0(fn, cgL, crLL, gcms, rcms):
+    f1 = open(fn.replace(pure_fn_(fn), 'cc0_'+ pure_fn_(fn)), 'w')
+    for cg, crL, yi in zip(cgL, crLL, gcms):
+        f1.write('ROW: ' + yi + ':\n')
+        _cc_cL([cg] + crL, ['GCM'] + rcms, f1)
+    f1.close()
+    f2 = open(fn.replace(pure_fn_(fn), 'cc1_'+ pure_fn_(fn)), 'w')
+    for cL, xi in zip([cgL] + [[i[ii] for i in crLL]
+                               for ii in range(len(rcms))],
+                      ['GCM'] + rcms):
+        f2.write('COLUMN: ' + xi + ':\n')
+        _cc_cL(cL, gcms, f2)
+    f2.close()
+
+
+def main():
+    #warnings.filterwarnings("ignore", category=UserWarning)
+    warnings.filterwarnings("ignore", category=UnknownCellMethodWarning)
+    with open(_here_ + 'cfg_plt_hwmid_h8.yml', 'r') as ymlfile:
+        cfg = yaml.safe_load(ymlfile)
+    #output dirs
+    dap = 'interp/'
+    ddir = cfg['ddir'] + dap
+    fdir = cfg['fdir']
+    tdir = cfg['tdir'] + dap
+    os.makedirs(ddir, exist_ok=True)
+    os.makedirs(fdir, exist_ok=True)
+    os.makedirs(tdir, exist_ok=True)
+    #constans
+    obss = cfg['obss']
+    gcms = cfg['gcms_']
+    rcms = cfg['rcms_']
+    rcms.sort()
+    rcp, ref, rgDs = cfg['rcp'], cfg['ref'], cfg['rgDs']
+    idir = cfg['idir']['obss']
+    idir_ = cfg['idir']['gcms']
+    idir__ = cfg['idir']['rcms']
+    rgD_eur = rgDs['eur']
+    #loop variables
+    vv = ['hwmid-tx']
+    ff = ['j-d']
+    yy = ['mean']
+    pp = [[1981, 2020], [2021, 2060], [2061, 2100]]
+    #loop 0
+    for var in vv:
+        print('{}'.format(var))
+        #loop 1
+        for freq in ff:
+            print('  {}'.format(freq))
+            for y0y1 in pp[1:]:
+                print('    {}-{}'.format(*y0y1))
+                for y_ in yy:
+                    fn = '{}dmp0_{}_p{}-{}_{}.txt'.format(tdir, y_, *y0y1, var)
+                    crLL = _clcdx(ddir, gcms, rcms, y_, y0y1, pp[0], freq, var)
+                    cgL = _clcmp(ddir, gcms, y_, y0y1, pp[0], freq, var)
+                    _mp0(fn, cgL, crLL, gcms, rcms)
+
+
+if __name__ == '__main__':
+    main()

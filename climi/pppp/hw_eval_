@@ -169,12 +169,14 @@ def _map_stat(ax, dataLL, tiLL, vv):
         for data, ti, c_ in zip(dataL, tiL, cL):
             ax.plot(vv + next(dvL) * len(vv) / 10, data,
                     drawstyle='steps-mid', label=ti.replace('\n ', ''),
-                    #label=ti.replace('\n ', ''),
+            #ax.plot(vv, data,
+            #        label=ti.replace('\n ', ''),
                     color=c_, lw=w_, alpha=a_, zorder=z_)
         if f_:
             ax.fill_between(vv, dataL.max(axis=0), dataL.min(axis=0),
                             color='gray', alpha=.25, step='mid', zorder=0)
     ax.set_xticks(vv)
+    ax.grid(True, 'major', 'y', lw=.5, c='k', alpha=.1)
     ax.legend(ncol=2, frameon=False)
 
 
@@ -294,8 +296,10 @@ def main():
     with open(_here_ + 'cfg_plt_hwmid_eval.yml', 'r') as ymlfile:
         cfg = yaml.safe_load(ymlfile)
     #output dirs
-    ddir, fdir, tdir = cfg['ddir'], cfg['fdir'], cfg['tdir']
-    os.makedirs(ddir, exist_ok=True)
+    #ddir = cfg['ddir']
+    fdir = cfg['fdir']
+    tdir = cfg['tdir']
+    #os.makedirs(ddir, exist_ok=True)
     os.makedirs(fdir, exist_ok=True)
     os.makedirs(tdir, exist_ok=True)
     #constans

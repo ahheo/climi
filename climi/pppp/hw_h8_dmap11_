@@ -160,7 +160,7 @@ def _mp111(fn, crLL, crLL1, gcms, rcms, prds, pD, dpD, rgD, vl):
                 axs.append(ax)
                 pchs.append(pch)
                 _tx_rgmean(fig, ax, cube, rgD)
-    axs_abc_(fig, axs, '(a)', dx=.025)                                         
+    axs_abc_(fig, axs, '(a)')                                         
     aligned_tx_(fig, axs, 'mean', rpo='lc', itv=.05, **tiD) 
     i_ = len(gcms)
     axs_, pchs_ = [], []
@@ -176,7 +176,7 @@ def _mp111(fn, crLL, crLL1, gcms, rcms, prds, pD, dpD, rgD, vl):
                 axs_.append(ax)
                 pchs_.append(pch)
                 _tx_rgmean(fig, ax, cube, rgD)
-    axs_abc_(fig, axs_, '(b)', dx=.025)                                         
+    axs_abc_(fig, axs_, '(b)')                                         
     aligned_tx_(fig, axs_, 'spread', rpo='lc', itv=.05, **tiD) 
 
     cbw = wspace_ax_(*axs[::len(gcms)])
@@ -277,6 +277,7 @@ def main():
     ff = ['j-d']
     yy = ['g15', 'mean', 'p10', 'p50', 'p90']
     pp = [[1981, 2020], [2021, 2060], [2061, 2100]]
+    #vv = ['hwmid-tn']
     #loop 0
     for var in vv:
         print('{}'.format(var))
