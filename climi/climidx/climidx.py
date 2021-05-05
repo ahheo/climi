@@ -232,11 +232,13 @@ def dConCalmDays_(sfcw, yrs):
     uYrs = np.unique(yrs)
     o = np.ma.zeros((len(uYrs),))
     for i, yr in enumerate(uYrs):
-        ts = np.concatenate([[2,], _rl(sfcw[yrs == yr])])
-        ts = np.split(ts, np.where(ts >= 2)[0])
-        ts = [len(x) - 1 for x in ts if len(x) > 3]
-        if len(ts) > 0:
-            o[i] = np.sum(ts)
+        o[i] = consecutive_(_rl(sfcw[yrs == yr]),
+                            lambda x: x >= 2)
+        #ts = np.concatenate([[2,], _rl(sfcw[yrs == yr])])
+        #ts = np.split(ts, np.where(ts >= 2)[0])
+        #ts = [len(x) - 1 for x in ts if len(x) > 3]
+        #if len(ts) > 0:
+        #    o[i] = np.max(ts) #np.sum(ts)
     return o
 
 
@@ -245,11 +247,13 @@ def dConWarmDays_(tx, yrs):
     uYrs = np.unique(yrs)
     o = np.ma.zeros((len(uYrs),))
     for i, yr in enumerate(uYrs):
-        ts = np.concatenate([[K0 + 20], _rl(tx[yrs == yr])])
-        ts = np.split(ts, np.where(ts <= K0 + 20)[0])
-        ts = [len(x) - 1 for x in ts if len(x) > 3]
-        if len(ts) > 0:
-            o[i] = np.sum(ts)
+        o[i] = consecutive_(_rl(tx[yrs == yr]),
+                            lambda x: x <= K0 + 20)
+        #ts = np.concatenate([[K0 + 20], _rl(tx[yrs == yr])])
+        #ts = np.split(ts, np.where(ts <= K0 + 20)[0])
+        #ts = [len(x) - 1 for x in ts if len(x) > 3]
+        #if len(ts) > 0:
+        #    o[i] = np.max(ts) #np.sum(ts)
     return o
 
 

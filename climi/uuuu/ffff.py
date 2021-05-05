@@ -4,6 +4,7 @@
 >--#########################################################################--<
 * b2l_endian_           : return little endian copy
 * compressLL_           : compress 2D list
+* consecutive_          : consecutive numbers
 * cyl_                  : values in cylinder axis           --> extract_win_
 * dgt_                  : digits of the int part of a number
 * ext_                  : get extension of file name
@@ -75,6 +76,7 @@ from typing import Iterable, Iterator
 
 __all__ = ['b2l_endian_',
            'compressLL_',
+           'consecutive_',
            'cyl_',
            'dgt_',
            'ext_',
@@ -765,3 +767,10 @@ def compressLL_(LL):
     TFy = np.where(~np.all(TF, axis=1))[0]
     LL_ = l_ind_([l_ind_(L, TFx) for L in LL], TFy)
     return (LL_, TFx, TFy)
+
+
+def consecutive_(x1d, func_, nn_=3, ffunc_=np.max):
+    ts = np.split(np.concatenate(([0], x1d)),
+                  np.concatenate(([1], np.where(func_(x1d))[0] + 1)))
+    ts = [len(x1d) - 1 for x1d in ts if len(x1d) >= nn_]
+    return ffunc_(ts) if ts else 0.

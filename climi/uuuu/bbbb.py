@@ -208,13 +208,12 @@ def min_fselect_(dir_finfo, period=None):
 
 
 def cmip6_dir_cubeL(idir, var='*', freq='*', gcm='*', exp='*', rip='*',
-                    gl='gr', ver='v20200412',
+                    gl='gr', ver='*',
                     p='*', ext='.nc', period=None, ifconcat=False):
     """
     Purpose: load cube list from a cmip5 data directory
     """
     #warnings.filterwarnings("ignore", category=UserWarning)
-    s = '_'
     info = cmip6_dir_finfo(idir, var=var, freq=freq, gcm=gcm, exp=exp,
                            rip=rip, gl=gl, ver=ver, p=p, ext=ext)
     if (len(info['gcm']) * len(info['var']) * len(info['freq'])
@@ -248,7 +247,6 @@ def cmip5_dir_cubeL(idir, var='*', freq='*', gcm='*', exp='*', rip='*',
     Purpose: load cube list from a cmip5 data directory
     """
     #warnings.filterwarnings("ignore", category=UserWarning)
-    s = '_'
     info = cmip5_dir_finfo(idir, var=var, freq=freq, gcm=gcm, exp=exp,
                            rip=rip, p=p, ext=ext)
     if (len(info['gcm']) * len(info['var']) * len(info['freq'])
@@ -298,7 +296,6 @@ def cordex_dir_cubeL(idir, var='*', dm='*', gcm='*', exp='*', rcm='*',
     Purpose: load cube list from a cordex data directory
     """
     #warnings.filterwarnings("ignore", category=UserWarning)
-    s = '_'
     info = cordex_dir_finfo(idir, var=var, dm=dm, gcm=gcm, exp=exp,
                             rip=rip, rcm=rcm, p=p, ext=ext)
     if ((len(info['dm']) * len(info['gcm']) * len(info['var'])

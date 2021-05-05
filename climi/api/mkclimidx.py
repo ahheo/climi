@@ -58,7 +58,7 @@ i__ = {
     'CoolingDegDay': (15, 1, ['tx'],
         dDegDay_, ['month', 'year'], 't'),
     'ConWarmDays': (16, 1, ['tx'],
-        dConWarmDays_, ['year'], 't'),
+        dConWarmDays_, ['year'], 'tc'),
     'TX': (17, 0, ['tx'],
         None, ['year'], 't'),
     #'TX': (17, 0, ['tx'],
@@ -153,7 +153,7 @@ i__ = {
     'CalmDays': (54, 1, ['ws', 'us', 'vs'],
         dCalmDays_, ['season', 'year'], 'w'),
     'ConCalmDays': (55, 1, ['ws', 'us', 'vs'],
-        dConCalmDays_, ['year'], 'w'),
+        dConCalmDays_, ['year'], 'wc'),
     'Wind975': (56, 1, ['u975', 'v975', 'ps'],
         None, ['month', 'season', 'year'], 'w'),
     'Wind975toSfc': (57, 1, ['u975', 'v975', 'ws', 'ps', 'us', 'vs'],
@@ -200,11 +200,11 @@ i__ = {
     'CalmDays925': (77, 1, ['u925', 'v925', 'ps'],
         dCalmDays_, ['year'], 'w'),
     'ConCalmDays925': (78, 1, ['u925', 'v925', 'ps'],
-        dConCalmDays_, ['year'], 'w'),
+        dConCalmDays_, ['year'], 'wc'),
     'CalmDays975': (79, 1, ['u975', 'v975', 'ps'],
         dCalmDays_, ['year'], 'w'),
     'ConCalmDays975': (80, 1, ['u975', 'v975', 'ps'],
-        dConCalmDays_, ['year'], 'w'),
+        dConCalmDays_, ['year'], 'wc'),
     'MinusDays': (81, 1, ['t'],
         dMinusDays_, ['year'], 't'),
     'FreezingDays': (82, 1, ['tx'],
@@ -232,19 +232,19 @@ i__ = {
     'CalmDays50m': (93, 1, ['u50m', 'v50m'],
         dCalmDays_, ['year'], 'w'),
     'ConCalmDays50m': (94, 1, ['u50m', 'v50m'],
-        dConCalmDays_, ['year'], 'w'),
+        dConCalmDays_, ['year'], 'wc'),
     'CalmDays100m': (95, 1, ['u100m', 'v100m'],
         dCalmDays_, ['year'], 'w'),
     'ConCalmDays100m': (96, 1, ['u100m', 'v100m'],
-        dConCalmDays_, ['year'], 'w'),
+        dConCalmDays_, ['year'], 'wc'),
     'CalmDays200m': (97, 1, ['u200m', 'v200m'],
         dCalmDays_, ['year'], 'w'),
     'ConCalmDays200m': (98, 1, ['u200m', 'v200m'],
-        dConCalmDays_, ['year'], 'w'),
+        dConCalmDays_, ['year'], 'wc'),
     'CalmDays950': (99, 1, ['u950', 'v950', 'ps'],
         dCalmDays_, ['year'], 'w'),
     'ConCalmDays950': (100, 1, ['u950', 'v950'],
-        dConCalmDays_, ['year'], 'w'),
+        dConCalmDays_, ['year'], 'wc'),
     'h3SfcWind': (101, 3, ['ws', 'us', 'vs'],
         None, ['hour-month', 'hour-season', 'hour'], 'w'),
     'h3RhoS': (102, 3, ['t', 'huss', 'ps'],
@@ -391,8 +391,8 @@ def _vd_fr_vv(vl):
         raise Exception('check input!')
 
 
-def _vd(ii_, tint, subg=None):
-    return _vd_fr_vv(_vv(ii_, tint, subg))
+def _vd(ii_, tint, subg=None, xvn=9):
+    return _vd_fr_vv(_vv(ii_, tint, subg, xvn))
 
 
 def _xyz(il_, tint, pi_, dn, gwl, y0y1, po_, reg_d, folder='cordex'):
@@ -1393,7 +1393,7 @@ def norcp_rcp_(il_, reg_d, reg_n, po_,
                        tmp['ver'], tmp['prd'], reg_n))
         t0 = l__('>>>>>>>' + dn)
         pi_ = pp['root'] + p_
-        tis = ['mon', 'day', '6hr'] if tii is None else tii.split(',')
+        tis = ['mon', 'day', '3hr'] if tii is None else tii.split(',')
         for tint in tis:
             _xyz(il_, tint, pi_, dn, '', None, po_, reg_d, folder='norcp')
         ll_('<<<<<<<' + dn, t0)
@@ -1410,7 +1410,7 @@ def eur11_imp_rcp_(il_, reg_d, reg_n, po_,
                        tmp['ver'], reg_n))
         t0 = l__('>>>>>>>' + dn)
         pi_ = pp['root'] + p_
-        tis = ['mon', 'day', '6hr'] if tii is None else tii.split(',')
+        tis = ['mon', 'day'] if tii is None else tii.split(',')
         for tint in tis:
             _xyz(il_, tint, pi_, dn, '', None, po_, reg_d)
         ll_('<<<<<<<' + dn, t0)
@@ -1434,7 +1434,7 @@ def eur11_imp_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
         pi0 = pi1.replace(tmp['rcp'], 'historical')
         pi_ = pi0 if y0y1[1] <= 2005 else (pi1 if y0y1[0] > 2005 else
                                            [pi0, pi1])
-        tis = ['mon', 'day', '6hr'] if tii is None else tii.split(',')
+        tis = ['mon', 'day'] if tii is None else tii.split(',')
         for tint in tis:
             _xyz(il_, tint, pi_, dn, gwl, y0y1, po_, reg_d)
         ll_('<<<<<<<' + dn, t0)
@@ -1452,7 +1452,7 @@ def eur11_imp_eval(il_, reg_d, reg_n, po_,
                        tmp['ver'], reg_n))
         t0 = l__('>>>>>>>' + dn)
         pi_ = pp['root'] + p_
-        tis = ['mon', 'day', '6hr'] if tii is None else tii.split(',')
+        tis = ['mon', 'day'] if tii is None else tii.split(',')
         for tint in tis:
             _xyz(il_, tint, pi_, dn, gwl, None, po_, reg_d)
         ll_('<<<<<<<' + dn, t0)
@@ -1468,7 +1468,7 @@ def eur11_imp_eval_dmi(il_, reg_d, reg_n, po_, tii=None):
                        tmp['ver'], reg_n))
         t0 = l__('>>>>>>>' + dn)
         pi_ = pp['root'] + p_
-        tis = ['mon', 'day', '6hr'] if tii is None else tii.split(',')
+        tis = ['mon', 'day'] if tii is None else tii.split(',')
         for tint in tis:
             _xyz(il_, tint, pi_, dn, gwl, y0y1, po_, reg_d)
         ll_('<<<<<<<' + dn, t0)
@@ -1485,7 +1485,7 @@ def eur11_smhi_eval(il_, reg_d, reg_n, po_, yml=None, tii=None):
     ver = pp[pp['eval']]['ver']
     dn = '_'.join((gcm, rcp, rip, rcm, ver, reg_n))
     t0 = l__('>>>>>>>' + dn)
-    tis = ['mon', 'day', '6hr'] if tii is None else tii.split(',')
+    tis = ['mon', 'day'] if tii is None else tii.split(',')
     for tint in tis:
         _xyz(il_, tint, p_, dn, gwl, None, po_, reg_d)
     ll_('<<<<<<<' + dn, t0)
@@ -1501,7 +1501,7 @@ def eur11_smhi_rcp_(il_, reg_d, reg_n, po_,
         dn = '_'.join((pp[ppi]['gcm'], pp[ppi]['rcp'], pp[ppi]['rip'],
                        pp[ppi]['rcm'], pp[ppi]['ver'], reg_n))
         t0 = l__('>>>>>>>' + dn)
-        tis = ['mon', 'day', '6hr'] if tii is None else tii.split(',')
+        tis = ['mon', 'day'] if tii is None else tii.split(',')
         for tint in tis:
             _xyz(il_, tint, pi_, dn, '', None, po_, reg_d)
         ll_('<<<<<<<' + dn, t0)
@@ -1525,44 +1525,54 @@ def eur11_smhi_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
         pi_ = pi0_ if y0y1[1] <= 2005 else (pi1_ if y0y1[0] > 2005 else
                                             [pi0_, pi1_])
         t0 = l__('>>>>>>>' + dn)
-        tis = ['mon', 'day', '6hr'] if tii is None else tii.split(',')
+        tis = ['mon', 'day'] if tii is None else tii.split(',')
         for tint in tis:
             _xyz(il_, tint, pi_, dn, gwl, y0y1, po_, reg_d)
         ll_('<<<<<<<' + dn, t0)
 
 
 def eobs20_(il_, reg_d, reg_n, po_, y0y1=None):
-    from climi.uuuu.cccc import _unify_xycoord_points
-    def _eobs_load(idir, var):
-        o = iris.load_cube(idir + var + '_ens_mean_0.1deg_reg_v20.0e.nc')
+    idir = '/nobackup/rossby22/sm_chali/DATA/hw2018/iii/obs/EOBS20/'
+    vo = {'c_pr': ('rr', 1. / 3600 / 24, 'kg m-2 s-1'),
+          'c_t': ('tg', None, 'K'),
+          'c_tx': ('tx', None, 'K'),
+          'c_tn': ('tn', None, 'K'),
+          'c_rs': ('qq', 1, 'K'),
+          }
+    def _eobs_load(var):
+        o = iris.load_cube('{}{}_ens_mean_0.1deg_reg_v20.0e.nc'
+                           .format(idir, vo[var][0]))
         if reg_d is not None:
             o = intersection_(o, **reg_d)
+        if vo[var][1] is None and vo[var][2]:
+            o.convert_units(vo[var][2])
+        elif vo[var][1] == 1 and vo[var][2]:
+            o.units = vo[var][2]
+        elif vo[var][2]:
+            o *= vo[var][1]
+            o.units = vo[var][2]
         return o if y0y1 is None else extract_period_cube(o, *y0y1)
-    idir = '/nobackup/rossby22/sm_chali/DATA/hw2018/iii/obs/EOBS20/'
-    t0 = l__('>>>loading data')
-    c_pr = _eobs_load(idir, 'rr')
-    c_pr *= 1. / 3600 / 24
-    c_pr.units = 'kg m-2 s-1'
-    c_t = _eobs_load(idir, 'tg')
-    c_t.convert_units('K')
-    c_tx = _eobs_load(idir, 'tx')
-    c_tx.convert_units('K')
-    c_tn = _eobs_load(idir, 'tn')
-    c_tn.convert_units('K')
-    c_rs = _eobs_load(idir, 'qq')
-    c_rs.units = 'W m-2'
-    c_tx_m = pSTAT_cube(c_tx, 'MEAN', 'month')
-    c_tn_m = pSTAT_cube(c_tn, 'MEAN', 'month')
-    _unify_xycoord_points((c_tx_m, c_tn_m))
-    m__ = dict(c_pr=c_pr, c_rs=c_rs, c_t=c_t, c_tx=c_tx_m, c_tn=c_tn_m)
-    d__ = dict(c_pr=c_pr, c_t=c_t, c_tx=c_tx, c_tn=c_tn)
-    ll_('<<<loading data', t0)
+
+    def _getccc(tint):
+        vD = _vd(il_, tint, subg=None, xvn=999)[0]
+        ccc = dict()
+        for i in vD[1].keys():
+            if i in vo.keys():
+                o = _eobs_load(i)
+            ccc.update(i, o)
+        return ccc
     t0 = l__('>>>monthly')
-    _mclimidx(il_=il_, dn='EOBS20_' + reg_n, gwl='', po_=po_, **m__)
+    t1 = l__(' >>loading data')
+    cccc = _getccc('month')
+    ll_(' <<loading data', t1)
+    _mclimidx(il_=il_, dn='EOBS20_' + reg_n, gwl='', po_=po_, **cccc)
     ll_('<<<monthly', t0)
     t0 = l__('>>>daily')
+    t1 = l__(' >>loading data')
+    cccc = _getccc('day')
+    ll_(' <<loading data', t1)
     _dclimidx(il_=il_, dn='EOBS20_' + reg_n, gwl='', po_=po_, y0y1=y0y1,
-              **d__)
+              **cccc)
     ll_('<<<daily', t0)
 
 
@@ -1646,7 +1656,7 @@ def main():
                 il_ = yaml.safe_load(yf)
         elif xi_[:4] == 'grp_':
             il_ = [i for i in i__.keys()
-                   if any(ii in i__[i][5] for ii in xi_[4:])]
+                   if all(ii in i__[i][5] for ii in xi_[4:])]
         else:
             il_ = xi_.split(',')
     else:
@@ -1700,13 +1710,13 @@ def main():
     if args.opt in ('0', 'eobs20'):
         eobs20_(il_, reg_d, reg_n, poo_)
     elif args.opt in ('1', 'erai'):
-        erai_(il_, reg_d, reg_n, poo_, tii=tii)
+        erai_(il_, reg_d, reg_n, poo_, tii=args.tint)
     elif args.opt in ('2', 'cdx_eval'):
         eur11_imp_eval(il_, reg_d, reg_n, poe_, **seiyt)
     elif args.opt in ('21', 'cdx_eval_dmi'):
-        eur11_imp_eval_dmi(il_, reg_d, reg_n, poe_, tii=tii)
+        eur11_imp_eval_dmi(il_, reg_d, reg_n, poe_, tii=args.tint)
     elif args.opt in ('22', 'cdx_eval_smhi'):
-        eur11_smhi_eval(il_, reg_d, reg_n, poe_, yml=args.yml, tii=tii)
+        eur11_smhi_eval(il_, reg_d, reg_n, poe_, yml=args.yml, tii=args.tint)
     elif args.opt in ('3', 'cdx'):
         eur11_imp_rcp_(il_, reg_d, reg_n, pcdx, **seiyt)
     elif args.opt in ('30', 'cdx_smhi'):
