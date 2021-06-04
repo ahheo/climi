@@ -23,7 +23,7 @@ def main():
     kkkk = args.keys.split(',') if args.keys else ()
     fn = schF_keys_(idir, 'CNRM-ALADIN53', *kkkk)
     for i, ifn in enumerate(fn):
-        print(prg_(i+1, len(fn)), ifn)
+        print(prg_(i, len(fn)), ifn)
         o = iris.load_cube(ifn)
         if i == 0:
             cx = o.coord('projection_x_coordinate')

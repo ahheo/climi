@@ -56,19 +56,19 @@ def _dictdict(cfg, fn_):
     kdeo = cfg['kde_opts'] if 'kde_opts' in cfg else {}
     mm = cfg['season'] if 'season' in cfg else 'j-d'
     dd.update({'dict_p': cfg['p_'],
-                 'mdir': mdir,
-                 'rref': rref,
-                 'minL': minL,
-                 'pctl': pctl,
-                 'fnthr': fnthr,
-                 'dCube': (),
-                 'rCube': (),
-                 'pn': 'data',
-                 'mm': mm})
+               'mdir': mdir,
+               'rref': rref,
+               'minL': minL,
+               'pctl': pctl,
+               'fnthr': fnthr,
+               'dCube': (),
+               'rCube': (),
+               'pn': 'data',
+               'mm': mm})
     if not cfg['_d']:
         dd.update({'mtd': mtd,
-                     'fnkde': fnkde,
-                     'kdeo': kdeo})
+                   'fnkde': fnkde,
+                   'kdeo': kdeo})
     return dd
 
 
@@ -480,13 +480,13 @@ def _inloop_rg_hwmi_m(cfg, hORc, rcube0, dcube0, rn, odir, fn_, _d, *sftlf):
         c_h = []
         c_w = []
         for i, cc in enumerate(dcube0):
-            t00 = l__(prg_(i + 1, len(dcube0)))
+            t00 = l__(prg_(i, len(dcube0)))
             dCube = _get_cube_m(cc, rn, cfg['sub_r'], *sftlf, **kGet)
             dd.update({'dCube': dCube})
             tmp = _inloop_func(hORc, dd, _d)
             c_h.append(tmp['hwmi'])
             c_w.append(tmp['wsdi'])
-            ll_(prg_(i + 1, len(dcube0)), t00)
+            ll_(prg_(i, len(dcube0)), t00)
         c_h = iris.cube.CubeList(c_h)
         c_h = concat_cube_(c_h)
         c_w = iris.cube.CubeList(c_w)
@@ -649,7 +649,7 @@ def _cubeORcubeL_hwmi(cfg, odir, hORc, o0, rn, fn_, _d, pn='data'):
         for i, cc in enumerate(o0[0]):
             if 'ii' in cfg and i < cfg['ii']:#QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ
                 continue
-            t00 = l__(prg_(i + 1, None if isGI_(o0[0]) else len(o0[0])))
+            t00 = l__(prg_(i, None if isGI_(o0[0]) else len(o0[0])))
             o02 = o0[2][i] if o0[2] else '{}'.format(i)
             dd = _dictdict(cfg, '_'.join((fn_, o02)))
             if _check_med_f(dd, _d):
@@ -660,7 +660,7 @@ def _cubeORcubeL_hwmi(cfg, odir, hORc, o0, rn, fn_, _d, pn='data'):
             dd.update({'dCube': dCube, 'rCube': rCube, 'pn': pn})
             tmp = _inloop_func(hORc, dd, _d)
             _tof(tmp, odir, '_'.join((fn__, o02)), hORc, _d, cfg['_sdi'])
-            ll_(prg_(i + 1, None if isGI_(o0[0]) else len(o0[0])), t00)
+            ll_(prg_(i, None if isGI_(o0[0]) else len(o0[0])), t00)
         _frf(odir, fn__, hORc, _d, cfg['_sdi'])
     ll_(fn__)
 

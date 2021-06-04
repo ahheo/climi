@@ -449,12 +449,12 @@ def path2norcp_info_(fn):
     elif 'ERAI' in tmp:
         gcm = 'ECMWF-ERAINT'
         rip = 'r1i1p1'
-    if 'ALADIN' in tmp:
-        rcm = 'HCLIMcom-HCLIM38-ALADIN'
-        ver = 'v1'
-    elif 'AROME' in tmp:
+    if 'AROME' in tmp:
         rcm = 'HCLIMcom-HCLIM38-AROME'
         ver = 'x2yn2v1'
+    else:
+        rcm = 'HCLIMcom-HCLIM38-ALADIN'
+        ver = 'v1'
     if 'RCP' in tmp:
         rcp = re.findall('(?<=\_)RCP\d*(?=\_)', tmp)[0].lower()
     elif 'ERAI' in tmp:

@@ -246,7 +246,7 @@ def isMyIter_(x):
                    XI=(np.ndarray, iris.cube.Cube, str, bytes))
 
 
-def pst_(cube, name=None, units=None, var_name=None):
+def pst_(cube, name=None, units=None, var_name=None, attrU=None):
     if isinstance(cube, iris.cube.Cube):
         if name:
             cube.rename(name)
@@ -254,6 +254,8 @@ def pst_(cube, name=None, units=None, var_name=None):
             cube.units = units
         if var_name:
             cube.var_name = var_name
+        if attrU:
+            cube.attributes.update(attrU)
     elif isMyIter_(cube):
         for i in cube:
             pst_(i, name=name, units=units, var_name=var_name)

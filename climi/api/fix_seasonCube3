@@ -20,7 +20,7 @@ def main():
     fns = schF_keys_(idir, 'ZeroCrossingDays_', 'season')
     print(len(fns))
     for i, fn in enumerate(fns):
-        print(prg_(i + 1, len(fns)), fn)
+        print(prg_(i, len(fns)), fn)
         #if i < 3138:
         #    continue
         o = iris.load_cube(fn)

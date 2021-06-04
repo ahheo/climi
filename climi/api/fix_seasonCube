@@ -36,7 +36,7 @@ def main():
     fns = schF_keys_(idir, '_{}_'.format(s))
     print(len(fns))
     for i, fn in enumerate(fns):
-        print(prg_(i+1, len(fns)), fn)
+        print(prg_(i, len(fns)), fn)
         o = iris.load_cube(fn)
         y0, y1 = y0y1_of_cube(o)
         rm_t_aux_cube(o)

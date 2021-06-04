@@ -23,7 +23,7 @@ def main():
     fns = schF_keys_(idir, 'ndjf', '_1971-2006')
     print(len(fns))
     for i, fn in enumerate(fns):
-        print(prg_(i+1, len(fns)), fn)
+        print(prg_(i, len(fns)), fn)
         o = iris.load_cube(fn)
         o = extract_byAxes_(o, 'time', np.s_[:-1])
         fn_ = '{}dddd/{}.nc'.format(idir, pure_fn_(fn).replace('_1971-2006',

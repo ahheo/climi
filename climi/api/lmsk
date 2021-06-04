@@ -23,7 +23,7 @@ def main():
     fns = u.schF_keys_(idir, *keys)
     print(len(fns))
     for i, fn in enumerate(fns):
-        print(u.prg_(i+1, len(fns)), fn)
+        print(u.prg_(i, len(fns)), fn)
         m = u.pure_fn_(fn).split('_')[1]
         o = iris.load_cube(fn)
         l = u.load_fx_(ldir, m)

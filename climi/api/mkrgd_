@@ -16,7 +16,7 @@ def main():
     mdl0 = u.pure_fn_(fn0).split('_')[2]
     print(len(fns))
     for i, fn in enumerate(fns):
-        print(u.prg_(i+1, len(fns)), fn)
+        print(u.prg_(i, len(fns)), fn)
         mdl = u.pure_fn_(fn).split('_')[5]
         o = iris.load_cube(fn)
         regrider = u.POLYrgd(o, o0)

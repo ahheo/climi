@@ -723,7 +723,7 @@ def dgt_(n):
 
 def prg_(i, n=None):
     ss = '#{:0' + r'{:d}'.format(dgt_(n)) + r'd}/{:d}' if n else '#{:d}/--'
-    return ss.format(i, n)
+    return ss.format(i + 1, n)
 
 
 def b2l_endian_(x):

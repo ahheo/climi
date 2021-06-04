@@ -37,7 +37,7 @@ def main():
     fn0 = ddir + 'mp_r_mean_EC-EARTH_CCLM4-8-17_1981-2020_j-d_hwmid-tx.nc'
     o0 = iris.load_cube(fn0)
     for i, fn in enumerate(fns):
-        print(u.prg_(i+1, len(fns)), fn)
+        print(u.prg_(i, len(fns)), fn)
         pfn = u.pure_fn_(fn)
         fn_ = '{}{}.nc'.format(odir, pfn)
         if os.path.isfile(fn_):

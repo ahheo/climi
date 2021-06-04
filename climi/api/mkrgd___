@@ -18,11 +18,11 @@ def main():
     rd = {'longitude': [-10., 30.], 'latitude': [35., 70.]}
     print(len(fnt), len(fns))
     for i, fn0 in enumerate(fnt):
-        print(u.prg_(i+1, len(fnt)), fn0)
+        print(u.prg_(i, len(fnt)), fn0)
         mdl0 = u.pure_fn_(fn0).split('_')[2]
         o0 = u.intersection_(iris.load_cube(fn0), **rd)
         for ii, fn in enumerate(fns):
-            print(u.prg_(ii+1, len(fns)), fn)
+            print(u.prg_(ii, len(fns)), fn)
             mdl = u.pure_fn_(fn).split('_')[5]
             o = iris.load_cube(fn)
             #o = iris.load_cube(fn)

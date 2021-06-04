@@ -35,7 +35,7 @@ def main():
     cy = o0.coord('grid_latitude')
     cyd = o0.coord_dims(cy)[0]
     for i, ifn in enumerate(fn):
-        print(prg_(i+1, len(fn)), ifn)
+        print(prg_(i, len(fn)), ifn)
         o = iris.load_cube(ifn)
         if get_xy_dim_(o)[0] is None:
             print(ifn)
