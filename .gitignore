@@ -9,4 +9,5 @@
 *.nc
 *.hdf
 *.p
+*.tmp
 *.egg-info
