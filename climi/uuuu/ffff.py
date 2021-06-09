@@ -23,6 +23,7 @@
 * isGI_                 : if Iterator
 * isIter_               : if Iterable but not str or bytes
 * ismono_               : check if ismononic
+* isSeason_             : string if is a season
 * iter_str_             : string elements
 * kde_                  : kernel distribution estimate
 * kde__                 : tranform before kde_
@@ -95,6 +96,7 @@ __all__ = ['b2l_endian_',
            'isGI_',
            'isIter_',
            'ismono_',
+           'isSeason_',
            'iter_str_',
            'kde_',
            'kde__',
@@ -510,12 +512,26 @@ def get_path_(s):
     return tmp if tmp else './'
 
 
+def isSeason_(mmm, ismmm_=True):
+    """
+    ...  if input string is a season named with 1st letters of composing
+         months ...
+    """
+    mns = 'jfmamjjasond' * 2
+    n = mns.find(mmm.lower())
+    s4 = {'spring', 'summer', 'autumn', 'winter'}
+    if ismmm_:
+        return (len(mmm) > 1 and n != -1)
+    else:
+        return (len(mmm) > 1 and n != -1) or mmm.lower() in s4
+
+
 def rest_mns_(mmm):
     """
     ... get rest season named with months' 1st letter ...
     """
     mns = 'jfmamjjasond' * 2
-    n = mns.find(mmm)
+    n = mns.find(mmm.lower())
     if n == -1:
         raise Exception('unknown season provided!')
     else:

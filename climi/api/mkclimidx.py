@@ -25,8 +25,9 @@ _here_ = get_path_(__file__)
 # acceptable values and desciption:
 #     TR_i: ('mon', 'day', '6hr', '3hr', '1hr')
 #     VARIABLES: input variables (using the same names as CORDEX/CMIPX)
-#     FUNCTION (most fr. climidx mode):
-#         None or string: using pSTAT_cube() fr. mode uuuu; see _mm() or _dd()
+#     FUNCTION (most fr. climidx module):
+#         None or string: using pSTAT_cube() fr. module uuuu;
+#                         see _mm() or _dd()
 #         function type1: with cube(s) as input(s); see _d0()
 #         function type2: with 1d array (np) as input(s); see _d1()
 #     TR_o: ('month', 'season', 'year', 'hour-month', 'hour-season', 'hour')

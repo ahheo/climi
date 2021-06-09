@@ -25,8 +25,9 @@ _here_ = get_path_(__file__)
 # acceptable values and desciption:
 #     TR_i: ('mon', 'day', '6hr', '3hr', '1hr')
 #     VARIABLES: input variables (using the same names as CORDEX/CMIPX)
-#     FUNCTION (most fr. climidx mode):
-#         None or string: using pSTAT_cube() fr. mode uuuu; see _mm() or _dd()
+#     FUNCTION (most fr. climidx module):
+#         None or string: using pSTAT_cube() fr. module uuuu;
+#                         see _mm() or _dd()
 #         function type1: with cube(s) as input(s); see _d0()
 #         function type2: with 1d array (np) as input(s); see _d1()
 #     TR_o: ('month', 'season', 'year', 'hour-month', 'hour-season', 'hour')
@@ -817,7 +818,7 @@ def _to1(v_, dgpi, freq=None):
             for i in fns:
                 os.remove(i)
     else:
-        for oo, ff in zip(o, freq):
+        for ff in freq:
             fns = _fns(ff)
             if fns:
                 o = iris.load(fns)
@@ -1523,37 +1524,49 @@ def _hclimidx(tint='h6', dn=None, gwl=None, po_=None, il_=None, y0y1=None,
     if v_ in il_ and c_ua975 and c_va975:
         #o = c_ua975.copy(np.sqrt(c_ua975.data**2 + c_va975.data**2))
         o = ws_cube(c_ua975, c_va975)
-        if c_ps:
-            o = iris.util.mask_cube(o, c_ps.data < 97500.)
+        cL = (o, c_ps) if c_ps else (o,)
+        _f_n(_wind_msk, cL, 97500., v_, dgpi)
+        _to1(v_, dgpi)
+        #if c_ps:
+        #    o = iris.util.mask_cube(o, c_ps.data < 97500.)
         #pst_(o, 'wind speed at 975 mb', var_name='w975')
-    _dd(v_, o, dgpi)                                                 #hxWind975
+    #_dd(v_, o, dgpi)                                                #hxWind975
     v_ = tint+'Wind950'
     o = None
     if v_ in il_ and c_ua950 and c_va950:
         #o = c_ua950.copy(np.sqrt(c_ua950.data**2 + c_va950.data**2))
         o = ws_cube(c_ua950, c_va950)
-        if c_ps:
-            o = iris.util.mask_cube(o, c_ps.data < 95000.)
+        cL = (o, c_ps) if c_ps else (o,)
+        _f_n(_wind_msk, cL, 95000., v_, dgpi)
+        _to1(v_, dgpi)
+        #if c_ps:
+        #    o = iris.util.mask_cube(o, c_ps.data < 95000.)
         #pst_(o, 'wind speed at 950 mb', var_name='w950')
-    _dd(v_, o, dgpi)                                                 #hxWind950
+    #_dd(v_, o, dgpi)                                                #hxWind950
     v_ = tint+'Wind925'
     o = None
     if v_ in il_ and c_ua925 and c_va925:
         #o = c_ua925.copy(np.sqrt(c_ua925.data**2 + c_va925.data**2))
         o = ws_cube(c_ua925, c_va925)
-        if c_ps:
-            o = iris.util.mask_cube(o, c_ps.data < 92500.)
+        cL = (o, c_ps) if c_ps else (o,)
+        _f_n(_wind_msk, cL, 92500., v_, dgpi)
+        _to1(v_, dgpi)
+        #if c_ps:
+        #    o = iris.util.mask_cube(o, c_ps.data < 92500.)
         #pst_(o, 'wind speed at 925 mb', var_name='w925')
-    _dd(v_, o, dgpi)                                                 #hxWind925
+    #_dd(v_, o, dgpi)                                                #hxWind925
     v_ = tint+'Wind900'
     o = None
     if v_ in il_ and c_ua900 and c_va900:
         #o = c_ua900.copy(np.sqrt(c_ua900.data**2 + c_va900.data**2))
         o = ws_cube(c_ua900, c_va900)
-        if c_ps:
-            o = iris.util.mask_cube(o, c_ps.data < 90000.)
+        cL = (o, c_ps) if c_ps else (o,)
+        _f_n(_wind_msk, cL, 90000., v_, dgpi)
+        _to1(v_, dgpi)
+        #if c_ps:
+        #    o = iris.util.mask_cube(o, c_ps.data < 90000.)
         #pst_(o, 'wind speed at 900 mb', var_name='w900')
-    _dd(v_, o, dgpi)                                                 #hxWind900
+    #_dd(v_, o, dgpi)                                                #hxWind900
     v_ = tint+'Wind50m'
     o = None
     if v_ in il_ and c_ua50m and c_va50m:
@@ -1671,6 +1684,12 @@ def _hclimidx(tint='h6', dn=None, gwl=None, po_=None, il_=None, y0y1=None,
                  c_hus925, c_hus850, c_hus700), dgpi,
             #ax_t, y_y_, cK_=cK_, fA_=fA_)                     #hxSuperCooledPR
             ax_t, y_y_, fA_=fA_)                               #hxSuperCooledPR
+
+
+def _wind_msk(cL, p, v_, dgpi, _nm=None):
+    if len(cL) > 1:
+        iris.util.mask_cube(cL[0], cL[1].data < p) 
+    _dd(v_, cL[0], dgpi, _nm=_nm)
 
 
 def _rho_ps_p(cL, p, v_, dgpi, _nm=None):

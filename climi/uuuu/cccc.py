@@ -288,7 +288,7 @@ def unique_yrs_of_cube(cube, ccsn='year', mmm=None):
         if ccsn not in ccs:
             if 'season' in ccsn:
                 if mmm:
-                    seasonyr_cube(cube, mmm, ccsn=ccsn)
+                    seasonyr_cube(cube, mmm, name=ccsn)
                 else:
                     emsg = "'mmm' must not be None for adding coord {!r}!"
                     raise ValueError(emsg.format(ccsn))
@@ -307,7 +307,7 @@ def y0y1_of_cube(cube, ccsn='year', mmm=None):
         if ccsn not in ccs:
             if 'season' in ccsn:
                 if mmm:
-                    seasonyr_cube(cube, mmm, ccsn=ccsn)
+                    seasonyr_cube(cube, mmm, name=ccsn)
                 else:
                     emsg = "'mmm' must not be None for adding coord {!r}!"
                     raise ValueError(emsg.format(ccsn))
@@ -337,7 +337,7 @@ def extract_period_cube(cube, y0, y1, yy=False, ccsn='year', mmm=None):
     if ccsn not in ccs:
         if 'season' in ccsn:
             if mmm:
-                seasonyr_cube(cube, mmm, ccsn=ccsn)
+                seasonyr_cube(cube, mmm, name=ccsn)
             else:
                 emsg = "'mmm' must not be None for adding coord {!r}!"
                 raise ValueError(emsg.format(ccsn))
@@ -394,26 +394,34 @@ def extract_season_cube(cube, mmm):
         ncube: cube/cubelist after extraction
     """
     if isinstance(cube, iris.cube.Cube):
-        ss_auxs = [i.name() for i in cube.aux_coords if 'season' in i.name()]
-        if len(ss_auxs) == 0:
-            cat.add_season_membership(cube, 'time', season=mmm,
-                                      name='season_ms')
-            ncube = cube.extract(iris.Constraint(season_ms=True))
-            ncube.remove_coord('season_ms')
-        else:
-            auxn = None
-            for i in ss_auxs:
-                if (isinstance(cube.coord(i).points[0], str) and
-                    mmm in cube.coord(i).points):
-                    auxn = i
-                    break
-            if auxn is not None:
-                ncube = cube.extract(iris.Constraint(**{auxn: mmm}))
-            else:
-                auxn = _name_not_in('season_ms', ss_auxs)
-                cat.add_season_membership(cube, 'time', season=mmm, name=auxn)
-                ncube = cube.extract(iris.Constraint(**{auxn: True}))
-                ncube.remove_coord(auxn)
+        try:
+            ncube = cube.extract(iris.Constraint(season=mmm))
+        except ValueError:
+            try:
+                cat.add_season_membership(cube, 'time', season=mmm, name=mmm)
+            except ValueError:
+                cube.remove_coord(mmm)
+                cat.add_season_membership(cube, 'time', season=mmm, name=mmm)
+                ncube = cube.extract(iris.Constraint(**{mmm: True}))
+        #ss_auxs = [i.name() for i in cube.aux_coords if 'season' in i.name()]
+        #if len(ss_auxs) == 0:
+        #    cat.add_season_membership(cube, 'time', season=mmm, name=mmm)
+        #    ncube = cube.extract(iris.Constraint(**{mmm: True}))
+        #    #ncube.remove_coord(mmm)
+        #else:
+        #    auxn = None
+        #    for i in ss_auxs:
+        #        if (isinstance(cube.coord(i).points[0], str) and
+        #            mmm in cube.coord(i).points):
+        #            auxn = i
+        #            break
+        #    if auxn is not None:
+        #        ncube = cube.extract(iris.Constraint(**{auxn: mmm}))
+        #    else:
+        #        auxn = _name_not_in('season_ms', ss_auxs)
+        #        cat.add_season_membership(cube, 'time', season=mmm, name=auxn)
+        #        ncube = cube.extract(iris.Constraint(**{auxn: True}))
+        #        ncube.remove_coord(auxn)
         return ncube
     elif isMyIter_(cube):
         cl = [extract_season_cube(i, mmm) for i in cubeL]
@@ -566,7 +574,7 @@ def intersection_(cube, longitude=None, latitude=None):
             return extract_byAxes_(cube, *xyl)
 
 
-def seasonyr_cube(cube, mmm, ccsn='seasonyr'):
+def seasonyr_cube(cube, mmm, name='seasonyr'):
     """
     ... add season_year auxcoords to a cube especially regarding
         specified season ...
@@ -574,18 +582,19 @@ def seasonyr_cube(cube, mmm, ccsn='seasonyr'):
     if isinstance(cube, iris.cube.Cube):
         if isinstance(mmm, str):
             seasons = (mmm, rest_mns_(mmm))
-        elif isinstance(mmm, (list, tuple)) and len(''.join(mmm)) == 12:
+        elif (isinstance(mmm, (list, tuple)) and
+              sorted(''.join(mmm)) == sorted('djfmamjjason')):
             seasons = mmm
         else:
             raise Exception("unknown seasons '{}'!".format(mmm))
         try:
-            cat.add_season_year(cube, 'time', name=ccsn, seasons=seasons)
+            cat.add_season_year(cube, 'time', name=name, seasons=seasons)
         except ValueError:
-            cube.remove_coord(ccsn)
-            cat.add_season_year(cube, 'time', name=ccsn, seasons=seasons)
+            cube.remove_coord(name)
+            cat.add_season_year(cube, 'time', name=name, seasons=seasons)
     elif isIter_(cube, xi=(iris.cube.Cube, iris.cube.CubeList, tuple, list)):
         for c in cube:
-            seasonyr_cube(c, mmm, ccsn=ccsn)
+            seasonyr_cube(c, mmm, name=name)
 
 
 def yr_doy_cube(cube):
@@ -1522,68 +1531,150 @@ def initAnnualCube_(c0, y0y1, name=None, units=None, var_name=None,
     return c
 
 
-def pSTAT_cube(cube, method, *freq, valid_season=True, **method_otps):
+def pSTAT_cube(cube, method, *freq, valid_season=True, **method_opts):
     method = method.upper()
     if method not in ['MEAN', 'MAX', 'MIN', 'MEDIAN', 'SUM', 'PERCENTILE',
                       'PROPORTION', 'STD_DEV', 'RMS', 'VARIANCE', 'HMEAN',
                       'COUNT', 'PEAK']:
         raise Exception('method {} unknown!'.format(method))
-    freqs = uniqL_(flt_l([i.split('-') if '-' in i else i for i in freq]))
-    if (len(freqs) == 0 or
-        not any([x in ['hour', 'day', 'month', 'season', 'year']
-                 for x in freqs])):
-        freq = ('year',)
-    if any(i in freqs for i in ('hour', 'day', 'month', 'year')):
-        try:
-            cat.add_year(cube, 'time', name='year')
-        except ValueError:
-            pass
-    if 'hour' in freqs:
-        try:
-            cat.add_hour(cube, 'time', name='hour')
-        except ValueError:
-            pass
-    if 'day' in freqs:
-        try:
-            cat.add_day_of_year(cube, 'time', name='doy')
-        except ValueError:
-            pass
-    if 'month' in freqs:
-        try:
-            cat.add_month(cube, 'time', name='month')
-        except ValueError:
-            pass
-    if 'season' in freqs:
-        try:
-            cat.add_season(cube, 'time', name='season',
-                           seasons=('djf', 'mam', 'jja', 'son'))
-        except ValueError:
-            pass
-        try:
-            cat.add_season_year(cube, 'time', name='seasonyr',
-                                seasons=('djf', 'mam', 'jja', 'son'))
-        except ValueError:
-            pass
+
+    s4 = ('djf', 'mam', 'jja', 'son')
+
     d = dict(year='year',
              season=('season', 'seasonyr'),
              month=('month', 'year'),
              day=('doy', 'year'),
              hour=('hour', 'year'))
-    o = ()
-    for ff in [i.split('-') if '-' in i else i for i in freq]:
-        if isinstance(ff, str):
-            dff = d[ff]
+
+    dd = dict(hour=(cat.add_hour, ('time',), dict(name='hour')),
+              day=(cat.add_day_of_year, ('time',), dict(name='doy')),
+              month=(cat.add_month, ('time',), dict(name='month')),
+              year=(cat.add_year, ('time',), dict(name='year')),
+              season=(cat.add_season, ('time',), dict(name='season',
+                                                      seasons=s4)),
+              seasonyr=(seasonyr_cube, (s4,), dict(name='seasonyr')))
+
+    def _x(f0):
+        if f0 in d.keys():
+            return d[f0]
         else:
-            dff = uniqL_(flt_l([d[i] for i in ff]))
+            return (f0, 'seasonyr')
+
+    def _xx(x):
+        if isinstance(x, str):
+            if x in d.keys():
+                return (dd.copy(), None)
+            elif isSeason_(x):
+                tmp = {x: (cat.add_season_membership, ('time', x),
+                           dict(name=x)),
+                       'seasonyr': (seasonyr_cube, (x,),
+                                    dict(name='seasonyr'))}
+                dd_ = dd.copy()
+                dd_.update(tmp)
+                return (dd_, x)
+            else:
+                raise("one or more specified 'freqs' unreconigsed; "
+                      "check input!")
+        else:
+            if all((f_ in d.keys() for f_ in x)):
+                return (dd.copy(), None)
+            else:
+                f_ = [f_ for f_ in x if f_ not in d.keys()]
+                if len(f_) > 1 or not isSeason_(f_[0]) or 'season' in d.keys():
+                    raise("one or more specified 'freqs' unreconigsed; "
+                          "check input!")
+                else:
+                    tmp = {f_[0]: (cat.add_season_membership, ('time', f_[0]),
+                                   dict(name=f_[0])),
+                           'seasonyr': (seasonyr_cube, (f_[0],),
+                                        dict(name='seasonyr'))}
+                    dd_ = dd.copy()
+                    dd_.update(tmp)
+                    return (dd_, f_[0])
+
+    def _xxx(c, x):
+        dd_, mmm = _xx(x)
+        if isinstance(x, str):
+            dff = _x(x)
+        else:
+            dff = uniqL_(flt_l([_x(i) for i in x]))
             if 'seasonyr' in dff:
                 dff.remove('year')
-        tmp = cube.aggregated_by(dff, eval('iris.analysis.' + method),
-                                 **method_otps)
-        if ff == 'season' and valid_season:
-            tmp = extract_byAxes_(tmp, 'time', np.s_[1:-1])
+        for i in dff:
+            _f, fA, fK = dd_[i]
+            try:
+                _f(c, *fA, **fK)
+            except ValueError:
+                c.remove_coord(fK['name'])
+                _f(c, *fA, **fK)
+        if mmm:
+            c = c.extract(iris.Constraint(**{mmm: True}))
+            tmp = c.aggregated_by(dff, eval('iris.analysis.' + method),
+                                   **method_opts)
+        else:
+            tmp = c.aggregated_by(dff, eval('iris.analysis.' + method),
+                                  **method_opts)
+            if x == 'season' and valid_season:
+                tmp = extract_byAxes_(tmp, 'time', np.s_[1:-1])
         rm_t_aux_cube(tmp, keep=dff)
+        return tmp
+    o = ()
+    for ff in [i.split('-') if '-' in i else i for i in freq]:
+        tmp = _xxx(cube.copy(), ff)
         o += (tmp,)
     return o[0] if len(o) == 1 else o
+
+    #freqs = uniqL_(flt_l([i.split('-') if '-' in i else i for i in freq]))
+    #if (len(freqs) == 0 or
+    #    not any([x in ['hour', 'day', 'month', 'season', 'year']
+    #             for x in freqs])):
+    #    freq = ('year',)
+    #if any(i in freqs for i in ('hour', 'day', 'month', 'year')):
+    #    try:
+    #        cat.add_year(cube, 'time', name='year')
+    #    except ValueError:
+    #        pass
+    #if 'hour' in freqs:
+    #    try:
+    #        cat.add_hour(cube, 'time', name='hour')
+    #    except ValueError:
+    #        pass
+    #if 'day' in freqs:
+    #    try:
+    #        cat.add_day_of_year(cube, 'time', name='doy')
+    #    except ValueError:
+    #        pass
+    #if 'month' in freqs:
+    #    try:
+    #        cat.add_month(cube, 'time', name='month')
+    #    except ValueError:
+    #        pass
+    #if 'season' in freqs:
+    #    try:
+    #        cat.add_season(cube, 'time', name='season',
+    #                       seasons=('djf', 'mam', 'jja', 'son'))
+    #    except ValueError:
+    #        pass
+    #    try:
+    #        cat.add_season_year(cube, 'time', name='seasonyr',
+    #                            seasons=('djf', 'mam', 'jja', 'son'))
+    #    except ValueError:
+    #        pass
+    #o = ()
+    #for ff in [i.split('-') if '-' in i else i for i in freq]:
+    #    if isinstance(ff, str):
+    #        dff = d[ff]
+    #    else:
+    #        dff = uniqL_(flt_l([d[i] for i in ff]))
+    #        if 'seasonyr' in dff:
+    #            dff.remove('year')
+    #    tmp = cube.aggregated_by(dff, eval('iris.analysis.' + method),
+    #                             **method_opts)
+    #    if ff == 'season' and valid_season:
+    #        tmp = extract_byAxes_(tmp, 'time', np.s_[1:-1])
+    #    rm_t_aux_cube(tmp, keep=dff)
+    #    o += (tmp,)
+    #return o[0] if len(o) == 1 else o
 
 
 def repair_cs_(cube):
