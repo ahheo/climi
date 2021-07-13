@@ -284,17 +284,18 @@ def nTslice_cube(cube, n):
 
 def unique_yrs_of_cube(cube, ccsn='year', mmm=None):
     if isinstance(cube, iris.cube.Cube):
-        ccs = [i.name() for i in cube.coords()]
+        c = cube.copy()
+        ccs = [i.name() for i in c.coords()]
         if ccsn not in ccs:
             if 'season' in ccsn:
                 if mmm:
-                    seasonyr_cube(cube, mmm, name=ccsn)
+                    seasonyr_cube(c, mmm, name=ccsn)
                 else:
                     emsg = "'mmm' must not be None for adding coord {!r}!"
                     raise ValueError(emsg.format(ccsn))
             else:
-                cat.add_year(cube, 'time', name=ccsn)
-        return np.unique(cube.coord(ccsn).points)
+                cat.add_year(c, 'time', name=ccsn)
+        return np.unique(c.coord(ccsn).points)
     elif isIter_(cube, xi=iris.cube.Cube):
         return [unique_yrs_of_cube(i) for i in cube]
     else:
@@ -303,17 +304,18 @@ def unique_yrs_of_cube(cube, ccsn='year', mmm=None):
 
 def y0y1_of_cube(cube, ccsn='year', mmm=None):
     if isinstance(cube, iris.cube.Cube):
-        ccs = [i.name() for i in cube.coords()]
+        c = cube.copy()
+        ccs = [i.name() for i in c.coords()]
         if ccsn not in ccs:
             if 'season' in ccsn:
                 if mmm:
-                    seasonyr_cube(cube, mmm, name=ccsn)
+                    seasonyr_cube(c, mmm, name=ccsn)
                 else:
                     emsg = "'mmm' must not be None for adding coord {!r}!"
                     raise ValueError(emsg.format(ccsn))
             else:
-                cat.add_year(cube, 'time', name=ccsn)
-        return list(cube.coord(ccsn).points[[0, -1]])
+                cat.add_year(c, 'time', name=ccsn)
+        return list(c.coord(ccsn).points[[0, -1]])
     elif isIter_(cube, xi=iris.cube.Cube):
         yy = np.array([y0y1_of_cube(i) for i in cube])
         return [np.max(yy[:, 0]), np.min(yy[:, 1])]
@@ -333,19 +335,20 @@ def extract_period_cube(cube, y0, y1, yy=False, ccsn='year', mmm=None):
     Returns:
          c_y: a cube within the period
     """
-    ccs = [i.name() for i in cube.coords()]
+    c = cube.copy()
+    ccs = [i.name() for i in c.coords()]
     if ccsn not in ccs:
         if 'season' in ccsn:
             if mmm:
-                seasonyr_cube(cube, mmm, name=ccsn)
+                seasonyr_cube(c, mmm, name=ccsn)
             else:
                 emsg = "'mmm' must not be None for adding coord {!r}!"
                 raise ValueError(emsg.format(ccsn))
         else:
-            cat.add_year(cube, 'time', name=ccsn)
+            cat.add_year(c, 'time', name=ccsn)
     cstrD = {ccsn: lambda x: y0 <= x <= y1}
     cstr = iris.Constraint(**cstrD)
-    c_y = cube.extract(cstr)
+    c_y = c.extract(cstr)
     if not (yy and (y0y1_of_cube(c_y) != [y0, y1] or
                not np.all(np.diff(unique_yrs_of_cube(c_y)) == 1))):
         return c_y
@@ -363,24 +366,19 @@ def extract_win_cube(cube, d, r=15):
     Returns:
         c_30: a cube within a 30-day window
     """
+    c = cube.copy()
     try:
-        cat.add_day_of_year(cube, 'time', name='doy')
+        cat.add_day_of_year(c, 'time', name='doy')
     except ValueError:
         pass
-    else:
-        cube.coord('doy').attributes = {}
     x1, x2 = cyl_(d - r, 365), cyl_(d + r, 365)
-    c_30 = cube.extract(iris.Constraint(doy = lambda cell:
-                                        x1 <= cell <= x2 if x1 < x2
-                                        else not (x2 < cell < x1)))
+    c_30 = c.extract(
+               iris.Constraint(doy=lambda x:
+                   x1 <= x <= x2 if x1 < x2 else not (x2 < x < x1)
+                   )
+               )
     #c_30.remove_coord('doy')
     return c_30
-
-
-def _name_not_in(nm, nmL):
-    while nm in nmL:
-        nm += '_'
-    return nm
 
 
 def extract_season_cube(cube, mmm):
@@ -394,34 +392,16 @@ def extract_season_cube(cube, mmm):
         ncube: cube/cubelist after extraction
     """
     if isinstance(cube, iris.cube.Cube):
-        try:
+        if 'season' in (i.name() for i in cube.coords()):
             ncube = cube.extract(iris.Constraint(season=mmm))
-        except ValueError:
+        else:
+            c = cube.copy() # to avoid changing metadata of original cube
             try:
-                cat.add_season_membership(cube, 'time', season=mmm, name=mmm)
+                cat.add_season_membership(c, 'time', mmm, name=mmm)
             except ValueError:
-                cube.remove_coord(mmm)
-                cat.add_season_membership(cube, 'time', season=mmm, name=mmm)
-                ncube = cube.extract(iris.Constraint(**{mmm: True}))
-        #ss_auxs = [i.name() for i in cube.aux_coords if 'season' in i.name()]
-        #if len(ss_auxs) == 0:
-        #    cat.add_season_membership(cube, 'time', season=mmm, name=mmm)
-        #    ncube = cube.extract(iris.Constraint(**{mmm: True}))
-        #    #ncube.remove_coord(mmm)
-        #else:
-        #    auxn = None
-        #    for i in ss_auxs:
-        #        if (isinstance(cube.coord(i).points[0], str) and
-        #            mmm in cube.coord(i).points):
-        #            auxn = i
-        #            break
-        #    if auxn is not None:
-        #        ncube = cube.extract(iris.Constraint(**{auxn: mmm}))
-        #    else:
-        #        auxn = _name_not_in('season_ms', ss_auxs)
-        #        cat.add_season_membership(cube, 'time', season=mmm, name=auxn)
-        #        ncube = cube.extract(iris.Constraint(**{auxn: True}))
-        #        ncube.remove_coord(auxn)
+                c.remove_coord(mmm)
+                cat.add_season_membership(c, 'time', mmm, name=mmm)
+            ncube = c.extract(iris.Constraint(**{mmm: True}))
         return ncube
     elif isMyIter_(cube):
         cl = [extract_season_cube(i, mmm) for i in cubeL]
@@ -431,12 +411,12 @@ def extract_season_cube(cube, mmm):
 
 
 def extract_month_cube(cube, Mmm):
+    c = cube.copy()
     try:
-        cat.add_month(cube, 'time', name='month')
+        cat.add_month(c, 'time', name='month')
     except ValueError:
         pass
-    ncube = cube.extract(iris.Constraint(month=Mmm))
-    ncube.remove_coord('month')
+    ncube = c.extract(iris.Constraint(month=Mmm))
     return ncube
 
 
@@ -468,10 +448,10 @@ def minmax_cube(cube, rg=None):
 
 
 def pp_cube(cube, rg=None, p=10):
-    return np.asarray([f_allD_cube(cube, rg=rg, f='PERCENTILE',
-                                                percent=p),
-                       f_allD_cube(cube, rg=rg, f='PERCENTILE',
-                                                percent=100 - p)])
+    return np.asarray(
+        [f_allD_cube(cube, rg=rg, f='PERCENTILE', percent=p),
+         f_allD_cube(cube, rg=rg, f='PERCENTILE', percent=100 - p)]
+        )
 
 
 def min_cube_(cube, rg=None):
@@ -638,16 +618,16 @@ def rm_t_aux_cube(cube, keep=None):
     ... remove time-related auxcoords from a cube or a list of cubes ...
     """
     tauxL = ['year', 'month', 'season', 'day', 'doy', 'hour', 'yr']
+    def _isTCoord(x):
+        return any((i in x.name() for i in tauxL)) or isSeason_(x.name())
     if isinstance(cube, iris.cube.Cube):
         for i in cube.aux_coords:
             if keep is None:
-                isTaux = any([ii in i.name() for ii in tauxL])
+                isTaux = _isTCoord(i)
             elif isIter_(keep):
-                isTaux = any([ii in i.name() for ii in tauxL])\
-                         and i.name() not in keep
+                isTaux = _isTCoord(i) and i.name() not in keep
             else:
-                isTaux = any([ii in i.name() for ii in tauxL])\
-                         and i.name() != keep
+                isTaux = _isTCoord(i) and i.name() != keep
             if isTaux:
                 cube.remove_coord(i)
     elif isMyIter_(cube):
@@ -1375,7 +1355,7 @@ def ax_fn_ray_(arr, ax, func, out, *args, npr=32, **kwargs):
     else:
         o0 = out
     if not isinstance(o0, iris.cube.Cube):
-        raise Exception('type of out SHOULD be Cube')
+        raise Exception("type of 'out' should be CUBE!")
     if not isinstance(arr, (tuple, list)):
         arr = (arr,)
 
@@ -1406,7 +1386,7 @@ def ax_fn_mp_(arr, ax, func, out, *args, npr=32, **kwargs):
     else:
         o0 = out
     if not isinstance(o0, (np.ndarray, iris.cube.Cube)):
-        raise Exception('type of out SHOULD be NDARRAY or CUBE')
+        raise Exception("type of 'out' should be NDARRAY or CUBE!")
     if not isinstance(arr, (tuple, list)):
         arr = (arr,)
 
@@ -1458,7 +1438,7 @@ def alng_axis_(arrs, ax, func, out, *args, **kwargs):
     else:
         o0 = out
     if not isinstance(o0, (np.ndarray, iris.cube.Cube)):
-        raise Exception('type of out SHOULD be NDARRAY of CUBE')
+        raise Exception("type of 'out' should be NDARRAY or CUBE!")
     if not isinstance(arrs, (list, tuple)):
         arrs = (arrs,)
     for i in range(nSlice_(arrs[0].shape, ax)):
@@ -1493,10 +1473,12 @@ def initAnnualCube_(c0, y0y1, name=None, units=None, var_name=None,
         return (m0, m1, y0_, y0__)
 
     ##data and mask
-    if isinstance(c.data, np.ma.core.MaskedArray):
-        if c.data.mask.ndim == 0:
-            if ~c.data.mask:
+    if isinstance(c.data, np.ma.MaskedArray):
+        if ~np.ma.is_masked(c.data):
                 c.data.data[:] = 0.
+        #if c.data.mask.ndim == 0:
+        #    if ~c.data.mask:
+        #        c.data.data[:] = 0.
         else:
             c.data.data[~c.data.mask] = 0.
     else:
@@ -1540,7 +1522,7 @@ def pSTAT_cube(cube, method, *freq, valid_season=True, **method_opts):
 
     s4 = ('djf', 'mam', 'jja', 'son')
 
-    d = dict(year='year',
+    d = dict(year=('year',),
              season=('season', 'seasonyr'),
              month=('month', 'year'),
              day=('doy', 'year'),
@@ -1600,6 +1582,7 @@ def pSTAT_cube(cube, method, *freq, valid_season=True, **method_opts):
             dff = uniqL_(flt_l([_x(i) for i in x]))
             if 'seasonyr' in dff:
                 dff.remove('year')
+        #dff = (dff, ) if isinstance(dff, str) else dff
         for i in dff:
             _f, fA, fK = dd_[i]
             try:
@@ -1618,8 +1601,10 @@ def pSTAT_cube(cube, method, *freq, valid_season=True, **method_opts):
                 tmp = extract_byAxes_(tmp, 'time', np.s_[1:-1])
         rm_t_aux_cube(tmp, keep=dff)
         return tmp
+
+    freqs = ('year',) if len(freq) == 0 else freq
     o = ()
-    for ff in [i.split('-') if '-' in i else i for i in freq]:
+    for ff in [i.split('-') if '-' in i else i for i in freqs]:
         tmp = _xxx(cube.copy(), ff)
         o += (tmp,)
     return o[0] if len(o) == 1 else o
@@ -1823,16 +1808,14 @@ def nine_points_cube(cube, longitude, latitude):
     xyd = get_xyd_cube(cube)
     ind_ = np.arange(-1, 2, dtype=np.int)
     ind = list(np.s_[:,] * cube.ndim)
+    wmsg = ("Causious that center point may be given outside (or at the "
+            "boundary of) the geo domain of the input Cube!")
     for i, ii in zip(xyd, d_):
         if ii == cube.shape[i] - 1:
-            warnings.warn("Causious that center point may be given outside "
-                          "(or at the boundary of) the geo domain of the "
-                          "input Cube!")
+            warnings.warn(wmsg)
             ii -= 1
         elif ii == 0:
-            warnings.warn("Causious that center point may be given outside "
-                          "(or at the boundary of) the geo domain of the "
-                          "input Cube!")
+            warnings.warn(wmsg)
             ii += 1
         ind[i] = ind_ + ii
     return cube[tuple(ind)]

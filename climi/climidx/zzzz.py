@@ -46,11 +46,20 @@ __all__ = ['p25_75_', 'md_', 'tE', 'tE_', 'thr_', 'dt_thr_', 'subH', 'subH_',
            'get_kde_']
 
 
-def p25_75_(t_ref, ax_t):
-    warnings.filterwarnings("ignore", message="All-NaN slice encountered")
+#def p25_75_(pn, dict_p, cube, axis=None):
+#    warnings.filterwarnings("ignore", message="All-NaN slice encountered")
+#    t_ref = pSTAT_cube(extract_period_cube(cube, *dict_p[pn]), 'MEAN').data
+#    axis = axT_cube(cube) if axis is None else axis
+#    p25 = np.nanpercentile(t_ref, 25, axis, keepdims=True)
+#    p75 = np.nanpercentile(t_ref, 75, axis, keepdims=True)
+#    return (p25, p75)
 
-    p25 = np.nanpercentile(t_ref, 25, ax_t, keepdims=True)
-    p75 = np.nanpercentile(t_ref, 75, ax_t, keepdims=True)
+
+def p25_75_(t_ref, ax_t, yr_ref=None):
+    warnings.filterwarnings("ignore", message="All-NaN slice encountered")
+    tmp = t_ref if yr_ref is None else aggr_func_(t_ref, yr_ref, ax_t)
+    p25 = np.nanpercentile(tmp, 25, ax_t, keepdims=True)
+    p75 = np.nanpercentile(tmp, 75, ax_t, keepdims=True)
     return (p25, p75)
 
 

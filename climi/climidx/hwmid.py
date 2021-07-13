@@ -67,10 +67,11 @@ def pre__(dCube=None, rCube=None,
 
     #getting md
     if len(othr) > 2:
-        t_ref = othr[2]
+        t_ref, yr_ref = othr[2:4]
     else:
-        t_ref = get_t_period_('ref', dict_p, *rCube)[0]
+        t_ref, yr_ref = get_t_period_('ref', dict_p, *rCube)[:2]
     p25, p75 = p25_75_(t_ref, ax_t)
+    #p25, p75 = p25_75_(t_ref, ax_t, yr_ref)
     md_inv = md_(t_inv, dt_inv, p25, p75, hw=hw)
 
     #creating a cube for saving hwmi (and wsdi)
@@ -107,7 +108,7 @@ def pre__(dCube=None, rCube=None,
             minL)
 
 
-def get_hwmid_slice(md_inv, yr_inv, minL):
+def get_hwmid_slice(md_inv, yr_inv, minL=3):
     """
     ... get hwmid/cwmid and wsdi/csdi along 1D cube slice ("time") ...
 

@@ -107,7 +107,7 @@ def pre__(dCube=None, rCube=None,
             minL)
 
 
-def get_hwmi_slice(k_cdf, k_x, t_inv, dt_inv, yr_inv, minL):
+def get_hwmi_slice(k_cdf, k_x, t_inv, dt_inv, yr_inv, minL=3):
     """
     ... get hwmi/cwmi and wsdi/csdi along 1D cube slice ("time") ...
 

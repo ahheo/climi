@@ -2,6 +2,7 @@
 >--#########################################################################--<
 >------------------------------whoknows functions-----------------------------<
 >--#########################################################################--<
+* aggr_func_            : aggregate function over ndarray
 * b2l_endian_           : return little endian copy
 * compressLL_           : compress 2D list
 * consecutive_          : consecutive numbers
@@ -75,7 +76,8 @@ from typing import Iterable, Iterator
 #import math
 
 
-__all__ = ['b2l_endian_',
+__all__ = ['aggr_func_',
+           'b2l_endian_',
            'compressLL_',
            'consecutive_',
            'cyl_',
@@ -790,3 +792,20 @@ def consecutive_(x1d, func_, nn_=3, ffunc_=np.max):
                   np.concatenate(([1], np.where(func_(x1d))[0] + 1)))
     ts = [len(x1d) - 1 for x1d in ts if len(x1d) >= nn_]
     return ffunc_(ts) if ts else 0.
+
+
+def aggr_func_(xnd, V, axis=None, func_=np.ma.mean):
+    #0 checking input arguments
+    xnd = xnd.ravel() if axis is None else xnd
+    axis = -1 if axis is None else axis
+    if V.size != xnd.shape[axis]:
+        raise Exception("input arguments not matching!")
+    uV = np.unique(V)
+    nshp = list(xnd.shape)
+    nshp[axis] = uV.size
+    o = np.empty(nshp)
+    for i, ii in enumerate(uV):
+        o[ind_s_(len(nshp), axis, i)] = func_(
+            xnd[ind_s_(xnd.ndim, axis, V==ii)],
+            axis=axis)
+    return o
