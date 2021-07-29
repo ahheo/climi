@@ -7,6 +7,7 @@ import numpy as np
 import iris
 import iris.coord_categorisation as cat
 import os
+import re
 import yaml
 import time
 import warnings
@@ -730,9 +731,9 @@ def _vd(ii_, tint, subg=None, xvn=9):
 
 
 def _xyz(il_, tint, pi_, dn, gwl, y0y1, po_, reg_d, folder='cordex',
-         subg=None, xvn=9):
+         subg=None, xvn=9, user_cfg=None):
     t1 = l__('>>>{}'.format(tint))
-    ka0 = dict(dn=dn, gwl=gwl, po_=po_)
+    ka0 = dict(dn=dn, gwl=gwl, po_=po_, user_cfg=user_cfg)
     if tint == 'mon':
         f__ = _mclimidx
     elif tint == 'day':
@@ -798,6 +799,18 @@ def _xyz(il_, tint, pi_, dn, gwl, y0y1, po_, reg_d, folder='cordex',
 s4 = ('djf', 'mam', 'jja', 'son')
 
 
+def _get_freq(v_, user_cfg=None):
+    vv = v_[0] if isIter_(v_) else v_
+    if user_cfg:
+        try:
+            o = user_cfg['freq_cfg'][vv]
+        except:
+            o = i__[vv][4]
+        return o
+    else:
+        return i__[vv][4]
+
+
 def _to1(v_, dgpi, freq=None):
     fn = '{}{}.nc'
     dn, gwl, po_ = dgpi[:3]
@@ -809,7 +822,7 @@ def _to1(v_, dgpi, freq=None):
     def _fn(fff):
         return fn.format(po_, '_'.join((i for i in (v_, dn, fff, gwl) if i)))
 
-    freq = freq if freq else i__[v_][4]
+    freq = freq if freq else _get_freq(v_, dgpi[4])
     if len(freq) == 1:
         fns = _fns(freq[0])
         if fns:
@@ -842,7 +855,8 @@ def _sv(v_, o, dgpi, freq=None, _nm=None):
         return fn.format(po_,
                          '_'.join((i for i in (v_, dn, fff, gwl, _nm) if i)))
 
-    freq = freq if freq else i__[v_][4]
+    freq = freq if freq else _get_freq(v_, dgpi[4])
+    assert isIter_(freq), "type {!r} not acceptable here!".format(type(freq))
     if len(freq) == 1:
         _meta(v_, o)
         cubesv_(o, _fn(freq[0]))
@@ -853,8 +867,8 @@ def _sv(v_, o, dgpi, freq=None, _nm=None):
 
 
 def _dd(v_, cube, dgpi, freq=None, _nm=None):
-    freq = freq if freq else i__[v_][4]
-    if v_ in dgpi[-1] and cube:
+    if v_ in dgpi[3] and cube:
+        freq = freq if freq else _get_freq(v_, dgpi[4])
         t000 = l__('{} {}'.format(i__[v_][0], v_))
         o = pSTAT_cube(cube, i__[v_][3] if i__[v_][3] else 'MEAN',
                        *freq)
@@ -873,37 +887,47 @@ def _d0(v_, cube, dgpi, fA_=(), fK_={}, freq=None):
         vk_ = v_
         lmsg_ = '{} {}'.format(i__[v_][0], v_)
     t000 = l__(lmsg_)
-    freq = freq if freq else i__[vk_][4]
+    freq = freq if freq else _get_freq(vk_, dgpi[4])
     cc = cube if isMyIter_(cube) else (cube,)
-    o = i__[vk_][3](*cc, freq, *fA_, **fK_)
-    #if pK_:
-    #    pst_(o, **pK_)
-    if not isIter_(v_) or len(v_) == 1:
-        _sv(vk_, o, dgpi, freq=freq)
-    else:
-        for i, ii in zip(v_, o):
-            _sv(i, ii, dgpi, freq=freq)
-    ll_(lmsg_, t000)
+    if vk_ in dgpi[3] and all(i for i in cc):
+        o = i__[vk_][3](*cc, freq, *fA_, **fK_)
+        #if pK_:
+        #    pst_(o, **pK_)
+        if not isIter_(v_) or len(v_) == 1:
+            _sv(vk_, o, dgpi, freq=freq)
+        else:
+            for i, ii in zip(v_, o):
+                _sv(i, ii, dgpi, freq=freq)
+        ll_(lmsg_, t000)
 
 
-def _tt(cube, y0y1=None):
-    rm_t_aux_cube(cube)
+def _tt(cube, y0y1=None, mmm=None):
     yr_doy_cube(cube)
-    cat.add_season(cube, 'time', name='season', seasons=s4)
-    tyrs, tdoy = cube.coord('year').points, cube.coord('doy').points
-    y_y_ = y0y1 if y0y1 else tyrs[[0, -1]]
-    tsss = cube.coord('season').points
-    seasonyr_cube(cube, s4)
-    tsyr = cube.coord('seasonyr').points
-    ax_t = cube.coord_dims('time')[0]
-    return (ax_t, y_y_, tyrs, tdoy, tsss, tsyr)
+    if mmm and isSeason_(mmm):
+        seasonyr_cube(cube, mmm)
+        yrs = cube.coord('seasonyr').points
+        y_y_ = y0y1 if y0y1 else yrs[[0, -1]]
+        y_y_ = y_y_ if ismono_(mmmN_(mmm)) else [y_y_[0] + 1, y_y_[-1] - 1]
+    else:
+        yrs = cube.coord('year').points
+        y_y_ = y0y1 if y0y1 else yrs[[0, -1]]
+    doy = cube.coord('doy').points
+    return (axT_cube(cube), y_y_, yrs, doy)
+    #rm_t_aux_cube(cube)
+    #yr_doy_cube(cube)
+    #cat.add_season(cube, 'time', name='season', seasons=s4)
+    #tyrs, tdoy = cube.coord('year').points, cube.coord('doy').points
+    #y_y_ = y0y1 if y0y1 else tyrs[[0, -1]]
+    #tsss = cube.coord('season').points
+    #seasonyr_cube(cube, s4)
+    #tsyr = cube.coord('seasonyr').points
+    #ax_t = cube.coord_dims('time')[0]
+    #return (ax_t, y_y_, tyrs, tdoy, tsss, tsyr)
 
 
-def _d1(v_, cube, dgpi, ax_t, y_y_,
-        cK_={}, fA_=(), fK_={}, freq=None, out=False):
-    def _inic(icK_):
-        return initAnnualCube_(cube[0] if isMyIter_(cube) else cube,
-                               y_y_, **icK_)
+#def _d1(v_, cube, dgpi, ax_t, y_y_,
+def _d1(v_, cube, dgpi, y0y1,
+        cK_={}, fA_='y', fK_={}, freq=None, out=False):
     if isIter_(v_):
         vk_ = v_[0]
         lmsg = '/'.join(('{}',) * len(v_)) + ' {}'
@@ -912,33 +936,75 @@ def _d1(v_, cube, dgpi, ax_t, y_y_,
     else:
         vk_ = v_
         lmsg_ = '{} {}'.format(i__[v_][0], v_)
-    if ((freq and len(freq) != 1) or
-        (freq is None and len(i__[vk_][4]) != 1)):
-        raise Exception("exec-freq more than 1 currently not available!")
-    t000 = l__(lmsg_)
-    if isinstance(cK_, dict):
-        o = _inic(cK_)
-    else:
-        o = iris.cube.CubeList([_inic(i) for i in cK_])
-    o_ = _afm_n(cube, ax_t, i__[vk_][3], o, *fA_, **fK_)
-    o = o_ if o_ else o
-    if not isIter_(v_) or len(v_) == 1:
-        _sv(vk_, o, dgpi, freq=freq)
-    else:
-        for i, ii in zip(v_, o):
-            _sv(i, ii, dgpi, freq=freq)
-    ll_(lmsg_, t000)
-    if out:
+    freq = freq if freq else _get_freq(vk_, dgpi[4])
+    freq = s4 if freq == 'season' else freq
+    cc = cube if isMyIter_(cube) else (cube,)
+    #if ((freq and len(freq) != 1) or
+    #    (freq is None and len(i__[vk_][4]) != 1)):
+    #    raise Exception("exec-freq more than 1 currently not available!")
+
+    def _inic(y_y_, icK_, mmm=None): # create output cubes taking care of 'freq'
+        icK_cp = icK_.copy()
+        if mmm:
+            icK_cp.update(dict(mmm=mmm))
+        return initAnnualCube_(cc[0], y_y_, **icK_cp)
+
+    def _cube_cp(extract_func, mmm): # if extraction regarding 'freq'
+        return tuple(extract_func(i, mmm) for i in cc)
+            
+    def _run_single_freq(x):
+        # knowing x
+        mmm_ = None
+        if isMonth_(x):
+            cube_cp = _cube_cp(extract_month_cube, x)
+            mmm_ = x
+        elif isSeason_(x):
+            cube_cp = _cube_cp(extract_season_cube, x)
+            mmm_ = x
+        elif ff == 'year':
+            cube_cp = cc
+        else:
+            raise Exception("currently only 'year'/month/season acceptable!")
+        # axis, y0y1, years of data points, doy of data points, 
+        ax_t, y_y_, tyrs, tdoy = _tt(cube_cp[0], y0y1, mmm_)
+        if isinstance(cK_, dict):
+            o = _inic(y_y_, cK_, mmm_)
+        else:
+            o = iris.cube.CubeList([_inic(y_y_, i, mmm_) for i in cK_])
+        # aditional arguments to index function
+        fA = ()
+        if 'y' in fA_:
+            fA += (tyrs,)
+        if 'd' in fA_:
+            fA += (tdoy,)
+        o_ = _afm_n(cube_cp, ax_t, i__[vk_][3], o, *fA, **fK_)
+        o = o_ if o_ else o
+        if not isIter_(v_) or len(v_) == 1:
+            _sv(vk_, o, dgpi, freq=(x,))
+        else:
+            for i, ii in zip(v_, o):
+                _sv(i, ii, dgpi, freq=(x,))
         return o
 
+    if vk_ in dgpi[3] and all(i for i in cc):
+        t000 = l__(lmsg_)
+        ooo = []
+        for ff in freq:
+            tmp = _run_single_freq(ff)
+            ooo.append(tmp)
+            ll_('   >>>>{}'.format(ff), t000)
+        ll_(lmsg_, t000)
+        if out:
+            return ooo[0] if len(ooo) == 1 else ooo
 
-def _mclimidx(dn=None, gwl=None, po_=None, il_=None,
+
+def _mclimidx(dn=None, gwl=None, po_=None, il_=None, user_cfg=None,
               c_pr=None, c_evspsbl=None, c_prsn=None, c_mrro=None,
               c_sund=None, c_rsds=None, c_rlds=None,
               c_tas=None, c_tasmax=None, c_tasmin=None,
               c_tos=None, c_sic=None):
 
-    dgpi = [dn, gwl, po_, il_]
+    dgpi = [dn, gwl, po_, il_, user_cfg]
     if any([i is None for i in dgpi]):
         raise ValueError("inputs of 'dn', 'gwl', 'po_', 'il_' are mandotory!")
 
@@ -946,8 +1012,9 @@ def _mclimidx(dn=None, gwl=None, po_=None, il_=None,
 
     def _mm(v_, cube, freq=None):
         if v_ in il_ and cube:
+            freq = freq if freq else _get_freq(v_, dgpi[4])
             o = pSTAT_cube(cube, i__[v_][3] if i__[v_][3] else 'MEAN',
-                           *i__[v_][4])
+                           *freq)
             _sv(v_, o, dgpi, freq=freq)
 
     _mm('PR', c_pr)                                                         #PR
@@ -973,13 +1040,13 @@ def _mclimidx(dn=None, gwl=None, po_=None, il_=None,
     _mm('TX', c_tasmax)                                                     #TX
     _mm('TN', c_tasmin)                                                     #TN
     v_ = 'DTR'
-    if v_ in il_ and c_tasmax is not None and c_tasmin is not None:
-        _d0(v_, (c_tasmax, c_tasmin), dgpi)                                #DTR
+    #if v_ in il_ and c_tasmax and c_tasmin:
+    _d0(v_, (c_tasmax, c_tasmin), dgpi)                                    #DTR
     _mm('SST', c_tos)                                                      #SST
     _mm('SIC', c_sic)                                                      #SIC
 
 
-def _dclimidx(dn=None, gwl=None, po_=None, il_=None, y0y1=None,
+def _dclimidx(dn=None, gwl=None, po_=None, il_=None, user_cfg=None, y0y1=None,
               c_hurs=None, c_huss=None, c_hus975=None, c_hus950=None,
               c_hus925=None, c_hus900=None, c_hus850=None, c_hus700=None,
               c_hus50m=None, c_hus100m=None, c_hus200m=None,
@@ -996,17 +1063,17 @@ def _dclimidx(dn=None, gwl=None, po_=None, il_=None, y0y1=None,
               c_va50m=None, c_va100m=None, c_va200m=None, c_vas=None,
               c_sfcWind=None, c_wsgsmax=None):
 
-    dgpi = [dn, gwl, po_, il_]
+    dgpi = [dn, gwl, po_, il_, user_cfg]
     if any([i is None for i in dgpi]):
         raise ValueError("inputs of 'dn', 'gwl', 'po_', 'il_' are mandotory!")
 
     os.makedirs(po_, exist_ok=True)
 
-    if c_wsgsmax is not None:
-        _dd('WindGustMax', c_wsgsmax, dgpi)                        #WindGustMax
-        v_ = 'WindyDays'
-        if v_ in il_:
-            _d0(v_, c_wsgsmax, dgpi)                                 #WindyDays
+    #if c_wsgsmax is not None:
+    _dd('WindGustMax', c_wsgsmax, dgpi)                            #WindGustMax
+    v_ = 'WindyDays'
+    #   if v_ in il_:
+    _d0(v_, c_wsgsmax, dgpi)                                         #WindyDays
     if (c_sfcWind is None and c_uas and c_vas and
         any([i in il_ for i in ['SfcWind', 'CalmDays', 'ConCalmDays',
                                 'Wind975toSfc', 'Wind950toSfc',
@@ -1030,11 +1097,11 @@ def _dclimidx(dn=None, gwl=None, po_=None, il_=None, y0y1=None,
             _d0(v_, o, dgpi)                                       #CalmDays975
         v_ = 'ConCalmDays975'
         if v_ in il_:
-            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(o, y0y1)
+            #ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(o, y0y1)
             #cK_ = dict(name='continue calm days', units='days')
-            fA_ = (tyrs,)
+            #fA_ = (tyrs,)
             #_d1(v_, o, dgpi, ax_t, y_y_, cK_=cK_, fA_=fA_)     #ConCalmDays975
-            _d1(v_, o, dgpi, ax_t, y_y_, fA_=fA_)               #ConCalmDays975
+            _d1(v_, o, dgpi, y0y1)                              #ConCalmDays975
     if 'Wind975toSfc' in  il_ and o and c_sfcWind:
         o = o.copy(o.data / c_sfcWind.data)
         #pst_(o, 'wsr_975_to_sfc', '1')
@@ -1055,11 +1122,11 @@ def _dclimidx(dn=None, gwl=None, po_=None, il_=None, y0y1=None,
             _d0(v_, o, dgpi)                                       #CalmDays950
         v_ = 'ConCalmDays950'
         if v_ in il_:
-            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(o, y0y1)
+            #ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(o, y0y1)
             #cK_ = dict(name='continue calm days', units='days')
-            fA_ = (tyrs,)
+            #fA_ = (tyrs,)
             #_d1(v_, o, dgpi, ax_t, y_y_, cK_=cK_, fA_=fA_)     #ConCalmDays950
-            _d1(v_, o, dgpi, ax_t, y_y_, fA_=fA_)               #ConCalmDays950
+            _d1(v_, o, dgpi, y0y1)                              #ConCalmDays950
     if 'Wind950toSfc' in  il_ and o and c_sfcWind:
         o = o.copy(o.data / c_sfcWind.data)
         #pst_(o, 'wsr_950_to_sfc', '1')
@@ -1080,12 +1147,12 @@ def _dclimidx(dn=None, gwl=None, po_=None, il_=None, y0y1=None,
             _d0(v_, o, dgpi)                                       #CalmDays925
         v_ = 'ConCalmDays925'
         if v_ in il_:
-            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(o, y0y1)
+            #ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(o, y0y1)
             #cK_ = dict(name='continue calm days', units='days')
-            fA_ = (tyrs,)
+            #fA_ = (tyrs,)
             #_d1(v_, o, dgpi, ax_t, y_y_, cK_=cK_, fA_=fA_)     #ConCalmDays925
-            _d1(v_, o, dgpi, ax_t, y_y_, fA_=fA_)               #ConCalmDays925
-    if 'Wind925toSfc' in  il_ and o and c_sfcWind:
+            _d1(v_, o, dgpi, y0y1)                              #ConCalmDays925
+    if 'Wind925toSfc' in il_ and o and c_sfcWind:
         o = o.copy(o.data / c_sfcWind.data)
         #pst_(o, 'wsr_925_to_sfc', '1')
         _dd('Wind925toSfc', o, dgpi)                              #Wind925toSfc
@@ -1105,11 +1172,11 @@ def _dclimidx(dn=None, gwl=None, po_=None, il_=None, y0y1=None,
             _d0(v_, o, dgpi)                                       #CalmDays900
         v_ = 'ConCalmDays900'
         if v_ in il_:
-            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(o, y0y1)
+            #ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(o, y0y1)
             #cK_ = dict(name='continue calm days', units='days')
-            fA_ = (tyrs,)
+            #fA_ = (tyrs,)
             #_d1(v_, o, dgpi, ax_t, y_y_, cK_=cK_, fA_=fA_)     #ConCalmDays900
-            _d1(v_, o, dgpi, ax_t, y_y_, fA_=fA_)               #ConCalmDays900
+            _d1(v_, o, dgpi, y0y1)                              #ConCalmDays900
     if 'Wind900toSfc' in  il_ and o and c_sfcWind:
         o = o.copy(o.data / c_sfcWind.data)
         #pst_(o, 'wsr_900_to_sfc', '1')
@@ -1126,11 +1193,11 @@ def _dclimidx(dn=None, gwl=None, po_=None, il_=None, y0y1=None,
             _d0(v_, o, dgpi)                                       #CalmDays50m
         v_ = 'ConCalmDays50m'
         if v_ in il_:
-            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(o, y0y1)
+            #ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(o, y0y1)
             #cK_ = dict(name='continue calm days', units='days')
-            fA_ = (tyrs,)
+            #fA_ = (tyrs,)
             #_d1(v_, o, dgpi, ax_t, y_y_, cK_=cK_, fA_=fA_)     #ConCalmDays50m
-            _d1(v_, o, dgpi, ax_t, y_y_, fA_=fA_)               #ConCalmDays50m
+            _d1(v_, o, dgpi, y0y1)                              #ConCalmDays50m
     o = None
     if any([i in il_ for i in ['Wind100m', 'CalmDays100m', 'ConCalmDays100m']]):
         if c_ua100m and c_va100m:
@@ -1144,11 +1211,11 @@ def _dclimidx(dn=None, gwl=None, po_=None, il_=None, y0y1=None,
             _d0(v_, o, dgpi)                                      #CalmDays100m
         v_ = 'ConCalmDays100m'
         if v_ in il_:
-            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(o, y0y1)
+            #ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(o, y0y1)
             #cK_ = dict(name='continue calm days', units='days')
-            fA_ = (tyrs,)
+            #fA_ = (tyrs,)
             #_d1(v_, o, dgpi, ax_t, y_y_, cK_=cK_, fA_=fA_)    #ConCalmDays100m
-            _d1(v_, o, dgpi, ax_t, y_y_, fA_=fA_)              #ConCalmDays100m
+            _d1(v_, o, dgpi, y0y1)                             #ConCalmDays100m
     o = None
     if any([i in il_ for i in ['Wind200m', 'CalmDays200m', 'ConCalmDays200m']]):
         if c_ua200m and c_va200m:
@@ -1162,11 +1229,11 @@ def _dclimidx(dn=None, gwl=None, po_=None, il_=None, y0y1=None,
             _d0(v_, o, dgpi)                                      #CalmDays200m
         v_ = 'ConCalmDays200m'
         if v_ in il_:
-            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(o, y0y1)
+            #ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(o, y0y1)
             #cK_ = dict(name='continue calm days', units='days')
-            fA_ = (tyrs,)
+            #fA_ = (tyrs,)
             #_d1(v_, o, dgpi, ax_t, y_y_, cK_=cK_, fA_=fA_)    #ConCalmDays200m
-            _d1(v_, o, dgpi, ax_t, y_y_, fA_=fA_)              #ConCalmDays200m
+            _d1(v_, o, dgpi, y0y1)                             #ConCalmDays200m
     _dd('SfcWind', c_sfcWind, dgpi)                                    #SfcWind
     if c_sfcWind:
         v_ = 'CalmDays'
@@ -1174,11 +1241,11 @@ def _dclimidx(dn=None, gwl=None, po_=None, il_=None, y0y1=None,
             _d0(v_, c_sfcWind, dgpi)                                  #CalmDays
         v_ = 'ConCalmDays'
         if v_ in il_:
-            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(c_sfcWind, y0y1)
+            #ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(c_sfcWind, y0y1)
             #cK_ = dict(name='continue calm days', units='days')
-            fA_ = (tyrs,)
+            #fA_ = (tyrs,)
             #_d1(v_, c_sfcWind, dgpi, ax_t, y_y_, cK_=cK_, fA_=fA_)#ConCalmDays
-            _d1(v_, c_sfcWind, dgpi, ax_t, y_y_, fA_=fA_)          #ConCalmDays
+            _d1(v_, c_sfcWind, dgpi, y0y1)                         #ConCalmDays
     if c_tasmax:
         v_ = 'WarmDays'
         if v_ in il_:
@@ -1197,11 +1264,11 @@ def _dclimidx(dn=None, gwl=None, po_=None, il_=None, y0y1=None,
                                                                  #CoolingDegDay
         v_ = 'ConWarmDays'
         if v_ in il_:
-            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(c_tasmax, y0y1)
+            #ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(c_tasmax, y0y1)
             #cK_ = dict(name='continue warm days', units='days')
-            fA_ = (tyrs,)
+            #fA_ = (tyrs,)
             #_d1(v_, c_tasmax, dgpi, ax_t, y_y_, cK_=cK_, fA_=fA_) #ConWarmDays
-            _d1(v_, c_tasmax, dgpi, ax_t, y_y_, fA_=fA_)           #ConWarmDays
+            _d1(v_, c_tasmax, dgpi, y0y1)                          #ConWarmDays
     if c_tasmin:
         v_ = 'FrostDays'
         if v_ in il_:
@@ -1209,25 +1276,25 @@ def _dclimidx(dn=None, gwl=None, po_=None, il_=None, y0y1=None,
         v_ = 'TropicNights'
         if v_ in il_:
             _d0(v_, c_tasmin, dgpi)                                #TropicNight
-        if any([i in il_ for i in ['SpringFrostDayEnd',
-                                   'FirstDayWithoutFrost']]):
-            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(c_tasmin, y0y1)
+        #if any([i in il_ for i in ['SpringFrostDayEnd',
+        #                           'FirstDayWithoutFrost']]):
+        #    ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(c_tasmin, y0y1)
         v_ = 'SpringFrostDayEnd'
         if v_ in il_:
             #cK_ = dict(name='spring frost end-day', units=1,
             #           var_name='frost_end')
-            fA_ = (tyrs, tdoy)
+            #fA_ = (tyrs, tdoy)
+            fA_ = 'yd'
             #_d1(v_, c_tasmin, dgpi, ax_t, y_y_, cK_=cK_, fA_=fA_)
-            _d1(v_, c_tasmin, dgpi, ax_t, y_y_, fA_=fA_)
-                                                             #SpringFrostDayEnd
+            _d1(v_, c_tasmin, dgpi, y0y1, fA_=fA_)           #SpringFrostDayEnd
         v_ = 'FirstDayWithoutFrost'
         if v_ in il_:
             #cK_ = dict(name='first day without frost', units=1,
             #           var_name='day1nofrost')
-            fA_ = (tyrs, tdoy)
+            #fA_ = (tyrs, tdoy)
+            fA_ = 'yd'
             #_d1(v_, c_tasmin, dgpi, ax_t, y_y_, cK_=cK_, fA_=fA_)
-            _d1(v_, c_tasmin, dgpi, ax_t, y_y_, fA_=fA_)
-                                                          #FirstDayWithoutFrost
+            _d1(v_, c_tasmin, dgpi, y0y1, fA_=fA_)        #FirstDayWithoutFrost
     v_ = 'ZeroCrossingDays'
     if v_ in il_ and c_tasmax and c_tasmin:
         _d0(v_, (c_tasmax, c_tasmin), dgpi)                   #ZeroCrossingDays
@@ -1241,29 +1308,30 @@ def _dclimidx(dn=None, gwl=None, po_=None, il_=None, y0y1=None,
         v_ = 'DegDay17'
         if v_ in il_:
             _d0(v_, c_tas, dgpi, fK_=dict(thr=17, left=True))         #DegDay17
-        if any([i in il_ for i in ['DegDay8',
-                                   'VegSeasonDayStart-5',
-                                   'VegSeasonDayEnd-5', 'VegSeasonLength-5',
-                                   'VegSeasonDayStart-2',
-                                   'VegSeasonDayEnd-2', 'VegSeasonLength-2',
-                                   'SuperCooledPR']]):
-            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(c_tas, y0y1)
+        #if any([i in il_ for i in ['DegDay8',
+        #                           'VegSeasonDayStart-5',
+        #                           'VegSeasonDayEnd-5', 'VegSeasonLength-5',
+        #                           'VegSeasonDayStart-2',
+        #                           'VegSeasonDayEnd-2', 'VegSeasonLength-2',
+        #                           'SuperCooledPR']]):
+        #    ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(c_tas, y0y1)
         v_ = 'DegDay8'
         if v_ in il_:
             #cK_ = dict(name='degree day g8 vegetation season',
             #           var_name='dd8_')
-            fA_ = (tyrs,)
+            #fA_ = (tyrs,)
             #_d1(v_, c_tas, dgpi, ax_t, y_y_, cK_=cK_, fA_=fA_)        #DegDay8
-            _d1(v_, c_tas, dgpi, ax_t, y_y_, fA_=fA_)                  #DegDay8
+            _d1(v_, c_tas, dgpi, y0y1)                                 #DegDay8
         if any([i in il_ for i in ['VegSeasonDayStart-5', 'VegSeasonDayEnd-5',
                                    'VegSeasonLength-5']]):
             o = _d1(['VegSeasonDayStart-5', 'VegSeasonDayEnd-5'],
-                    c_tas, dgpi, ax_t, y_y_,
+                    c_tas, dgpi, y0y1, #ax_t, y_y_,
                     #cK_=(dict(name='vegetation season day-start', units=1,
                     #          var_name='veg_s'),
                     #     dict(name='vegetation season day-end', units=1,
                     #          var_name='veg_e')),
-                    fA_=(tyrs, tdoy),
+                    #fA_=(tyrs, tdoy),
+                    fA_='yd',
                     fK_=dict(thr=5),
                     out=True)
             v_ = 'VegSeasonLength-5'
@@ -1275,12 +1343,13 @@ def _dclimidx(dn=None, gwl=None, po_=None, il_=None, y0y1=None,
         if any([i in il_ for i in ['VegSeasonDayStart-2', 'VegSeasonDayEnd-2',
                                    'VegSeasonLength-2']]):
             o = _d1(['VegSeasonDayStart-2', 'VegSeasonDayEnd-2'],
-                    c_tas, dgpi, ax_t, y_y_,
+                    c_tas, dgpi, y0y1, #ax_t, y_y_,
                     #cK_=(dict(name='vegetation season day-start', units=1,
                     #          var_name='veg_s'),
                     #     dict(name='vegetation season day-end', units=1,
                     #          var_name='veg_e')),
-                    fA_=(tyrs, tdoy),
+                    #fA_=(tyrs, tdoy),
+                    fA_='yd',
                     fK_=dict(thr=2),
                     out=True)
             v_ = 'VegSeasonLength-2'
@@ -1382,39 +1451,46 @@ def _dclimidx(dn=None, gwl=None, po_=None, il_=None, y0y1=None,
             _d0(v_, c_pr, dgpi)                                        #DryDays
         v_ = 'PRmax'
         _dd(v_, c_pr, dgpi)                                              #PRmax
-        if any([i in il_ for i in ['PRgt10Days', 'PRgt25Days']]):
-            _d0(['PRgt10Days', 'PRgt25Days'], c_pr, dgpi)            #ExtrPrDay
-        if any([i in il_ for i in ['LnstDryDays', 'SuperCooledPR',
-                                   'PR7Dmax']]):
-            ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(c_pr, y0y1)
+        v_ = 'PRgt10Days'
+        if v_ in il_:
+            _d0(v_, c_pr, dgpi)                                     #PRgt10Days
+        v_ = 'PRgt25Days'
+        if v_ in il_:
+            _d0(v_, c_pr, dgpi, fK_=dict(thr=25))                   #PRgt25Days
+        #if any([i in il_ for i in ['PRgt10Days', 'PRgt25Days']]):
+        #    _d0(['PRgt10Days', 'PRgt25Days'], c_pr, dgpi)           #ExtrPrDay
+        #if any([i in il_ for i in ['LnstDryDays', 'SuperCooledPR',
+        #                           'PR7Dmax']]):
+        #    ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(c_pr, y0y1)
         v_ = 'PR7Dmax'
         if v_ in il_:
             #cK_ = dict(name='max 7-day precipitation', var_name='pr7d')
-            fA_ = (tyrs,)
+            #fA_ = (tyrs,)
             #_d1(v_, c_pr, dgpi, ax_t, y_y_, cK_=cK_, fA_=fA_)         #PR7Dmax
-            _d1(v_, c_pr, dgpi, ax_t, y_y_, fA_=fA_)                   #PR7Dmax
+            _d1(v_, c_pr, dgpi, y0y1)                                  #PR7Dmax
         v_ = 'LnstDryDays'
         if v_ in il_:
             t000 = l__('{} {} LL'.format(i__[v_][0], v_))
             #cK_ = dict(name='longest dry days', units='days')
-            for ss in s4:
-                yy = [y_y_[0] + 1, y_y_[-1]] if ss == s4[0] else y_y_
-                ind = np.logical_and(tsss==ss, ind_inRange_(tsyr, *yy))
-                _d1(v_, extract_byAxes_(c_pr, ax_t, ind), dgpi,
-                    ax_t, yy,
-                    #cK_=cK_,
-                    fA_=(tsyr[ind],), freq=(ss,))
+            _d1(v_, c_pr, dgpi, y0y1)
+            #for ss in s4:
+            #    yy = [y_y_[0] + 1, y_y_[-1]] if ss == s4[0] else y_y_
+            #    ind = np.logical_and(tsss==ss, ind_inRange_(tsyr, *yy))
+            #    _d1(v_, extract_byAxes_(c_pr, ax_t, ind), dgpi,
+            #        ax_t, yy,
+            #       #cK_=cK_,
+            #        fA_=(tsyr[ind],), freq=(ss,))
             ll_(v_, t000)                                          #LnstDryDays
     v_ = 'SuperCooledPR'
     if v_ in il_ and all([i is not None for i in
                           (c_pr, c_ps, c_tas, c_ta925, c_ta850, c_ta700,
                            c_hus925, c_hus850, c_hus700)]):
         #cK_ = dict(name='supercooled precipitation day', units='days')
-        fA_ = (tyrs,)
+        #fA_ = (tyrs,)
         _d1(v_, (c_pr, c_ps, c_tas, c_ta925, c_ta850, c_ta700,
                  c_hus925, c_hus850, c_hus700), dgpi,
             #ax_t, y_y_, cK_=cK_, fA_=fA_)                       #SuperCooledPR
-            ax_t, y_y_, fA_=fA_)                                 #SuperCooledPR
+            y0y1)                                                #SuperCooledPR
     if c_snc:
         v_ = 'SncDays'
         if v_ in il_:
@@ -1438,23 +1514,61 @@ def _dclimidx(dn=None, gwl=None, po_=None, il_=None, y0y1=None,
     v_ = 'ColdRainWarmSnowDays'
     if v_ in il_ and c_pr and c_tas:
         _d0(v_, (c_pr, c_tas), dgpi)                      #ColdRainWarmSnowDays
-    if (any([i in il_ for i in ['ColdRainDays', 'ColdRainGT10Days',
-                                'ColdRainGT20Days']]) and c_pr and c_tas):
-        _d0(['ColdRainDays', 'ColdRainGT10Days', 'ColdRainGT20Days'],
-            (c_pr, c_tas), dgpi)                                  #ColdRainDays
-    if (any([i in il_ for i in ['WarmSnowDays', 'WarmSnowGT10Days',
-                                'WarmSnowGT20Days']]) and c_pr and c_tas):
-        _d0(['WarmSnowDays', 'WarmSnowGT10Days', 'WarmSnowGT20Days'],
-            (c_pr, c_tas), dgpi)                                  #WarmSnowDays
-    if (any([i in il_ for i in ['WarmPRSNdays', 'WarmPRSNgt10Days',
-                                'WarmPRSNgt20Days']]) and c_prsn and c_tas):
-        _d0(['WarmPRSNdays', 'WarmPRSNgt10Days', 'WarmPRSNgt20Days'],
-            (c_prsn, c_tas), dgpi)                                #WarmPRSNDays
-    if (any([i in il_ for i in ['ColdPRRNdays', 'ColdPRRNgt10Days',
-                                'ColdPRRNgt20Days']])
-        and c_prsn and c_pr and c_tas):
-        _d0(['ColdPRRNdays', 'ColdPRRNgt10Days', 'ColdPRRNgt20Days'],
-            (c_pr, c_prsn, c_tas), dgpi)                          #ColdPRRNDays
+    v_ = 'ColdRainDays'
+    if v_ in il_ and c_pr and c_tas:
+        _d0(v_, (c_pr, c_tas), dgpi)                              #ColdRainDays
+    v_ = 'ColdRainGT10Days'
+    if v_ in il_ and c_pr and c_tas:
+        _d0(v_, (c_pr, c_tas), dgpi, fK_=dict(thr_pr=10))     #ColdRainGT10Days
+    v_ = 'ColdRainGT20Days'
+    if v_ in il_ and c_pr and c_tas:
+        _d0(v_, (c_pr, c_tas), dgpi, fK_=dict(thr_pr=20))     #ColdRainGT20Days
+    v_ = 'WarmSnowDays'
+    if v_ in il_ and c_pr and c_tas:
+        _d0(v_, (c_pr, c_tas), dgpi)                              #WarmSnowDays
+    v_ = 'WarmSnowGT10Days'
+    if v_ in il_ and c_pr and c_tas:
+        _d0(v_, (c_pr, c_tas), dgpi, fK_=dict(thr_pr=10))     #WarmSnowGT10Days
+    v_ = 'WarmSnowGT20Days'
+    if v_ in il_ and c_pr and c_tas:
+        _d0(v_, (c_pr, c_tas), dgpi, fK_=dict(thr_pr=20))     #WarmSnowGT20Days
+    v_ = 'WarmPRSNDays'
+    if v_ in il_ and c_prsn and c_tas:
+        _d0(v_, (c_prsn, c_tas), dgpi)                            #WarmPRSNDays
+    v_ = 'WarmPRSNGT10Days'
+    if v_ in il_ and c_prsn and c_tas:
+        _d0(v_, (c_prsn, c_tas), dgpi, fK_=dict(thr_pr=10))   #WarmPRSNGT10Days
+    v_ = 'WarmPRSNGT20Days'
+    if v_ in il_ and c_prsn and c_tas:
+        _d0(v_, (c_prsn, c_tas), dgpi, fK_=dict(thr_pr=20))   #WarmPRSNGT20Days
+    v_ = 'ColdPRRNDays'
+    if v_ in il_ and c_prsn and c_pr and c_tas:
+        _d0(v_, (c_pr, c_prsn, c_tas), dgpi)                      #ColdPRRNDays
+    v_ = 'ColdPRRNGT10Days'
+    if v_ in il_ and c_prsn and c_pr and c_tas:
+        _d0(v_, (c_pr, c_prsn, c_tas), dgpi, fK_=dict(thr_pr=10))
+                                                              #ColdPRRNGT10Days
+    v_ = 'ColdPRRNGT20Days'
+    if v_ in il_ and c_prsn and c_pr and c_tas:
+        _d0(v_, (c_pr, c_prsn, c_tas), dgpi, fK_=dict(thr_pr=20))
+                                                              #ColdPRRNGT20Days
+    #if (any([i in il_ for i in ['WarmSnowDays', 'WarmSnowGT10Days',
+    #                            'ColdRainGT20Days']]) and c_pr and c_tas):
+    #    _d0(['ColdRainDays', 'ColdRainGT10Days', 'ColdRainGT20Days'],
+    #        (c_pr, c_tas), dgpi)                                 #ColdRainDays
+    #if (any([i in il_ for i in ['WarmSnowDays', 'WarmSnowGT10Days',
+    #                            'WarmSnowGT20Days']]) and c_pr and c_tas):
+    #    _d0(['WarmSnowDays', 'WarmSnowGT10Days', 'WarmSnowGT20Days'],
+    #        (c_pr, c_tas), dgpi)                                 #WarmSnowDays
+    #if (any([i in il_ for i in ['WarmPRSNdays', 'WarmPRSNgt10Days',
+    #                            'WarmPRSNgt20Days']]) and c_prsn and c_tas):
+    #    _d0(['WarmPRSNdays', 'WarmPRSNgt10Days', 'WarmPRSNgt20Days'],
+    #        (c_prsn, c_tas), dgpi)                               #WarmPRSNDays
+    #if (any([i in il_ for i in ['ColdPRRNdays', 'ColdPRRNgt10Days',
+    #                            'ColdPRRNgt20Days']])
+    #    and c_prsn and c_pr and c_tas):
+    #    _d0(['ColdPRRNdays', 'ColdPRRNgt10Days', 'ColdPRRNgt20Days'],
+    #        (c_pr, c_prsn, c_tas), dgpi)                         #ColdPRRNDays
     if (any([i in il_ for i in ['R5OScw', 'R1OScw', 'R5OSc', 'R1OSc']]) and
         c_pr and c_tas):
         #c_prsn = dPRSN_fr_PR_T_(c_pr, c_tas)
@@ -1462,7 +1576,7 @@ def _dclimidx(dn=None, gwl=None, po_=None, il_=None, y0y1=None,
     else:
         o = None
     if o and c_snc and c_snw:
-        attr = None if 'PRRN' not in o.attributes else  o.attributes['PRRN']
+        attr = None if 'PRRN' not in o.attributes else o.attributes['PRRN']
         fK_ = dict(cSnw=c_snw, attr=attr)
         v_ = 'R5OScw'
         if v_ in il_:
@@ -1493,7 +1607,8 @@ def _h1climidx(**kwArgs):
     _hclimidx(tint='h1', **kwArgs)
 
 
-def _hclimidx(tint='h6', dn=None, gwl=None, po_=None, il_=None, y0y1=None,
+def _hclimidx(tint='h6',
+              dn=None, gwl=None, po_=None, il_=None, user_cfg=None, y0y1=None,
               c_huss=None, c_hus975=None, c_hus950=None, c_hus925=None,
               c_hus900=None, c_hus850=None, c_hus700=None, c_hus50m=None,
               c_hus100m=None, c_hus200m=None,
@@ -1508,7 +1623,7 @@ def _hclimidx(tint='h6', dn=None, gwl=None, po_=None, il_=None, y0y1=None,
               c_va50m=None, c_va100m=None, c_va200m=None, c_vas=None,
               c_sfcWind=None):
 
-    dgpi = [dn, gwl, po_, il_]
+    dgpi = [dn, gwl, po_, il_, user_cfg]
     if any([i is None for i in dgpi]):
         raise ValueError("inputs of 'dn', 'gwl', 'po_', 'il_' are mandotory!")
     os.makedirs(po_, exist_ok=True)
@@ -1676,14 +1791,14 @@ def _hclimidx(tint='h6', dn=None, gwl=None, po_=None, il_=None, y0y1=None,
     if v_ in il_ and all([i is not None for i in
                           (c_pr, c_ps, c_tas, c_ta925, c_ta850, c_ta700,
                            c_hus925, c_hus850, c_hus700)]):
-        ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(c_pr, y0y1)
+        #ax_t, y_y_, tyrs, tdoy, tsss, tsyr = _tt(c_pr, y0y1)
         #cK_ = dict(name='supercooled precipitation events', units='1',
         #           var_name='prsc')
-        fA_ = (tyrs,)
+        #fA_ = (tyrs,)
         _d1(v_, (c_pr, c_ps, c_tas, c_ta925, c_ta850, c_ta700,
                  c_hus925, c_hus850, c_hus700), dgpi,
             #ax_t, y_y_, cK_=cK_, fA_=fA_)                     #hxSuperCooledPR
-            ax_t, y_y_, fA_=fA_)                               #hxSuperCooledPR
+            y0y1)                                              #hxSuperCooledPR
 
 
 def _wind_msk(cL, p, v_, dgpi, _nm=None):
@@ -1869,7 +1984,7 @@ def _yy_dn(pD, dn, gwl, gg, curr):
 
 def cmip6_rcp_(il_, reg_d, reg_n, po_,
                sss=None, eee=None, idx=None, yml=None, tii=None,
-               subg=None, xvn=9):
+               subg=None, xvn=9, user_cfg=None):
     pp = _pp(yml) if yml else _pp(_here_ + 'cmip6_smhi_len.yml')
     pp_ = l_ind_(pp['p_'], [int(i) for i in idx.split(',')]) if idx else\
           pp['p_'][sss:eee]
@@ -1881,13 +1996,13 @@ def cmip6_rcp_(il_, reg_d, reg_n, po_,
         tis = ['mon', 'day'] if tii is None else tii.split(',')
         for tint in tis:
             _xyz(il_, tint, pi_, dn, '', None, po_, reg_d, folder='cmip6',
-                 subg=subg, xvn=xvn)
+                 subg=subg, xvn=xvn, user_cfg=user_cfg)
         ll_('<<<<<<<' + dn, t0)
 
 
 def cmip5_imp_rcp_(il_, reg_d, reg_n, po_,
                    sss=None, eee=None, idx=None, yml=None, tii=None,
-                   subg=None, xvn=9):
+                   subg=None, xvn=9, user_cfg=None):
     pp = _pp(yml) if yml else _pp(_here_ + 'cmip5_import_.yml')
     pp_ = l_ind_(pp['p_'], [int(i) for i in idx.split(',')]) if idx else\
           pp['p_'][sss:eee]
@@ -1899,13 +2014,13 @@ def cmip5_imp_rcp_(il_, reg_d, reg_n, po_,
         tis = ['mon', 'day'] if tii is None else tii.split(',')
         for tint in tis:
             _xyz(il_, tint, pi_, dn, '', None, po_, reg_d, folder='cmip5',
-                 subg=subg, xvn=xvn)
+                 subg=subg, xvn=xvn, user_cfg=user_cfg)
         ll_('<<<<<<<' + dn, t0)
 
 
 def cmip5_imp_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
                   sss=None, eee=None, idx=None, yml=None, tii=None,
-                  subg=None, xvn=9):
+                  subg=None, xvn=9, user_cfg=None):
     pp = _pp(yml) if yml else _pp(_here_ + 'cmip5_import.yml')
     #pp = _pp(_here_ + 'cmip5_import_cp.yml')
     gg = _gg('cmip5')
@@ -1925,13 +2040,13 @@ def cmip5_imp_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
         tis = ['mon', 'day'] if tii is None else tii.split(',')
         for tint in tis:
             _xyz(il_, tint, pi_, dn, gwl, y0y1, po_, reg_d, folder='cmip5',
-                 subg=subg, xvn=xvn)
+                 subg=subg, xvn=xvn, user_cfg=user_cfg)
         ll_('<<<<<<<' + dn, t0)
 
 
 def norcp_rcp_(il_, reg_d, reg_n, po_,
                sss=None, eee=None, idx=None, yml=None, tii=None,
-               subg=None, xvn=9):
+               subg=None, xvn=9, user_cfg=None):
     pp = _pp(yml) if yml else _pp(_here_ + 'norcp_.yml')
     pp_ = l_ind_(pp['p_'], [int(i) for i in idx.split(',')]) if idx else\
           pp['p_'][sss:eee]
@@ -1944,13 +2059,13 @@ def norcp_rcp_(il_, reg_d, reg_n, po_,
         tis = ['mon', 'day', '3hr'] if tii is None else tii.split(',')
         for tint in tis:
             _xyz(il_, tint, pi_, dn, '', None, po_, reg_d, folder='norcp',
-                 subg=subg, xvn=xvn)
+                 subg=subg, xvn=xvn, user_cfg=user_cfg)
         ll_('<<<<<<<' + dn, t0)
 
 
 def eur11_imp_rcp_(il_, reg_d, reg_n, po_,
                    sss=None, eee=None, idx=None, yml=None, tii=None,
-                   subg=None, xvn=9):
+                   subg=None, xvn=9, user_cfg=None):
     pp = _pp(yml) if yml else _pp(_here_ + 'eur-11_import__.yml')
     pp_ = l_ind_(pp['p_'], [int(i) for i in idx.split(',')]) if idx else\
           pp['p_'][sss:eee]
@@ -1962,13 +2077,14 @@ def eur11_imp_rcp_(il_, reg_d, reg_n, po_,
         pi_ = pp['root'] + p_
         tis = ['mon', 'day'] if tii is None else tii.split(',')
         for tint in tis:
-            _xyz(il_, tint, pi_, dn, '', None, po_, reg_d, subg=subg, xvn=xvn)
+            _xyz(il_, tint, pi_, dn, '', None, po_, reg_d,
+                 subg=subg, xvn=xvn, user_cfg=user_cfg)
         ll_('<<<<<<<' + dn, t0)
 
 
 def eur11_imp_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
                   sss=None, eee=None, idx=None, yml=None, tii=None,
-                  subg=None, xvn=9):
+                  subg=None, xvn=9, user_cfg=None):
     pp = _pp(yml) if yml else _pp(_here_ + 'eur-11_import.yml')
     gg = _gg()
     pp_ = l_ind_(pp['p_'], [int(i) for i in idx.split(',')]) if idx else\
@@ -1987,13 +2103,14 @@ def eur11_imp_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
                                            [pi0, pi1])
         tis = ['mon', 'day'] if tii is None else tii.split(',')
         for tint in tis:
-            _xyz(il_, tint, pi_, dn, gwl, y0y1, po_, reg_d, subg=subg, xvn=xvn)
+            _xyz(il_, tint, pi_, dn, gwl, y0y1, po_, reg_d,
+                 subg=subg, xvn=xvn, user_cfg=user_cfg)
         ll_('<<<<<<<' + dn, t0)
 
 
 def eur11_imp_eval(il_, reg_d, reg_n, po_,
                    sss=None, eee=None, idx=None, yml=None, tii=None,
-                   subg=None, xvn=9):
+                   subg=None, xvn=9, user_cfg=None):
     gwl = ''
     pp = _pp(yml) if yml else _pp(_here_ + 'eur-11_import_eval.yml')
     pp_ = l_ind_(pp['p_'], [int(i) for i in idx.split(',')]) if idx else\
@@ -2006,11 +2123,13 @@ def eur11_imp_eval(il_, reg_d, reg_n, po_,
         pi_ = pp['root'] + p_
         tis = ['mon', 'day'] if tii is None else tii.split(',')
         for tint in tis:
-            _xyz(il_, tint, pi_, dn, gwl, None, po_, reg_d, subg=subg, xvn=xvn)
+            _xyz(il_, tint, pi_, dn, gwl, None, po_, reg_d,
+                 subg=subg, xvn=xvn, user_cfg=user_cfg)
         ll_('<<<<<<<' + dn, t0)
 
 
-def eur11_imp_eval_dmi(il_, reg_d, reg_n, po_, tii=None, subg=None, xvn=9):
+def eur11_imp_eval_dmi(il_, reg_d, reg_n, po_,
+                       tii=None, subg=None, xvn=9, user_cfg=None):
     gwl = ''
     pp = _pp(_here_ + 'eur-11_import_eval.yml')
     y0y1 = [1989, 2010]
@@ -2022,12 +2141,13 @@ def eur11_imp_eval_dmi(il_, reg_d, reg_n, po_, tii=None, subg=None, xvn=9):
         pi_ = pp['root'] + p_
         tis = ['mon', 'day'] if tii is None else tii.split(',')
         for tint in tis:
-            _xyz(il_, tint, pi_, dn, gwl, y0y1, po_, reg_d, subg=subg, xvn=xvn)
+            _xyz(il_, tint, pi_, dn, gwl, y0y1, po_, reg_d,
+                 subg=subg, xvn=xvn, user_cfg=user_cfg)
         ll_('<<<<<<<' + dn, t0)
 
 
 def eur11_smhi_eval(il_, reg_d, reg_n, po_, yml=None, tii=None,
-                    subg=None, xvn=9):
+                    subg=None, xvn=9, user_cfg=None):
     gwl = ''
     pp = _pp(yml) if yml else _pp(_here_ + 'eur-11_smhi-rca4.yml')
     p_ = pp['root'] + str(pp['eval']) + '/netcdf/'
@@ -2040,13 +2160,14 @@ def eur11_smhi_eval(il_, reg_d, reg_n, po_, yml=None, tii=None,
     t0 = l__('>>>>>>>' + dn)
     tis = ['mon', 'day'] if tii is None else tii.split(',')
     for tint in tis:
-        _xyz(il_, tint, p_, dn, gwl, None, po_, reg_d, subg=subg, xvn=xvn)
+        _xyz(il_, tint, p_, dn, gwl, None, po_, reg_d,
+             subg=subg, xvn=xvn, user_cfg=user_cfg)
     ll_('<<<<<<<' + dn, t0)
 
 
 def eur11_smhi_rcp_(il_, reg_d, reg_n, po_,
                     sss=None, eee=None, idx=None, yml=None, tii=None,
-                    subg=None, xvn=9):
+                    subg=None, xvn=9, user_cfg=None):
     pp = _pp(yml) if yml else _pp(_here_ + 'eur-11_smhi-rca4.yml')
     pp_ = l_ind_(pp['h248'], [int(i) for i in idx.split(',')]) if idx else\
           pp['h248'][sss:eee]
@@ -2057,13 +2178,14 @@ def eur11_smhi_rcp_(il_, reg_d, reg_n, po_,
         t0 = l__('>>>>>>>' + dn)
         tis = ['mon', 'day'] if tii is None else tii.split(',')
         for tint in tis:
-            _xyz(il_, tint, pi_, dn, '', None, po_, reg_d, subg=subg, xvn=xvn)
+            _xyz(il_, tint, pi_, dn, '', None, po_, reg_d,
+                 subg=subg, xvn=xvn, user_cfg=user_cfg)
         ll_('<<<<<<<' + dn, t0)
 
 
 def eur11_smhi_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
                    sss=None, eee=None, idx=None, yml=None, tii=None,
-                   subg=None, xvn=9):
+                   subg=None, xvn=9, user_cfg=None):
     pp = _pp(yml) if yml else _pp(_here_ + 'eur-11_smhi-rca4.yml')
     gg = _gg()
     pp_ = l_ind_(pp['rcps'], [int(i) for i in idx.split(',')]) if idx else\
@@ -2082,11 +2204,12 @@ def eur11_smhi_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
         t0 = l__('>>>>>>>' + dn)
         tis = ['mon', 'day'] if tii is None else tii.split(',')
         for tint in tis:
-            _xyz(il_, tint, pi_, dn, gwl, y0y1, po_, reg_d, subg=subg, xvn=xvn)
+            _xyz(il_, tint, pi_, dn, gwl, y0y1, po_, reg_d,
+                 subg=subg, xvn=xvn, user_cfg=user_cfg)
         ll_('<<<<<<<' + dn, t0)
 
 
-def eobs20_(il_, reg_d, reg_n, po_, y0y1=None):
+def eobs20_(il_, reg_d, reg_n, po_, y0y1=None, user_cfg=None):
     idir = '/nobackup/rossby22/sm_chali/DATA/hw2018/iii/obs/EOBS20/'
     vo = {'c_pr': ('rr', 1. / 3600 / 24, 'kg m-2 s-1'),
           'c_tas': ('tg', None, 'K'),
@@ -2110,30 +2233,36 @@ def eobs20_(il_, reg_d, reg_n, po_, y0y1=None):
         return o if y0y1 is None else extract_period_cube(o, *y0y1)
 
     def _getccc(tint):
-        vD = _vd(il_, tint, subg=None, xvn=999)[0]
-        ccc = dict()
-        for i in vD[1].keys():
-            if i in vo.keys():
-                o = _eobs_load(i)
-            ccc.update(i, o)
-        return ccc
+        tmp = _vd(il_, tint, subg=None, xvn=9)
+        if tmp:
+            vD = tmp[0]
+            ccc = dict()
+            for i in vD[1].keys():
+                if i in vo.keys():
+                    o = _eobs_load(i)
+                    ccc.update({i: o})
+            return ccc
 
     t0 = l__('>>>monthly')
     t1 = l__(' >>loading data')
     cccc = _getccc('month')
     ll_(' <<loading data', t1)
-    _mclimidx(il_=il_, dn='EOBS20_' + reg_n, gwl='', po_=po_, **cccc)
+    if cccc:
+        _mclimidx(il_=il_, dn='EOBS20_' + reg_n, gwl='', po_=po_,
+                  user_cfg=user_cfg, **cccc)
     ll_('<<<monthly', t0)
     t0 = l__('>>>daily')
     t1 = l__(' >>loading data')
     cccc = _getccc('day')
     ll_(' <<loading data', t1)
-    _dclimidx(il_=il_, dn='EOBS20_' + reg_n, gwl='', po_=po_, y0y1=y0y1,
-              **cccc)
+    if cccc:
+        _dclimidx(il_=il_, dn='EOBS20_' + reg_n, gwl='', po_=po_, y0y1=y0y1,
+                  user_cfg=user_cfg, **cccc)
     ll_('<<<daily', t0)
 
 
-def erai_(il_, reg_d, reg_n, po_, y0y1=None, tii=None, subg=None, xvn=9):
+def erai_(il_, reg_d, reg_n, po_, y0y1=None, tii=None, subg=None, xvn=9,
+          user_cfg=None):
     #from uuuu.cccc import _unify_xycoord_points
     #idir = '/nobackup/rossby22/sm_chali/DATA/hw2018/iii/obs/ERAI/'
     #def _erai_load(idir, var):
@@ -2163,7 +2292,7 @@ def erai_(il_, reg_d, reg_n, po_, y0y1=None, tii=None, subg=None, xvn=9):
     tis = ['mon', 'day'] if tii is None else tii.split(',')
     for tint in tis:
         _xyz(il_, tint, idir, 'ERAI_{}'.format(reg_n), '', y0y1, po_, reg_d,
-             folder='cmip5', subg=subg, xvn=xvn)
+             folder='cmip5', subg=subg, xvn=xvn, user_cfg=user_cfg)
 
 
 def main():
@@ -2209,6 +2338,9 @@ def main():
                         help="simulation-loop index. exp: 0,1,3 "
                              "meaning simulation #1,2,4 in the lists "
                              "(specified in a yaml file) to be calculated")
+    parser.add_argument("-c", "--cfg",
+                        type=str,
+                        help="yaml file that stores user configuration")
     parser.add_argument("-y", "--yml",
                         type=str,
                         help="yaml file that stores paths (simulations)")
@@ -2254,6 +2386,14 @@ def main():
         el_ = args.indices_excl.split(',')
         for i in el_:
             il_.remove(i)
+    user_cfg=None
+    if args.cfg:
+        if os.path.isfile(args.cfg):
+            with open(args.cfg, 'r') as yf:
+                user_cfg = yaml.safe_load(yf)
+        elif os.path.isfile(_here_ + args.cfg):
+            with open(_here_ + args.cfg, 'r') as yf:
+                user_cfg = yaml.safe_load(yf)
     if args.lll:
         lo0, lo1, la0, la1 = [float(i) for i in args.lll.split(',')]
         reg_d = {'longitude': [lo0, lo1], 'latitude': [la0, la1]}
@@ -2298,21 +2438,24 @@ def main():
     logging.info(' ')
 
     seiyt = dict(sss=args.start, eee=args.end, idx=args.idx,
-                 yml=args.yml, tii=args.tint, subg=args.subg, xvn=args.xvn)
+                 yml=args.yml, tii=args.tint, subg=args.subg, xvn=args.xvn,
+                 user_cfg=user_cfg)
 
     if args.opt in ('0', 'eobs20'):
-        eobs20_(il_, reg_d, reg_n, poo_)
+        eobs20_(il_, reg_d, reg_n, poo_, user_cfg=user_cfg)
     elif args.opt in ('1', 'erai'):
         erai_(il_, reg_d, reg_n, poo_,
-              tii=args.tint, subg=args.subg, xvn=args.xvn)
+              tii=args.tint, subg=args.subg, xvn=args.xvn, user_cfg=user_cfg)
     elif args.opt in ('2', 'cdx_eval'):
         eur11_imp_eval(il_, reg_d, reg_n, poe_, **seiyt)
     elif args.opt in ('21', 'cdx_eval_dmi'):
         eur11_imp_eval_dmi(il_, reg_d, reg_n, poe_,
-                           tii=args.tint, subg=args.subg, xvn=args.xvn)
+                           tii=args.tint, subg=args.subg, xvn=args.xvn,
+                           user_cfg=user_cfg)
     elif args.opt in ('22', 'cdx_eval_smhi'):
         eur11_smhi_eval(il_, reg_d, reg_n, poe_, yml=args.yml,
-                        tii=args.tint, subg=args.subg, xvn=args.xvn)
+                        tii=args.tint, subg=args.subg, xvn=args.xvn,
+                        user_cfg=user_cfg)
     elif args.opt in ('3', 'cdx'):
         eur11_imp_rcp_(il_, reg_d, reg_n, pcdx, **seiyt)
     elif args.opt in ('30', 'cdx_smhi'):

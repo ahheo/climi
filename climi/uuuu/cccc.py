@@ -218,7 +218,7 @@ def extract_byAxes_(cnd, axis, sl_i, *vArg):
     """
 
     if len(vArg)%2 != 0:
-        raise Exception('arguments not interpretable!')
+        raise Exception("arguments {!r} not interpretable!".format(vArg))
 
     if len(vArg) > 0:
         ax, sl = list(vArg[::2]), list(vArg[1::2])
@@ -258,7 +258,7 @@ def pst_(cube, name=None, units=None, var_name=None, attrU=None):
             cube.attributes.update(attrU)
     elif isMyIter_(cube):
         for i in cube:
-            pst_(i, name=name, units=units, var_name=var_name)
+            pst_(i, name=name, units=units, var_name=var_name, attrU=attrU)
 
 
 def axT_cube(cube):
@@ -299,7 +299,7 @@ def unique_yrs_of_cube(cube, ccsn='year', mmm=None):
     elif isIter_(cube, xi=iris.cube.Cube):
         return [unique_yrs_of_cube(i) for i in cube]
     else:
-        raise TypeError("unknown type!")
+        raise TypeError("unknown type for the first argument!")
 
 
 def y0y1_of_cube(cube, ccsn='year', mmm=None):
@@ -315,12 +315,15 @@ def y0y1_of_cube(cube, ccsn='year', mmm=None):
                     raise ValueError(emsg.format(ccsn))
             else:
                 cat.add_year(c, 'time', name=ccsn)
+        elif mmm and 'season' in ccsn:
+            c.remove_coord(ccsn)
+            seasonyr_cube(c, mmm, name=ccsn)
         return list(c.coord(ccsn).points[[0, -1]])
     elif isIter_(cube, xi=iris.cube.Cube):
         yy = np.array([y0y1_of_cube(i) for i in cube])
         return [np.max(yy[:, 0]), np.min(yy[:, 1])]
     else:
-        raise TypeError("unknown type!")
+        raise TypeError("unknown type for the first argument!")
 
 
 def extract_period_cube(cube, y0, y1, yy=False, ccsn='year', mmm=None):
@@ -346,6 +349,9 @@ def extract_period_cube(cube, y0, y1, yy=False, ccsn='year', mmm=None):
                 raise ValueError(emsg.format(ccsn))
         else:
             cat.add_year(c, 'time', name=ccsn)
+    elif mmm and 'season' in ccsn:
+        c.remove_coord(ccsn)
+        seasonyr_cube(c, mmm, name=ccsn)
     cstrD = {ccsn: lambda x: y0 <= x <= y1}
     cstr = iris.Constraint(**cstrD)
     c_y = c.extract(cstr)
@@ -381,7 +387,7 @@ def extract_win_cube(cube, d, r=15):
     return c_30
 
 
-def extract_season_cube(cube, mmm):
+def extract_season_cube(cube, mmm, valid_season=True):
     """
     ... extract a cube of season named with continuous-months' 1st letters ...
 
@@ -401,13 +407,18 @@ def extract_season_cube(cube, mmm):
             except ValueError:
                 c.remove_coord(mmm)
                 cat.add_season_membership(c, 'time', mmm, name=mmm)
+            c.coord(mmm).points = c.coord(mmm).points.astype(np.int)
             ncube = c.extract(iris.Constraint(**{mmm: True}))
+        if valid_season and not ismono_(mmmN_(mmm)):
+            y0, y1 = y0y1_of_cube(ncube, ccsn='seasonyr', mmm=mmm)
+            ncube = extract_period_cube(ncube, y0 + 1, y1 - 1,
+                                        ccsn='seasonyr', mmm=mmm)
         return ncube
     elif isMyIter_(cube):
         cl = [extract_season_cube(i, mmm) for i in cubeL]
         return iris.cube.CubeList(cl)
     else:
-        raise TypeError("unknown type!")
+        raise TypeError("unknown type for the first argument!")
 
 
 def extract_month_cube(cube, Mmm):
@@ -416,7 +427,7 @@ def extract_month_cube(cube, Mmm):
         cat.add_month(c, 'time', name='month')
     except ValueError:
         pass
-    ncube = c.extract(iris.Constraint(month=Mmm))
+    ncube = c.extract(iris.Constraint(month=Mmm.capitalize()))
     return ncube
 
 
@@ -474,11 +485,11 @@ def get_xyd_cube(cube, guess_lst2=True):
     xc, yc = get_xy_dim_(cube)
     if xc is None:
         if guess_lst2:
-            warnings.warn("missing 'x' or 'y' dimcoord; "
+            warnings.warn("missing 'x' or 'y' dimcoord in input cube; "
                           "guess last two as xyd.")
             return tuple(cyl_([-2, -1], cube.ndim))
         else:
-            raise Exception("missing 'x' or 'y' dimcoord")
+            raise Exception("missing 'x' or 'y' dimcoord in input cube!")
     else:
         xyd = list(cube.coord_dims(yc) + cube.coord_dims(xc))
         xyd.sort()
@@ -488,7 +499,7 @@ def get_xyd_cube(cube, guess_lst2=True):
 def _get_xy_lim(cube, longitude=None, latitude=None):
     xc, yc = get_xy_dim_(cube)
     if xc is None or yc is None:
-        raise Exception("missing 'x' or 'y' dimcoord.")
+        raise Exception("missing 'x' or 'y' dimcoord in input cube!")
     lo, la = cube.coord('longitude'), cube.coord('latitude')
     if longitude is None:
         longitude = [lo.points.min(), lo.points.max()]
@@ -566,7 +577,7 @@ def seasonyr_cube(cube, mmm, name='seasonyr'):
               sorted(''.join(mmm)) == sorted('djfmamjjason')):
             seasons = mmm
         else:
-            raise Exception("unknown seasons '{}'!".format(mmm))
+            raise Exception("unknown seasons {!r}!".format(mmm))
         try:
             cat.add_season_year(cube, 'time', name=name, seasons=seasons)
         except ValueError:
@@ -634,7 +645,7 @@ def rm_t_aux_cube(cube, keep=None):
         for c in cube:
             rm_t_aux_cube(c)
     else:
-        raise TypeError('Input should be Cube or iterable Cubes!')
+        raise TypeError('Input should be CUBE or iterable CUBEs!')
 
 
 def rm_sc_cube(cube):
@@ -646,7 +657,7 @@ def rm_sc_cube(cube):
         for c in cube:
             rm_sc_cube(c)
     else:
-        raise TypeError('Input should be Cube or Iterable Cubes!')
+        raise TypeError('Input should be CUBE or Iterable CUBEs!')
 
 
 def guessBnds_cube(cube):
@@ -1454,22 +1465,24 @@ def alng_axis_(arrs, ax, func, out, *args, **kwargs):
 
 
 def initAnnualCube_(c0, y0y1, name=None, units=None, var_name=None,
-                    long_name=None, attrU=None, mm='j-d'):
-    mm = 'jfmamjjasond' if mm == 'j-d' else mm
+                    long_name=None, attrU=None, mmm='j-d'):
+    mmm = 'jfmamjjasond' if mmm == 'j-d' else mmm
     y0, y1 = y0y1
     ny = y1 - y0 + 1
     c = extract_byAxes_(c0, 'time', np.s_[:ny])
     rm_t_aux_cube(c)
 
     def _mm01():
-        mns = 'jfmamjjasond' * 2
-        n = mns.find(mm)
-        if n == -1:
-            raise Exception("unknown 'mm' provided!")
-        m0 = n + 1
-        m1 = cyl_(m0 + len(mm), 13, 1)
-        y0_ = y0 if n + len(mm) < 13 else y0 - 1
-        y0__ = y0 + 1 if m1 == 1 else y0
+        if isMonth_(mmm):
+            m0 = mnN_(mmm)
+            m1 = cyl_(m0 + 1, 13, 1)
+            y0_ = y0
+            y0__ = y0 + 1 if m1 < m0 else y0
+        else:
+            tmp = mmmN_(mmm)
+            m0, m1 = tmp[0], cyl_(tmp[-1] + 1, 13, 1)
+            y0_ = y0 if ismono_(tmp) else y0 - 1
+            y0__ = y0_ + 1 if m1 <= m0 else y0
         return (m0, m1, y0_, y0__)
 
     ##data and mask
@@ -1514,11 +1527,13 @@ def initAnnualCube_(c0, y0y1, name=None, units=None, var_name=None,
 
 
 def pSTAT_cube(cube, method, *freq, valid_season=True, **method_opts):
+    ef0 = "method {!r} unreconnigsed!"
+    ef1 = "freq {!r} unreconigsed!"
     method = method.upper()
-    if method not in ['MEAN', 'MAX', 'MIN', 'MEDIAN', 'SUM', 'PERCENTILE',
+    if method not in ('MEAN', 'MAX', 'MIN', 'MEDIAN', 'SUM', 'PERCENTILE',
                       'PROPORTION', 'STD_DEV', 'RMS', 'VARIANCE', 'HMEAN',
-                      'COUNT', 'PEAK']:
-        raise Exception('method {} unknown!'.format(method))
+                      'COUNT', 'PEAK'):
+        raise Exception(ef0.format(method))
 
     s4 = ('djf', 'mam', 'jja', 'son')
 
@@ -1539,8 +1554,12 @@ def pSTAT_cube(cube, method, *freq, valid_season=True, **method_opts):
     def _x(f0):
         if f0 in d.keys():
             return d[f0]
-        else:
+        elif isSeason_(f0):
             return (f0, 'seasonyr')
+        elif isMonth_(f0):
+            return d['month']
+        else:
+            raise Exception(ef1.format(f0))
 
     def _xx(x):
         if isinstance(x, str):
@@ -1554,18 +1573,19 @@ def pSTAT_cube(cube, method, *freq, valid_season=True, **method_opts):
                 dd_ = dd.copy()
                 dd_.update(tmp)
                 return (dd_, x)
+            elif isMonth_(x):
+                return (dd.copy(), x.capitalize())
             else:
-                raise("one or more specified 'freqs' unreconigsed; "
-                      "check input!")
+                raise Exception(ef1.format(x))
         else:
             if all((f_ in d.keys() for f_ in x)):
                 return (dd.copy(), None)
             else:
                 f_ = [f_ for f_ in x if f_ not in d.keys()]
-                if len(f_) > 1 or not isSeason_(f_[0]) or 'season' in d.keys():
-                    raise("one or more specified 'freqs' unreconigsed; "
-                          "check input!")
-                else:
+                #if len(f_) > 1 or not isSeason_(f_[0]) or 'season' in d.keys():
+                #    raise("one or more specified 'freqs' unreconigsed; "
+                #          "check input!")
+                if len(f_) == 1 and isSeason_(f_[0]):
                     tmp = {f_[0]: (cat.add_season_membership, ('time', f_[0]),
                                    dict(name=f_[0])),
                            'seasonyr': (seasonyr_cube, (f_[0],),
@@ -1573,6 +1593,10 @@ def pSTAT_cube(cube, method, *freq, valid_season=True, **method_opts):
                     dd_ = dd.copy()
                     dd_.update(tmp)
                     return (dd_, f_[0])
+                elif len(f_) == 1 and isMonth_(f_[0]):
+                    return (dd.copy(), x.capitalize())
+                else:
+                    raise Exception(ef1.format('-'.join(x)))
 
     def _xxx(c, x):
         dd_, mmm = _xx(x)
@@ -1591,9 +1615,16 @@ def pSTAT_cube(cube, method, *freq, valid_season=True, **method_opts):
                 c.remove_coord(fK['name'])
                 _f(c, *fA, **fK)
         if mmm:
-            c = c.extract(iris.Constraint(**{mmm: True}))
+            if isSeason_(mmm):
+                c.coord(mmm).points = c.coord(mmm).points.astype(np.int)
+                cstr = iris.Constraint(**{mmm: True})
+            elif isMonth_(mmm):
+                cstr = iris.Constraint(**{'month': mmm})
+            c = c.extract(cstr)
             tmp = c.aggregated_by(dff, eval('iris.analysis.' + method),
                                    **method_opts)
+            if isSeason_(mmm) and not ismono_(mmmN_(mmm)):
+                tmp = extract_byAxes_(tmp, 'time', np.s_[1:-1])
         else:
             tmp = c.aggregated_by(dff, eval('iris.analysis.' + method),
                                   **method_opts)
@@ -1809,7 +1840,7 @@ def nine_points_cube(cube, longitude, latitude):
     ind_ = np.arange(-1, 2, dtype=np.int)
     ind = list(np.s_[:,] * cube.ndim)
     wmsg = ("Causious that center point may be given outside (or at the "
-            "boundary of) the geo domain of the input Cube!")
+            "boundary of) the geo domain of the input CUBE!")
     for i, ii in zip(xyd, d_):
         if ii == cube.shape[i] - 1:
             warnings.warn(wmsg)

@@ -23,6 +23,7 @@
 * intsect_              : intersection of lists
 * isGI_                 : if Iterator
 * isIter_               : if Iterable but not str or bytes
+* isMonth_              : string if a month
 * ismono_               : check if ismononic
 * isSeason_             : string if is a season
 * iter_str_             : string elements
@@ -33,6 +34,8 @@
 * l2b_endian_           : return big endian copy
 * latex_unit_           : m s-1 -> m s$^{-1}$
 * ll_                   : end logging
+* mmmN_                 : months in season
+* mnN_                  : month order in the calendar 
 * nSlice_               : total number of slices
 * nanMask_              : masked array -> array with NaN
 * nli_                  : if item is list flatten it
@@ -40,7 +43,7 @@
 * p_deoverlap_          : remove overlaping period from a list of periods
 * p_least_              : extract aimed period from a list of periods
 * prg_                  : string indicating progress status (e.g., '#002/999')
-* pure_fn_              : filename excluding path and extension
+* pure_fn_              : filename excluding path (& also extension by default)
 * rMEAN1d_              : rolling window mean
 * rPeriod_              : [1985, 2019] -> '1985-2019'
 * rSUM1d_               : rolling window sum
@@ -70,6 +73,7 @@ import time
 import logging
 import re
 import glob
+import os
 import warnings
 from itertools import permutations, combinations
 from typing import Iterable, Iterator
@@ -97,6 +101,7 @@ __all__ = ['aggr_func_',
            'intsect_',
            'isGI_',
            'isIter_',
+           'isMonth_',
            'ismono_',
            'isSeason_',
            'iter_str_',
@@ -107,6 +112,8 @@ __all__ = ['aggr_func_',
            'l2b_endian_',
            'latex_unit_',
            'll_',
+           'mmmN_',
+           'mnN_',
            'nSlice_',
            'nanMask_',
            'nli_',
@@ -150,8 +157,7 @@ def cyl_(x, rb=2*np.pi, lb=0):
         -5
     """
 
-    if lb >= rb:
-         raise ValueError('left bound should not greater than right bound!')
+    assert lb < rb, 'left bound should not greater than right bound!'
 
     if isIter_(x):
         x = np.asarray(x)
@@ -337,8 +343,7 @@ def inds_ss_(ndim, axis, sl_i, *vArg):
         indices of ndim datan for extraction (tuple)
     """
 
-    if len(vArg)%2 != 0:
-        raise Exception('Arguments not interpretable!')
+    assert len(vArg)%2 == 0, 'arguments not paired!'
 
     inds = list(ind_s_(ndim, axis, sl_i))
 
@@ -480,8 +485,9 @@ def ext_(s):
     """
     ... get extension from filename (str) ...
     """
-    tmp = re.search(r'\.\w+$', s)
-    return tmp.group() if tmp else tmp
+    #tmp = re.search(r'(?<=\w)\.\w+$', s)
+    #return tmp.group() if tmp else ''
+    return os.path.splitext(s)[1]
 
 
 def find_patt_(p, s):
@@ -494,14 +500,18 @@ def find_patt_(p, s):
         return [i for i in s if find_patt_(p, i)]
 
 
-def pure_fn_(s):
+def pure_fn_(s, no_etc=True):
     """
     ... get pure filename without path to and without extension ...
     """
+    def _rm_etc(s):
+        #return re.sub(r'\.\w+$', '', s) if no_etc else s
+        return os.path.splitext(s)[0] if no_etc else s
     if isinstance(s, str):
-        tmp = re.search(r'((?<=[\\/])[^\\/]*$)|(^[^\\/]+$)', s)
-        fn = tmp.group() if tmp else tmp
-        return re.sub(r'\.\w+$', '', fn) if fn else fn
+        #tmp = re.search(r'((?<=[\\/])[^\\/]*$)|(^[^\\/]+$)', s)
+        #fn = tmp.group() if tmp else tmp
+        fn = os.path.basename(s)
+        return _rm_etc(fn) #if fn else ''
     elif isIter_(s, str):
         return [pure_fn_(i) for i in s]
 
@@ -514,6 +524,36 @@ def get_path_(s):
     return tmp if tmp else './'
 
 
+def isMonth_(mn, short_=True, nm=3):
+    """
+    ...  if input string is name of a month ...
+    """
+    mns = ['january', 'february', 'march', 'april', 'may', 'june',
+           'july', 'august', 'september', 'october', 'november', 'december']
+    n = len(mn)
+    if n < 3:
+        warnings.warn("month string shorter than 3 letters; return 'False'!")
+        return False
+    mn3s = [i[:n] for i in mns]
+    if short_:
+        return mn.lower() in mn3s
+    else:
+        return mn.lower() in mns or mn.lower() in mn3s
+
+
+def mnN_(mn):
+    """
+    ...  month order in calendar...
+    """
+    mns = ['january', 'february', 'march', 'april', 'may', 'june',
+           'july', 'august', 'september', 'october', 'november', 'december']
+    n = len(mn)
+    if n < 3:
+        warnings.warn("month string short than 3 letters; 1st guess used!")
+    mn3s = [i[:n] for i in mns]
+    return mn3s.index(mn.lower()) + 1
+
+
 def isSeason_(mmm, ismmm_=True):
     """
     ...  if input string is a season named with 1st letters of composing
@@ -523,9 +563,27 @@ def isSeason_(mmm, ismmm_=True):
     n = mns.find(mmm.lower())
     s4 = {'spring', 'summer', 'autumn', 'winter'}
     if ismmm_:
-        return (len(mmm) > 1 and n != -1)
+        return (1 < len(mmm) < 12 and n != -1)
     else:
-        return (len(mmm) > 1 and n != -1) or mmm.lower() in s4
+        return (1 < len(mmm) < 12 and n != -1) or mmm.lower() in s4
+
+
+def mmmN_(mmm):
+    """
+    ... months in season  ...
+    """
+    ss = {'spring': 'mam',
+          'summer': 'jja',
+          'autumn': 'son',
+          'winter': 'djf'}
+    mmm = ss[mmm] if mmm in ss.keys() else mmm
+    
+    mns = 'jfmamjjasond' * 2
+    n = mns.find(mmm.lower())
+    if n != -1:
+        return cyl_(range(n+1, n+1+len(mmm)), 13, 1)
+    else:
+        raise ValueError("{!r} unrecognised as a season!".format(mmm))
 
 
 def rest_mns_(mmm):
