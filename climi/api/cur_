@@ -1,0 +1,29 @@
+#!/usr/bin/env python3
+
+from climi.uuuu.ffff import schF_keys_, prg_, pure_fn_, slctStrL_, isSeason_
+from climi.uuuu.cccc import concat_cube_, cubesv_, extract_period_cube
+import iris
+import os
+
+
+def main():
+    dir0 = '/nobackup/rossby26/users/sm_chali/DATA/energi/res/gwls/cordex/EUR11/'
+    dir1 = '/nobackup/rossby26/users/sm_chali/DATA/energi/res/h248/cordex/EUR11/reindeer/'
+    fns = slctStrL_(schF_keys_(dir1), incl='_historical_')
+    print(len(fns))
+    for i, fn in enumerate(fns):
+        #if i < 810:
+        #    continue
+        print(prg_(i, len(fns)), fn)
+        o = iris.load_cube(fn)
+        freq = pure_fn_(fn).split('_')[6]
+        eD = dict(ccsn='seasonyr', mmm=freq) if isSeason_(freq) else {}
+        y0y1 = [1971, 2000]
+        o = extract_period_cube(o, *y0y1, **eD)
+        fn_ = '{}{}_current.nc'.format(dir0, pure_fn_(fn))
+        print('save to', fn_)
+        cubesv_(o, fn_)
+
+
+if __name__ == '__main__':
+    main()

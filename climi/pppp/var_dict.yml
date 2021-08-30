@@ -102,7 +102,7 @@ odir:
  FreezingDays: 82-FreezingDays
  ColdRainWarmSnowDays: 83-ColdRainWarmSnowDays
 
-freq:
+freq_cfg:
  PR: [season, year]
  PRSN: [season, year]
  PRRN: [season, year]

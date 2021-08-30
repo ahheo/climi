@@ -3,7 +3,7 @@
 import numpy as np
 import geopandas as gpd
 import matplotlib as mpl
-mpl.use('Agg', force=True)
+mpl.use('pdf', force=True)
 import matplotlib.pyplot as plt
 import iris
 import iris.coord_categorisation as cat
@@ -19,6 +19,11 @@ from climi.pppp import *
 
 
 _here_ = get_path_(__file__)
+
+
+def _fnfmt(idir, *terms, ext='.pdf'):
+    nm_ = '_'.join(i for i in terms if i) + ext
+    return os.path.join(idir, nm_)
 
 
 def _shps():
@@ -62,9 +67,13 @@ def _minmax_df(df):
 
 def ts__(cubeL, dn, unit, odir, var, freq, xx_='ts'):
     def _yrs(cube):
-        try:
-            yrs = cube.coord('seasonyr').points
-        except:
+        if isSeason_(freq):
+            try:
+                yrs = cube.coord('seasonyr').points
+            except:
+                seasonyr_cube(cube, freq, name='seasonyr')
+                yrs = cube.coord('seasonyr').points
+        else:
             try:
                 yrs = cube.coord('year').points
             except:
@@ -99,7 +108,7 @@ def ts__(cubeL, dn, unit, odir, var, freq, xx_='ts'):
     ax.set_xticks(nyrs)
     ax.legend(hl, ndn, bbox_to_anchor=(0., 1.01, 1., 0.18),
               loc='lower left', borderaxespad=0, ncol=5, mode='expand')
-    plt.savefig(odir + '_'.join((xx_, var, freq)) + '.png')
+    plt.savefig(_fnfmt(odir, xx_, var, freq), dpi=300)
     plt.close()
 
 
@@ -110,7 +119,7 @@ def bp__(cubeL, dn, unit, odir, var, freq, xx_='bp'):
     h_ = bp_cubeL_eval_(ax, cubeL)
     ax.legend(h_, dn[:-2], bbox_to_anchor=(0., 1.01, 1., 0.18),
               loc='lower left', borderaxespad=0, ncol=5, mode='expand')
-    plt.savefig(odir + '_'.join((xx_, var, freq)) + '.png')
+    plt.savefig(_fnfmt(odir, xx_, var, freq), dpi=300)
     plt.close()
 
 
@@ -149,12 +158,12 @@ def _map(shp0, dn, unit, odir, var, freq):
     cbz = aligned_cb_(fig, axs[-1], get_1st_patchCollection_(axs[-1]),
                       [.01, .0125], orientation='vertical')
     cbz.set_label('{} IQR ({}) N={}'.format(var, unit, len(dn[:-2])))
-    plt.savefig(odir + '_'.join(('mapX', var, freq)) + '.png')
+    plt.savefig(_fnfmt(odir, 'mapX', var, freq), dpi=300)
     plt.close()
 
 
 def map0__(cubeL, dn, unit, rg_dict, odir, var, freq):
-    pch_dict = {'cmap': 'YlGnBu'}
+    pch_dict = dict(cmap='YlGnBu',rasterized=True)
 
     cL = [i for i in cubeL if i]
     ndn = [i for i, ii in zip(dn, cubeL) if ii]
@@ -177,7 +186,7 @@ def map0__(cubeL, dn, unit, rg_dict, odir, var, freq):
         pchs.append(pch)
     cb = aligned_cb_(fig, axs, pchs[-1], [.025, .015], orientation='vertical')
     cb.set_label('{} ({})'.format(var, unit))
-    plt.savefig(odir + '_'.join(('map0', var, freq)) + '.png')
+    plt.savefig(_fnfmt(odir, 'map0', var, freq), dpi=300)
     plt.close()
     return True
 
@@ -190,7 +199,7 @@ def map1__(cubeL, dn, unit, rg_dict, odir, var, freq):
     if cubeL[1] is None:
         dns.remove('ERA-Interim')
     cL = [i for i in cubeL if i]
-    pch_dict = {'cmap': 'YlGnBu'}
+    pch_dict = dict(cmap='YlGnBu',rasterized=True)
 
     min0, max0 = minmax_cube_(cL[:-1], rg=rg_dict)
     min1, max1 = minmax_cube_(cL[-1], rg=rg_dict)
@@ -217,7 +226,7 @@ def map1__(cubeL, dn, unit, rg_dict, odir, var, freq):
     cbz = aligned_cb_(fig, axs[-1], pchs[-1], [.025, .015],
                      orientation='vertical')
     cbz.set_label('{} IQR ({}) N={}'.format(var, unit, len(dn[:-2])))
-    plt.savefig(odir + '_'.join(('map1', var, freq)) + '.png')
+    plt.savefig(_fnfmt(odir, 'map1', var, freq), dpi=300)
     plt.close()
     return True
 
@@ -241,6 +250,12 @@ def id__(cubeL, dn, sc, unit, odir, var, freq, shp, shp_):
 
 def main():
     import yaml
+    import argparse
+    parser = argparse.ArgumentParser('CLIMIDX EVAL PLOTS')
+    parser.add_argument("-y", "--yml",
+                        type=str,
+                        help="yml file defining freqs for each index")
+    yml_ = parser.parse_args().yml
     logging.basicConfig(filename='ploting0.log',
                         filemode='w',
                         level=logging.INFO)
@@ -253,37 +268,50 @@ def main():
     ne50 = gpd_read(_here_ + 'ne_50m/ne_50m_admin_0_countries.shp')
     sv = poly_to_path_(list(ne50.loc[ne50.NAME=='Sweden', 'geometry']))
     shp, shp_ = _shps()
-    r24 = os.environ.get('r24')
-    odir = '{}DATA/energi/2/fig_eval/'.format(r24)
+    root = os.environ.get('r26')
+    odir = os.path.join(root, 'DATA/energi/reindeer/fig_eval/')
     os.makedirs(odir, exist_ok=True)
-    idir = '/nobackup/rossby22/sm_chali/DATA/energi/res/eval/EUR/'
+    idir = os.path.join(root, 'DATA/energi/res/eval/')
     fxdir = '/nobackup/rossby22/sm_chali/DATA/fx/'
-    vf = _here_ + 'var_dict.yml'
+    if yml_ and os.path.isfile(yml_):
+        vf = yml_
+    elif yml_ and os.path.isfile(os.path.join(_here_, yml_)):
+        vf = os.path.join(_here_, yml_)
+    else:
+        vf = os.path.join(_here_, 'var_dict.yml')
     with open(vf, 'r') as ymlfile:
         vdict = yaml.safe_load(ymlfile)
     rg_dict = {'longitude': [10.0, 23.0], 'latitude': [55.0, 69.0]}
     def _get_freq(var):
-        freqs = []
-        if 'year' in vdict['freq'][var]:
-            freqs += ['year']
-        if 'season' in vdict['freq'][var]:
-            freqs += ['djf', 'mam', 'jja', 'son']
-        if 'month' in  vdict['freq'][var]:
-            freqs += ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        def _sm(x):
+            if x == 'season':
+                return ['djf', 'mam', 'jja', 'son']
+            elif x == 'month':
+                return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+            else:
+                return x
+        freqs = ouniqL_(flt_l([_sm(i) for i in vdict['freq_cfg'][var]]))
         return freqs
-    #for var in vdict['vars']:
-    #vs_ = ['ET']
-    vs_ = vdict['vars'][12:]
+    def _get_odir(var):
+        if 'odir' in vdict:
+            return vdict['odir'][var]
+        else:
+            return var
+    vs_ = vdict['freq_cfg'].keys()
     for var in vs_:
+        ####
+        if var[:4] == 'Zero':
+            continue
+        ####
         freqs = _get_freq(var)
-        odir_ = '{}{}/'.format(odir, vdict['odir'][var])
+        odir_ = os.path.join(odir, _get_odir(var))
         for freq in freqs:
             t000 = l__('{} >>>>>> {}'.format(var, freq))
-            p_= [1990, 2008] if freq == 'djf' else [1989, 2008]
+            p_= [1990, 2008] if 'dj' in freq else [1989, 2008]
             a, dn = load_clmidx_eval_(idir, var, freq=freq, period=p_)
             ll_('< load', t000)
-            if len(dn) == 0:
+            if not dn:
                 continue
             os.makedirs(odir_, exist_ok=True)
             sc, unit = sc_unit_clmidx_(a[0], var)

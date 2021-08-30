@@ -539,61 +539,68 @@ def _clmidx_f2dn_cmip5(fn):
 
 
 def _clmidx_dn_rplrcp(dn, nrcp='historical'):
-    tmp = dn.split('_')
-    tmp[1] = nrcp
-    return '_'.join(tmp)
+    if isinstance(dn, str):
+        return re.sub(r'rcp\d+', nrcp, dn)
+    elif isIter_(dn):
+        return [_clmidx_dn_rplrcp(i, nrcp) for i in dn]
+    else:
+        raise Exception("unknown 'dn'!")
+
+
+def _fnfmt(idir, *terms):
+    nm_ = '_'.join(i for i in terms if i) + '.nc'
+    return os.path.join(idir, nm_)
 
 
 def clmidx_finfo_(idir, var, gwls=['gwl15', 'gwl2'],
                   gcm='*', rcp='*', rip='*', rcm='*',
-                  ver='*', rn='EUR', freq='year', newestV=False,
+                  ver='*', rn=None, freq='year', newestV=False,
                   addCurr=True):
-    files = glob.glob(idir + '_'.join((var, gcm, '*', rip, rcm, ver,
-                                       rn, freq, '*.nc')))
+    files = glob.glob(_fnfmt(idir, var, gcm, '*', rip,
+                             rcm, ver, rn, freq, '*'))
     files.sort()
-    fns = [[i for i in files if '{}.nc'.format(ii) in i] for ii in gwls]
-    ois = [[_clmidx_f2dn(i) for i in fn] for fn in fns]
+    fns_gwls = [slctStrL_(files, incl=[[i + '.', i + '_']]) for i in gwls]
+    ois = [[_clmidx_f2dn(i) for i in fns] for fns in fns_gwls]
     oi = intsect_(*ois)
     if rcp != '*':
         oi = [i for i in oi if rcp in i]
     if newestV:
         oi = version_up_(oi)
-    fnc = [idir + '_'.join((var, _clmidx_dn_rplrcp(i), rn, freq,
-                            'current.nc')) for i in oi]
+    fnc = [_fnfmt(idir, var, _clmidx_dn_rplrcp(i), rn, freq, 'current')
+           for i in oi]
     fng = [[i for i, ii in zip(ff, oo) if ii in oi]
-           for ff, oo in zip(fns, ois)]
+           for ff, oo in zip(fns_gwls, ois)]
     return ([fnc] + fng, oi) if addCurr else (fng, oi)
 
 
 def clmidx_finfo_cmip5_(idir, var, gwls=['gwl15', 'gwl2'],
-                        gcm='*', rcp='*', rip='*', rn='GLB', freq='year',
+                        gcm='*', rcp='*', rip='*', rn=None, freq='year',
                         addCurr=True):
-    files = glob.glob(idir + '_'.join((var, gcm, '*', rip, rn, freq, '*.nc')))
+    files = glob.glob(_fnfmt(idir, var, gcm, '*', rip, rn, freq, '*'))
     files.sort()
-    fns = [[i for i in files if '{}.nc'.format(ii) in i] for ii in gwls]
-    ois = [[_clmidx_f2dn_cmip5(i) for i in fn] for fn in fns]
+    fns_gwls = [slctStrL_(files, incl=[[i + '.', i + '_']]) for i in gwls]
+    ois = [[_clmidx_f2dn_cmip5(i) for i in fns] for fns in fns_gwls]
     oi = intsect_(*ois)
     if rcp != '*':
         oi = [i for i in oi if rcp in i]
-    fnc = [idir + '_'.join((var, _clmidx_dn_rplrcp(i), rn, freq,
-                            'current.nc')) for i in oi]
+    fnc = [_fnfmt(idir, var, _clmidx_dn_rplrcp(i), rn, freq, 'current')
+           for i in oi]
     fng = [[i for i, ii in zip(ff, oo) if ii in oi]
-           for ff, oo in zip(fns, ois)]
+           for ff, oo in zip(fns_gwls, ois)]
     return ([fnc] + fng, oi) if addCurr else (fng, oi)
 
 
 def clmidx_finfo_eval_(idir, var, gcm='*', rcp='*', rip='*', rcm='*',
-                       ver='*', rn='EUR', freq='year'):
-    files = glob.glob(idir + '_'.join((var, gcm, rcp, rip, rcm, ver,
-                                       rn, freq, '*.nc')))
+                       ver='*', rn=None, freq='year'):
+    files = glob.glob(_fnfmt(idir, var, gcm, rcp, rip,
+                             rcm, ver, rn, freq))
     files.sort()
     oi = [_clmidx_f2dn(i) for i in files]
     dn = ['_'.join(i.split('_')[-2:]) for i in oi]
     if len(dn) > 0:
-        feobs = glob.glob(idir.replace('eval','obs') +
-                          '_'.join((var, 'EOBS20', rn, freq, '.nc')))
-        ferai = glob.glob(idir.replace('eval','obs') +
-                          '_'.join((var, 'ERAI', rn, freq, '.nc')))
+        idir_ = idir.replace('eval', 'obs')
+        feobs = glob.glob(_fnfmt(idir_, var, 'EOBS20', rn, freq))
+        ferai = glob.glob(_fnfmt(idir_, var, 'ERAI', rn, freq))
         if len(feobs) != 1 and len(ferai) != 1:
             files, dn = [], []
         else:
@@ -609,7 +616,7 @@ def clmidx_finfo_eval_(idir, var, gcm='*', rcp='*', rip='*', rcm='*',
     return (files, dn)
 
 
-def load_clmidx_eval_(idir, var, freq='year', rn='EUR', period=[1989, 2008]):
+def load_clmidx_eval_(idir, var, freq='year', rn=None, period=[1989, 2008]):
     from iris.fileformats.netcdf import UnknownCellMethodWarning
     warnings.filterwarnings("ignore", category=UnknownCellMethodWarning)
     #warnings.filterwarnings("ignore", category=UserWarning)
@@ -617,40 +624,27 @@ def load_clmidx_eval_(idir, var, freq='year', rn='EUR', period=[1989, 2008]):
         if fn:
             o = iris.load_cube(fn, *Args, **kwArgs)
             maskNaN_cube(o)
-            #repair_lccs_(o)
-            #if period:
-            #    o = extract_period_cube(o, *period)
             return extract_period_cube(o, *period) if period else o
         else:
             return None
-    if freq == 'year':
-        a, d = clmidx_finfo_eval_(idir, var, freq=freq, rn=rn)
+    a, d = clmidx_finfo_eval_(idir, var, freq=freq, rn=rn)
+    if len(d) > 0:
         cubeL0 = [_ilc(i) for i in a]
-    elif freq in ['djf', 'mam', 'jja', 'son']:
-        a, d = clmidx_finfo_eval_(idir, var, freq=freq, rn=rn)
-        if len(d) !=0:
-            cubeL0 = [_ilc(i) for i in a]
-        else:
-            a, d = clmidx_finfo_eval_(idir, var, freq='season', rn=rn)
-            cubeL0 = [_ilc(i, iris.Constraint(season=freq)) for i in a]
-            #if freq == 'djf':
-            #    if period is None:
-            #        cubeL0 = [extract_byAxes_(i, 'time', np.s_[1:-1])
-            #                  if i else None for i in cubeL0]
-            #    else:
-            #        cubeL0 = [extract_byAxes_(i, 'time', np.s_[1:])
-            #                  if i else None for i in cubeL0]
-    elif freq.capitalize() in ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                               'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']:
+    elif freq in ('djf', 'mam', 'jja', 'son'):
+        a, d = clmidx_finfo_eval_(idir, var, freq='season', rn=rn)
+        cubeL0 = [_ilc(i, iris.Constraint(season=freq)) for i in a]
+    elif freq.capitalize() in ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                               'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'):
         a, d = clmidx_finfo_eval_(idir, var, freq='month', rn=rn)
         cubeL0 = [_ilc(i, iris.Constraint(month=freq.capitalize()))
                   for i in a]
     else:
-        raise Exception('file not found!')
+        warnings.warn('file not found!, return (None, None)')
+        cubeL0, d = None, None
     return (cubeL0, d)
 
 
-def load_clmidx_(idir, var, gwls=['gwl15', 'gwl2'], freq='year', rn='EUR',
+def load_clmidx_(idir, var, gwls=['gwl15', 'gwl2'], freq='year', rn=None,
                  folder=None, newestV=False, addCurr=True):
     from iris.fileformats.netcdf import UnknownCellMethodWarning
     warnings.filterwarnings("ignore", category=UnknownCellMethodWarning)
@@ -666,29 +660,23 @@ def load_clmidx_(idir, var, gwls=['gwl15', 'gwl2'], freq='year', rn='EUR',
         maskNaN_cube(o)
         repair_lccs_(o)
         return o
-    if freq == 'year':
-        a, d = finfo_(*aT, **kaD)
+    a, d = finfo_(*aT, **kaD)
+    if len(d) > 0:
         cubeLL = [[_ilc(i) for i in aa] for aa in a]
-    elif freq in ['djf', 'mam', 'jja', 'son']:
+    elif freq in ('djf', 'mam', 'jja', 'son'):
+        kaD.update(dict(freq='season'))
         a, d = finfo_(*aT, **kaD)
-        if len(d) !=0:
-            cubeLL = [[_ilc(i) for i in aa] for aa in a]
-        else:
-            kaD.update(dict(freq='season'))
-            a, d = finfo_(*aT, **kaD)
-            cubeLL = [[_ilc(i, iris.Constraint(season=freq)) for i in aa]
-                      for aa in a]
-            if freq == 'djf':
-                cubeLL = [[extract_byAxes_(i, 'time', np.s_[1:-1])
-                           for i in cubeL0] for cubeL0 in cubeLL]
-    elif freq.capitalize() in ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                               'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']:
+        cubeLL = [[_ilc(i, iris.Constraint(season=freq)) for i in aa]
+                  for aa in a]
+    elif freq.capitalize() in ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                               'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'):
         kaD.update(dict(freq='month'))
         a, d = finfo_(*aT, **kaD)
         cubeLL = [[_ilc(i, iris.Constraint(month=freq.capitalize()))
                    for i in aa] for aa in a]
     else:
-        raise Exception('file not found!')
+        warnings.warn('file not found!, return (None, None)')
+        cubeL0, d = None, None
     return (cubeLL, d)
 
 
@@ -986,7 +974,7 @@ def get_period_h248_(cubeL, fnL, period, rcp=None):
     def _c(c, p):
         return extract_period_cube(c, *p) if p else None
     if pL:
-        tmp = [_c(i, ii) for i, ii in zip(cubeL, ps)]
+        tmp = [_c(i, ii) for i, ii in zip(cubeL, pL)]
         ind = [i for i, ii in enumerate(tmp) if ii]
         return (l_ind_(tmp, ind), l_ind_(fnL))
 

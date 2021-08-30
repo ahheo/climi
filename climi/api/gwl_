@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+
+from climi.uuuu.ffff import schF_keys_, prg_, pure_fn_, slctStrL_, isSeason_
+from climi.uuuu.cccc import concat_cube_, cubesv_, extract_period_cube
+from climi.uuuu.bbbb import gwl_p_
+import iris
+import re
+import os
+
+
+def main():
+    gwls = ('gwl15', 'gwl2', 'gwl25', 'gwl3', 'gwl35', 'gwl4')
+    dir0 = '/nobackup/rossby26/users/sm_chali/DATA/energi/res/gwls/cordex/EUR11/ALL/'
+    dir1 = '/nobackup/rossby26/users/sm_chali/DATA/energi/res/h248/cordex/EUR11/ALL/'
+    os.makedirs(dir1 + 'dddd', exist_ok=True)
+    fns = slctStrL_(schF_keys_(dir1), excl='historical')
+    print(len(fns))
+    n = 0
+    for i, fn in enumerate(fns):
+        if i < 810:
+            continue
+        print(prg_(i, len(fns)), fn)
+        fn_ = re.sub('rcp\d+', 'historical', fn)
+        o = iris.load([fn_, fn])
+        try:
+            o = concat_cube_(o)
+        except:
+            n += 1
+            print('CCE:' + '>'*n)
+            continue
+        gcm, rcp, rip, _, _, _, freq = pure_fn_(fn).split('_')[1:8]
+        eD = dict(ccsn='seasonyr', mmm=freq) if isSeason_(freq) else {}
+        for gwl in gwls:
+            y0y1 = gwl_p_(gwl, rcp, gcm, rip)
+            if y0y1 is not None:
+                o_ = extract_period_cube(o, *y0y1, **eD)
+                fn_ = '{}{}_{}.nc'.format(dir0, pure_fn_(fn), gwl)
+                print('save to', fn_)
+                cubesv_(o_, fn_)
+
+
+if __name__ == '__main__':
+    main()

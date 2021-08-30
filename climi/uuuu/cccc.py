@@ -89,6 +89,7 @@ from iris.experimental.equalise_cubes import equalise_attributes
 
 import cf_units
 import warnings
+import re
 from datetime import datetime
 
 from .ffff import *
@@ -1115,21 +1116,31 @@ def _unify_1coord_attrs(cubeL, coord_name):
     for c in cubeL:
         cc = c.coord(coord_name)
         tp = cc.points.dtype
-        tp = np.dtype(tp.str.replace('>', '<')) if '>' in tp.str else tp
-        tmp = epochs.setdefault('dtype', tp)
+        tp_ = np.dtype(tp.str.replace('>', '<')) if '>' in tp.str else tp
+        tmp = epochs.setdefault('dtype', tp_)
         if tp != tmp:
             cc.points = cc.points.astype(tmp)
+        #if hasattr(cc, 'bounds') and cc.has_bounds():
+        #    tmp_b = epochs.setdefault('bounds', cc.bounds)
+        try:
+            cc.guess_bounds()
+        except ValueError:
+            pass
         if cc.has_bounds() and cc.bounds.dtype != tmp:
             cc.bounds = cc.bounds.astype(tmp)
         for i in attrs:
             tmp = epochs.setdefault(i, cc.__getattribute__(i))
             cc.__setattr__(i, tmp)
+    if 'bounds' in epochs:
+        for c in cubeL:
+            cc = c.coord(coord_name)
 
 
-def _unify_coord_attrs(cubeL):
+def _unify_coord_attrs(cubeL, coord_names=None):
     ll_('cccc: _unify_coord_attrs() called')
     if len(cubeL) > 1:
-        coord_names = [i.name() for i in cubeL[0].coords()]
+        coord_names = coord_names if coord_names else\
+                      [i.name() for i in cubeL[0].coords()]
         for coord_name in coord_names:
             _unify_1coord_attrs(cubeL, coord_name)
 
@@ -1142,7 +1153,7 @@ def _unify_time_units(cubeL):
         for c in cubeL:
             ctu = c.coord('time').units
             if ctu.calendar == CLD0:
-                ctu = cf_units.Unit(c.coord('time').units.origin, CLD)
+                c.coord('time').units = cf_units.Unit(ctu.origin, CLD)
     iris.util.unify_time_units(cubeL)
 
 
@@ -1180,6 +1191,11 @@ def purefy_cubeL_(cubeL):
     _unify_time_units(cubeL)
 
 
+def _collect_errCC(x):
+    tmp = re.findall(r'(?<=\!\= ).+$', x)
+    return tmp[0].split(', ') if tmp else tmp
+
+
 def concat_cube_(cubeL, thr=1e-10):
     purefy_cubeL_(cubeL)
     try:
@@ -1190,11 +1206,14 @@ def concat_cube_(cubeL, thr=1e-10):
         if any(['Cube metadata' in i for i in ce_.args[0]]):
             _unify_cellmethods(cubeL)
         if any(['coordinates metadata differ' in i for i in ce_.args[0]]):
-            if any(['height' in i for i in ce_.args[0]]):
+            tmp = flt_l([_collect_errCC(i) for i in ce_.args[0]
+                         if 'coordinates metadata differ' in i])
+            if 'height' in tmp:
                 ll_("cccc: set COORD 'height' points to those of cubeL[0]")
                 _unify_1coord_points(cubeL, 'height', thr=10)
-            else:
-                _unify_coord_attrs(cubeL)
+                tmp.remove('height')
+            if len(tmp) > 0:
+                _unify_coord_attrs(cubeL, tmp)
         try:
             o = cubeL.concatenate_cube()
         except iris.exceptions.ConcatenateError as ce_:

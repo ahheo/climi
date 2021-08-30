@@ -157,7 +157,7 @@ i__ = {
         dict(name='zero-crossing days', units='days',
              attrU={'CLIMI': 'days with tasmin < 0 degree C and '
                              'tasmax > 0 degree C'}),
-        't'), # SVT_ERIK
+        't'),
     'VegSeasonDayEnd-5': (28, 'day', ['tas'],
         dStartEndVegSeason_, ['year'],
         dict(name='vegetation season (5) end', units=1,
@@ -846,13 +846,23 @@ def _meta(v_, cube):
     pst_(cube, **pK_)
 
 
+def _dn(*terms):
+    return '_'.join(i for i in terms if i)
+
+
+def _fnfmt(idir, *terms):
+    nm_ = '{}.nc'.format('_'.join(i for i in terms if i))
+    return os.path.join(idir, nm_)
+
+
 def _sv(v_, o, dgpi, freq=None, _nm=None):
-    fn = '{}{}.nc'
+    #fn = '{}{}.nc'
     dn, gwl, po_ = dgpi[:3]
 
     def _fn(fff):
-        return fn.format(po_,
-                         '_'.join((i for i in (v_, dn, fff, gwl, _nm) if i)))
+        return _fnfmt(po_, v_, dn, fff, gwl, _nm)
+        #return fn.format(po_,
+        #                 '_'.join((i for i in (v_, dn, fff, gwl, _nm) if i)))
 
     freq = freq if freq else _get_freq(v_, dgpi[4])
     assert isIter_(freq), "type {!r} not acceptable here!".format(type(freq))
@@ -1270,15 +1280,15 @@ def _dclimidx(dn=None, gwl=None, po_=None, il_=None, user_cfg=None, y0y1=None,
     _d0('WarmSnowGT20Days', (c_pr, c_tas), dgpi, fK_=dict(thr_pr=20))
                                                               #WarmSnowGT20Days
     _d0('WarmPRSNdays', (c_prsn, c_tas), dgpi)                    #WarmPRSNdays
-    _d0('WarmPRSNGT10Days', (c_prsn, c_tas), dgpi, fK_=dict(thr_pr=10))
-                                                              #WarmPRSNGT10Days
-    _d0('WarmPRSNGT20Days', (c_prsn, c_tas), dgpi, fK_=dict(thr_pr=20))
-                                                              #WarmPRSNGT20Days
-    _d0('ColdPRRNDays', (c_pr, c_prsn, c_tas), dgpi)              #ColdPRRNDays
-    _d0('ColdPRRNGT10Days', (c_pr, c_prsn, c_tas), dgpi, fK_=dict(thr_pr=10))
-                                                              #ColdPRRNGT10Days
-    _d0('ColdPRRNGT20Days', (c_pr, c_prsn, c_tas), dgpi, fK_=dict(thr_pr=20))
-                                                              #ColdPRRNGT20Days
+    _d0('WarmPRSNgt10Days', (c_prsn, c_tas), dgpi, fK_=dict(thr_pr=10))
+                                                              #WarmPRSNgt10Days
+    _d0('WarmPRSNgt20Days', (c_prsn, c_tas), dgpi, fK_=dict(thr_pr=20))
+                                                              #WarmPRSNgt20Days
+    _d0('ColdPRRNdays', (c_pr, c_prsn, c_tas), dgpi)              #ColdPRRNdays
+    _d0('ColdPRRNgt10Days', (c_pr, c_prsn, c_tas), dgpi, fK_=dict(thr_pr=10))
+                                                              #ColdPRRNgt10Days
+    _d0('ColdPRRNgt20Days', (c_pr, c_prsn, c_tas), dgpi, fK_=dict(thr_pr=20))
+                                                              #ColdPRRNgt20Days
     if (any([i in il_ for i in ['R5OScw', 'R1OScw', 'R5OSc', 'R1OSc']]) and
         c_pr and c_tas):
         o = dPRRN_fr_PR_T_(c_pr, c_tas)
@@ -1615,8 +1625,12 @@ def _yy_dn(pD, dn, gwl, gg, curr):
     elif gwl == 'current' and pD['rcp'] == 'rcp85':
         y0y1 = curr
         dn = dn.replace('rcp85', 'historical')
-    elif gwl == 'curr0130':
-        y0y1 = curr
+    elif '-' in gwl:
+        def _int(s):
+            tmp = int(s)
+            tmp_ = 0 if tmp > 100 else (1900 if tmp > 50 else 2000)
+            return tmp + tmp_
+        y0y1 = list(map(_int, gwl.split('-')))
     else:
         y0y1 = curr
     return (y0y1, dn)
@@ -1630,7 +1644,7 @@ def cmip6_rcp_(il_, reg_d, reg_n, po_,
           pp['p_'][sss:eee]
     for p_ in pp_:
         tmp = path2cmip6_info_(p_)
-        dn = '_'.join((tmp['gcm'], tmp['rcp'], tmp['rip'], reg_n))
+        dn = _dn(tmp['gcm'], tmp['rcp'], tmp['rip'], reg_n)
         t0 = l__('>>>>>>>' + dn)
         pi_ = pp['root'] + p_
         tis = ['mon', 'day'] if tii is None else tii.split(',')
@@ -1648,7 +1662,7 @@ def cmip5_imp_rcp_(il_, reg_d, reg_n, po_,
           pp['p_'][sss:eee]
     for p_ in pp_:
         tmp = path2cmip5_info_(p_)
-        dn = '_'.join((tmp['gcm'], tmp['rcp'], tmp['rip'], reg_n))
+        dn = _dn(tmp['gcm'], tmp['rcp'], tmp['rip'], reg_n)
         t0 = l__('>>>>>>>' + dn)
         pi_ = pp['root'] + p_
         tis = ['mon', 'day'] if tii is None else tii.split(',')
@@ -1668,7 +1682,7 @@ def cmip5_imp_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
           pp['p_'][sss:eee]
     for p_ in pp_:
         tmp = path2cmip5_info_(p_)
-        dn = '_'.join((tmp['gcm'], tmp['rcp'], tmp['rip'], reg_n))
+        dn = _dn(tmp['gcm'], tmp['rcp'], tmp['rip'], reg_n)
         y0y1, dn = _yy_dn(tmp, dn, gwl, gg, curr)
         if y0y1 is None:
             continue
@@ -1692,8 +1706,8 @@ def norcp_rcp_(il_, reg_d, reg_n, po_,
           pp['p_'][sss:eee]
     for p_ in pp_:
         tmp = path2norcp_info_(p_)
-        dn = '_'.join((tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
-                       tmp['ver'], tmp['prd'], reg_n))
+        dn = _dn(tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
+                 tmp['ver'], tmp['prd'], reg_n)
         t0 = l__('>>>>>>>' + dn)
         pi_ = pp['root'] + p_
         tis = ['mon', 'day', '3hr'] if tii is None else tii.split(',')
@@ -1711,8 +1725,8 @@ def eur11_imp_rcp_(il_, reg_d, reg_n, po_,
           pp['p_'][sss:eee]
     for p_ in pp_:
         tmp = path2cordex_info_(p_)
-        dn = '_'.join((tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
-                       tmp['ver'], reg_n))
+        dn = _dn(tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
+                 tmp['ver'], reg_n)
         t0 = l__('>>>>>>>' + dn)
         pi_ = pp['root'] + p_
         tis = ['mon', 'day'] if tii is None else tii.split(',')
@@ -1731,8 +1745,8 @@ def eur11_imp_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
           pp['p_'][sss:eee]
     for p_ in pp_:
         tmp = path2cordex_info_(p_)
-        dn = '_'.join((tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
-                       tmp['ver'], reg_n))
+        dn = _dn(tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
+                 tmp['ver'], reg_n)
         y0y1, dn = _yy_dn(tmp, dn, gwl, gg, curr)
         if y0y1 is None:
             continue
@@ -1757,8 +1771,8 @@ def eur11_imp_eval(il_, reg_d, reg_n, po_,
           pp['p_'][sss:eee]
     for p_ in pp_:
         tmp = path2cordex_info_(p_)
-        dn = '_'.join((tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
-                       tmp['ver'], reg_n))
+        dn = _dn(tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
+                 tmp['ver'], reg_n)
         t0 = l__('>>>>>>>' + dn)
         pi_ = pp['root'] + p_
         tis = ['mon', 'day'] if tii is None else tii.split(',')
@@ -1775,8 +1789,8 @@ def eur11_imp_eval_dmi(il_, reg_d, reg_n, po_,
     y0y1 = [1989, 2010]
     for p_ in pp['p__']:
         tmp = path2cordex_info_(p_)
-        dn = '_'.join((tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
-                       tmp['ver'], reg_n))
+        dn = _dn(tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
+                 tmp['ver'], reg_n)
         t0 = l__('>>>>>>>' + dn)
         pi_ = pp['root'] + p_
         tis = ['mon', 'day'] if tii is None else tii.split(',')
@@ -1796,7 +1810,7 @@ def eur11_smhi_eval(il_, reg_d, reg_n, po_, yml=None, tii=None,
     rip = pp[pp['eval']]['rip']
     rcm = pp[pp['eval']]['rcm']
     ver = pp[pp['eval']]['ver']
-    dn = '_'.join((gcm, rcp, rip, rcm, ver, reg_n))
+    dn = _dn(gcm, rcp, rip, rcm, ver, reg_n)
     t0 = l__('>>>>>>>' + dn)
     tis = ['mon', 'day'] if tii is None else tii.split(',')
     for tint in tis:
@@ -1813,8 +1827,8 @@ def eur11_smhi_rcp_(il_, reg_d, reg_n, po_,
           pp['h248'][sss:eee]
     for ppi in pp_:
         pi_ = '{}{}/netcdf/'.format(pp['root'], ppi)
-        dn = '_'.join((pp[ppi]['gcm'], pp[ppi]['rcp'], pp[ppi]['rip'],
-                       pp[ppi]['rcm'], pp[ppi]['ver'], reg_n))
+        dn = _dn(pp[ppi]['gcm'], pp[ppi]['rcp'], pp[ppi]['rip'],
+                 pp[ppi]['rcm'], pp[ppi]['ver'], reg_n)
         t0 = l__('>>>>>>>' + dn)
         tis = ['mon', 'day'] if tii is None else tii.split(',')
         for tint in tis:
@@ -1834,8 +1848,8 @@ def eur11_smhi_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
         pi0, pi1 = p0p1[0], p0p1[1]
         pi0_, pi1_ = ('{}{}/netcdf/'.format(pp['root'], pi0),
                       '{}{}/netcdf/'.format(pp['root'], pi1))
-        dn = '_'.join((pp[pi1]['gcm'], pp[pi1]['rcp'], pp[pi1]['rip'],
-                       pp[pi1]['rcm'], pp[pi1]['ver'], reg_n))
+        dn = _dn(pp[pi1]['gcm'], pp[pi1]['rcp'], pp[pi1]['rip'],
+                 pp[pi1]['rcm'], pp[pi1]['ver'], reg_n)
         y0y1, dn = _yy_dn(pp[pi1], dn, gwl, gg, curr)
         if y0y1 is None:
             continue
@@ -1888,7 +1902,7 @@ def eobs20_(il_, reg_d, reg_n, po_, y0y1=None, user_cfg=None):
     cccc = _getccc('month')
     ll_(' <<loading data', t1)
     if cccc:
-        _mclimidx(il_=il_, dn='EOBS20_' + reg_n, gwl='', po_=po_,
+        _mclimidx(il_=il_, dn=_dn('EOBS20', reg_n), gwl='', po_=po_,
                   user_cfg=user_cfg, **cccc)
     ll_('<<<monthly', t0)
     t0 = l__('>>>daily')
@@ -1896,42 +1910,17 @@ def eobs20_(il_, reg_d, reg_n, po_, y0y1=None, user_cfg=None):
     cccc = _getccc('day')
     ll_(' <<loading data', t1)
     if cccc:
-        _dclimidx(il_=il_, dn='EOBS20_' + reg_n, gwl='', po_=po_, y0y1=y0y1,
+        _dclimidx(il_=il_, dn=_dn('EOBS20', reg_n), gwl='', po_=po_, y0y1=y0y1,
                   user_cfg=user_cfg, **cccc)
     ll_('<<<daily', t0)
 
 
 def erai_(il_, reg_d, reg_n, po_, y0y1=None, tii=None, subg=None, xvn=9,
           user_cfg=None):
-    #from uuuu.cccc import _unify_xycoord_points
-    #idir = '/nobackup/rossby22/sm_chali/DATA/hw2018/iii/obs/ERAI/'
-    #def _erai_load(idir, var):
-    #    o = iris.load(idir + var + '_day_ERA*.nc')
-    #    o = concat_cube_(o)
-    #    if reg_d is not None:
-    #        o = intersection_(o, **reg_d)
-    #    return extract_period_cube(o, *y0y1)
-    #t0 = l__('>>>loading data')
-    #c_pr = _erai_load(idir, 'pr')
-    #c_tas = _erai_load(idir, 'tas')
-    #c_tasmax = _erai_load(idir, 'tasmax')
-    #c_tasmin = _erai_load(idir, 'tasmin')
-    #c_tx_m = pSTAT_cube(c_tasmax, 'MEAN', 'month')
-    #c_tn_m = pSTAT_cube(c_tasmin, 'MEAN', 'month')
-    #_unify_xycoord_points((c_tx_m, c_tn_m))
-    #m__ = dict(c_pr=c_pr, c_tas=c_tas, c_tasmax=c_tx_m, c_tasmin=c_tn_m)
-    #d__ = dict(c_pr=c_pr, c_tas=c_tas, c_tasmax=c_tasmax, c_tasmin=c_tasmin)
-    #ll_('<<<loading data', t0)
-    #t0 = l__('>>>monthly')
-    #_mclimidx(il_=il_, dn='ERAI_' + reg_n, gwl='', po_=po_, **m__)
-    #ll_('<<<monthly', t0)
-    #t0 = l__('>>>daily')
-    #_dclimidx(il_=il_, dn='ERAI_' + reg_n, gwl='', po_=po_, y0y1=y0y1, **d__)
-    #ll_('<<<daily', t0)
     idir = '/home/rossby/imports/obs/ECMWF/ERAINT/input/'
     tis = ['mon', 'day'] if tii is None else tii.split(',')
     for tint in tis:
-        _xyz(il_, tint, idir, 'ERAI_{}'.format(reg_n), '', y0y1, po_, reg_d,
+        _xyz(il_, tint, idir, _dn('ERAI', reg_n), '', y0y1, po_, reg_d,
              folder='cmip5', subg=subg, xvn=xvn, user_cfg=user_cfg)
 
 
@@ -1966,7 +1955,7 @@ def main():
                         type=str,
                         help="warming levels: "
                              "current | gwl15 | gwl2 | gwl25 | gwl3 | gwl35 | "
-                             "gwl4")
+                             "gwl4 | xx-xx | xxxx-xxxx")
     parser.add_argument("-s", "--start",
                         type=int,
                         help="simulation-loop start.")
@@ -2043,22 +2032,21 @@ def main():
     #reg_n = 'SWE'
     #reg_d = {'longitude': [-25.0, 45.0], 'latitude': [25.0, 75.0]}
     reg_n = args.domain if args.domain else \
-            ('LLL' if reg_d is not None else 'ALL')
+            ('LLL' if reg_d is not None else '')
     if args.rdir:
         rdir = args.rdir
     else:
         rxx = os.environ.get('r26')
         rdir = '{}DATA/energi/res/'.format(rxx)
-        #rdir = '/nobackup/rossby22/sm_chali/DATA/energi/res/'
-    pf_ = lambda x: '{}{}/{}/'.format(rdir, x, reg_n)
+    pf_ = lambda x: os.path.join(*(i for i in (rdir, x, reg_n) if i))
     poe_ = pf_('eval')
     poo_ = pf_('obs')
-    pcdx = pf_('h248/cordex/EUR11') #rdir + 'h248/cordex/EUR11/' + reg_n + '/'
-    pcmp5 = pf_('h248/cmip5') #rdir + 'h248/cmip5/' + reg_n + '/'
-    pcmp6 = pf_('h248/cmip6') #rdir + 'h248/cmip6/' + reg_n + '/'
-    pnorcp = pf_('h248/norcp') #rdir + 'h248/norcp/' + reg_n + '/'
-    pcdx_ = pf_('gwls/cordex/EUR11') #rdir + 'gwls/' + reg_n + '/'
-    pcmp5_ = pf_('gwls/cmip5') #rdir + 'obs/' + reg_n + '/'
+    pcdx = pf_('h248/cordex/EUR11')
+    pcmp5 = pf_('h248/cmip5')
+    pcmp6 = pf_('h248/cmip6')
+    pnorcp = pf_('h248/norcp')
+    pcdx_ = pf_('gwls/cordex/EUR11')
+    pcmp5_ = pf_('gwls/cmip5')
     pcmp6_ = pf_('gwls/cmip6')
 
     warnings.filterwarnings("ignore", category=UserWarning)

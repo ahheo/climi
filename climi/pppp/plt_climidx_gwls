@@ -3,7 +3,7 @@
 import numpy as np
 import geopandas as gpd
 import matplotlib as mpl
-mpl.use('Agg', force=True)
+mpl.use('pdf', force=True)
 import matplotlib.pyplot as plt
 import iris
 import os
@@ -20,6 +20,11 @@ from climi.pppp import *
 
 
 _here_ = get_path_(__file__)
+
+
+def _fnfmt(idir, *terms, ext='.pdf'):
+    nm_ = '_'.join(i for i in terms if i) + ext
+    return os.path.join(idir, nm_)
 
 
 def _shps(n):
@@ -140,7 +145,7 @@ def _map(shp0, dn, gwls, unit, odir, var, freq, fig_dict=None):
     cbz2.set_label('$\Delta${} IQR ({}) N={}'.format(var, unit, len(dn)))
 
     ####################################################################to file
-    plt.savefig(odir + '_'.join(('mapX', var, freq)) + '.png')
+    plt.savefig(_fnfmt(odir, 'mapX', var, freq), dpi=300)
     plt.close()
 
 
@@ -159,7 +164,7 @@ def bp__(ts, dn, unit, gwls, odir, var, freq, opt='0', ap=None):
                    loc='lower left',
                    borderaxespad=0, ncol=15, mode='expand')
         pn = 'bp0-{}'.format(ap) if ap else 'bp0'
-        plt.savefig(odir + '_'.join((pn, var, freq)) + '.png')
+        plt.savefig(_fnfmt(odir, pn, var, freq), dpi=300)
         plt.close()
 
     ########################################################################bp1
@@ -172,7 +177,7 @@ def bp__(ts, dn, unit, gwls, odir, var, freq, opt='0', ap=None):
         ax0.legend(h_, ['ENSEMBLE'])
 
         pn = 'bp1-{}'.format(ap) if ap else 'bp1'
-        plt.savefig(odir + '_'.join((pn, var, freq)) + '.png')
+        plt.savefig(_fnfmt(odir, pn, var, freq), dpi=300)
         plt.close()
 
     ########################################################################bp2
@@ -192,7 +197,7 @@ def bp__(ts, dn, unit, gwls, odir, var, freq, opt='0', ap=None):
                          for gwl in gwls[1:]], **lgo)
 
         pn = 'bp2-{}'.format(ap) if ap else 'bp2'
-        plt.savefig(odir + '_'.join((pn, var, freq)) + '.png')
+        plt.savefig(_fnfmt(odir, pn, var, freq), dpi=300)
         plt.close()
 
 
@@ -216,7 +221,7 @@ def map__(am, ai, bm, bi, dn, gwls, unit, rg_dict, odir, var, freq,
         n0, n1, n2, n3 = 1, 1 + na, 1 + ncol, 1 + ncol + na
         dx = 1 / (ncol + 1.25) - 1 / ncol #rx = .85
     tD = dict(fontsize=10 if ncol > 5 else 14)
-    pch_dict = {'cmap': 'YlGnBu'}
+    pch_dict = dict(cmap='YlGnBu',rasterized=True)
     cmp0, cmp1 = _cmp01(unit, var)
 
     min0, max0 = minmax_cube_(am, rg=rg_dict, p=5)
@@ -281,7 +286,7 @@ def map__(am, ai, bm, bi, dn, gwls, unit, rg_dict, odir, var, freq,
 
     ####################################################################to file
     fn = 'map-{}'.format(ap) if ap else 'map'
-    plt.savefig(odir + '_'.join((fn, var, freq)) + '.png')
+    plt.savefig(_fnfmt(odir, fn, var, freq), dpi=300)
     plt.close()
 
 
@@ -314,12 +319,12 @@ def id__(cubeLL, dn, gwls, sc, unit, odir, var, freq, shp, shp_,
 
 
 def _q_file(odir__, cubeLL, sc, freq, gwls, cref=None):
-    fnam = ['{}am_{}_{}.nc'.format(odir__, freq, i)
+    fnam = [_fnfmt(odir__, 'am', freq, i, ext='.nc')
             for i in ['current'] + gwls]
-    fnai = ['{}ai_{}_{}.nc'.format(odir__, freq, i)
+    fnai = [_fnfmt(odir__, 'ai', freq, i, ext='.nc')
             for i in ['current'] + gwls]
-    fnbm = ['{}bm_{}_{}.nc'.format(odir__, freq, i) for i in gwls]
-    fnbi = ['{}bi_{}_{}.nc'.format(odir__, freq, i) for i in gwls]
+    fnbm = [_fnfmt(odir__, 'bm', freq, i, ext='.nc') for i in gwls]
+    fnbi = [_fnfmt(odir__, 'bi', freq, i, ext='.nc') for i in gwls]
     if all([os.path.isfile(i) for i in fnam + fnai + fnbm + fnbi]):
         am, ai, bm, bi = [[iris.load_cube(ii) for ii in i]
                           for i in (fnam, fnai, fnbm, fnbi)]
@@ -336,24 +341,18 @@ def _q_file(odir__, cubeLL, sc, freq, gwls, cref=None):
     return (am, ai, bm, bi)
 
 
-def _get_freq(vdict, var):
-    freqs = []
-    if 'year' in vdict['freq'][var]:
-        freqs += ['year']
-    if 'season' in vdict['freq'][var]:
-        freqs += ['djf', 'mam', 'jja', 'son']
-    if 'month' in  vdict['freq'][var]:
-        freqs += ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    return freqs
 
 
 def main():
+    warnings.filterwarnings("ignore", category=UserWarning)
     mpl.style.use('seaborn')
     #####################################################################PARSER
     parser = argparse.ArgumentParser('PLOT CLIMIDX')
     parser.add_argument("opt", type=int, default=0,
                         help="options for dataset on BI")
+    parser.add_argument("-y", "--yml",                                          
+                        type=str,                                               
+                        help="yml file defining freqs for each index")
     parser.add_argument("-c", "--config", type=str, default="2", help="")
     parser.add_argument("-s", "--start", type=int, help="")
     parser.add_argument("-e", "--end", type=int, help="")
@@ -374,9 +373,9 @@ def main():
     if os.path.isfile(args.config):
         yf = args.config
     elif args.config == '2':
-        yf = _here_ + 'cfg_plt_climidx_gwls.yml'
+        yf = os.path.join(_here_, 'cfg_plt_climidx_gwls.yml')
     elif args.config == '4':
-        yf = _here_ + 'cfg_plt_climidx_gwls_.yml'
+        yf = os.path.join(_here_, 'cfg_plt_climidx_gwls_.yml')
     else:
         raise ValueError("unknown configuration!")
     with open(yf, 'r') as ymlfile:
@@ -391,19 +390,28 @@ def main():
     root = cfg['root']
     ddir, fxdir = cfg['ddir'], cfg['fxdir']
     ######################################################INDEPENDENT VARIABLES
-    vf = _here_ + 'var_dict.yml'
-    with open(vf, 'r') as ymlfile:
+    yml_ = args.yml
+    if yml_ and os.path.isfile(yml_):                                           
+        vf = yml_                                                               
+    elif yml_ and os.path.isfile(os.path.join(_here_, yml_)):                   
+        vf = os.path.join(_here_, yml_)                                         
+    else:                                                                       
+        vf = os.path.join(_here_, 'var_dict.yml')                               
+    with open(vf, 'r') as ymlfile:                                              
         vdict = yaml.safe_load(ymlfile)
-    yf = _here_ + 'rg_dict.yml'
+    yf = os.path.join(_here_, 'rg_dict.yml')
     with open(yf, 'r') as ymlfile:
         rdict = yaml.safe_load(ymlfile)
     #######################################VARIABLES VARY CORRISPONDING TO OPT_
-    rn = 'EUR' if opt_ in (0, 1) else 'GLB'
-    idir = '{}{}/'.format(ddir, rn)
-    odir = '{}DATA/energi/{}/fig{}K/'.format(root, version, gg[-1][3:])
+    #rn = 'EUR' if opt_ in (0, 1) else 'GLB'
+    #idir = '{}{}/'.format(ddir, rn)
+    rn = None
+    idir = os.path.join(ddir, 'cordex/EUR11' if opt_ in (0, 1) else 'cmip5')
+    odir = os.path.join(root, 'DATA/energi/', version,
+                        'fig{}K/'.format(gg[-1][3:]))
     _rn = 'SWE/' if opt_ == 0 else ('EUR/' if opt_ == 1 else 'SS/')
-    _od0 = odir + '{}/' + _rn
-    _od1 = odir.replace('/fig', '/nc') + '{}/'
+    _od0 = lambda x: os.path.join(odir, x, _rn)
+    _od1 = lambda x: os.path.join(odir.replace('/fig', '/nc'), x)
     #r24 = os.environ.get('r24')
     #odir = '{}DATA/energi/2/fig{}K/'.format(r24, gg[-1][3:])
     #os.makedirs(odir, exist_ok=True)
@@ -435,24 +443,42 @@ def main():
         mD = dict(pch__=pch_eur_, fig_dict=figD, ap='EUR') if opt_ == 1 else\
              dict(pch__=pch_ll_, fig_dict=figD, ap='EUR')
     if opt_ in (0, 1):
-        vvv_ = vdict['vars'][sss_:eee_]
+        vvv_ = list(vdict['freq_cfg'].keys())[sss_:eee_]
         lD = dict()
         tsD = dict(fxdir=fxdir)
-        cref = iris.load_cube('{}{}'.format(idir,
-               'PR_ICHEC-EC-EARTH_historical_r12i1p1_'
-               'SMHI-RCA4_v1_EUR_year_current.nc'))[0, :, :]
+        cref = iris.load_cube(os.path.join(fxdir, 'sftlf_EUR-11_ECMWF-ERAINT_'
+                                           'evaluation_r0i0p0_SMHI-RCA4_v1_'
+                                           'fx.nc'))
     else:
         vvv_ = ['SST', 'SIC']
         tsD = lD = dict(folder='cmip5')
-        cref = iris.load_cube('{}{}'.format(idir,
-               'SST_HadGEM2-ES_rcp85_r1i1p1_GLB_year_gwl15.nc'))[0, :, :]
+        cref = iris.load_cube(os.path.join(fxdir, 'sftlf_fx_HadGEM2-ES_'
+                                           'historical_r0i0p0.nc'))
+    #############################################################FREQS & SUBDIR
+    def _get_freq(var):
+        def _sm(x):                                                             
+            if x == 'season':                                                   
+                return ['djf', 'mam', 'jja', 'son']                             
+            elif x == 'month':                                                  
+                return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',               
+                        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']               
+            else:                                                               
+                return x                                                        
+        freqs = ouniqL_(flt_l([_sm(i) for i in vdict['freq_cfg'][var]]))        
+        return freqs
+    def _get_odir(var):                                                         
+        if 'odir' in vdict:                                                     
+            return vdict['odir'][var]                                           
+        else:                                                                   
+            return var
     ############################################################DOING SOMETHING
     for var in vvv_:
-        freqs = _get_freq(vdict, var)
+        freqs = _get_freq(var)
         #freqs = ['Nov', 'Dec']
-        odir_ = _od0.format(vdict['odir'][var])
-        odir__ = _od1.format(vdict['odir'][var])
+        odir_ = _od0(_get_odir(var))
+        odir__ = _od1(_get_odir(var))
         os.makedirs(odir_, exist_ok=True)
+        os.makedirs(odir__, exist_ok=True)
         for freq in freqs:
             t000 = l__('{} >>>>>> {}'.format(var, freq))
             a, dn = load_clmidx_(idir, var, gwls=gg, freq=freq, rn=rn,

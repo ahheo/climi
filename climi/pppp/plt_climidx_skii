@@ -52,7 +52,7 @@ def _dif_ttest(m, s, n):
     return (dm, ds)
 
 
-vdict = {
+vdict_ = {'freq_cfg': {
     'PRSN': ['year', 'djf'],
     'FrostDays': ['year'],
     'ZeroCrossingDays': ['year', 'djf'],
@@ -64,7 +64,7 @@ vdict = {
     'ColdRainWarmSnowDays': ['year'],
     'MinusDays': ['year'],
     'FreezingDays': ['year']
-    }
+    }}
 
 sdict = {
     'Åre': [13.11, 63.43],#
@@ -78,16 +78,27 @@ sdict = {
     'Oberstdorf': [10.28, 47.38],
     'Zermatt': [7.75, 46.03],
     'Kitzbuhl': [12.48, 47.43],
+    'Norrköping': [16.2, 58.6],
+    'Karlskoga': [14.5, 59.3],
+    'Västerås': [16.5, 59.6],
+    'Ludvika': [15.2, 60.2],
+    'Mora': [14.5, 61.0],
     'Kebnekaise': [18.7, 67.9],
     'Kiruna': [20.2, 67.8],
     'Tärendö': [22.6, 67.2],
     'Överkalix': [22.8, 66.3],
     'Kalix': [23.2, 65.9],
-    'Norrköping': [16.2, 58.6],
-    'Karlskoga': [14.5, 59.3],
-    'Västerås': [16.5, 59.6],
-    'Ludvika': [15.2, 60.2],
-    'Mora': [14.5, 61.0]
+    'Sirges-SF1': [16.352574, 67.645623],
+    'Sirges-SF2': [17.211031, 67.468825],
+    'Sirges-HF': [18.748211, 67.197860],
+    'Sirges-skog': [19.049233, 66.897678],
+    'Sirges-vinter': [20.679246, 66.458987],
+    'Sirges-kust': [22.049494, 65.553455],
+    'MD-SF1': [12.145018, 62.858206],
+    'MD-SF2': [12.779126, 62.738629],
+    'MD-HF': [12.908606, 62.546127],
+    'MD-skog': [13.465182, 62.330892],
+    'MD-vinter': [13.821275, 62.198467]
     }
 
 
@@ -153,10 +164,29 @@ def main():
     parser.add_argument("-x", "--indices",
                         type=str, help="indices to be calculated")
     parser.add_argument("-s", "--sites",
-                        type=str, help="indices to be calculated")
+                        type=str, help="sites to be calculated")
+    parser.add_argument("-y", "--yml",                                          
+                        type=str,                                               
+                        help="yml file defining freqs for each index")
+    parser.add_argument("-d", "--delta",                                          
+                        action="store_true",                                               
+                        help="plot difference to 'Historical' instead of "
+                             "magnitude of each period")
     args = parser.parse_args()
+    yml_ = args.yml
+    if yml_ and os.path.isfile(yml_):                                           
+        vf = yml_                                                               
+    elif yml_ and os.path.isfile(os.path.join(_here_, yml_)):                   
+        vf = os.path.join(_here_, yml_)                                         
+    else:                                                                       
+        vf = None
+    if vf:                               
+        with open(vf, 'r') as ymlfile:                                              
+            vdict = yaml.safe_load(ymlfile)
+    else:
+        vdict = vdict_
     #mpl.style.use('seaborn')
-    lfn = 'plt-skii'
+    lfn = 'plt-{}'.format(args.sites if args.sites else 'S')
     nlog = len(schF_keys_('', lfn, ext='.log'))
     logging.basicConfig(filename='{}{}.log'.format(lfn, '_' * nlog),
                         filemode='w',
@@ -165,31 +195,44 @@ def main():
     logging.info(strftime(" %a, %d %b %Y %H:%M:%S +0000", localtime()))
     logging.info(' ')
     ##################################################################CONFIGURE
-    gg = ['curr0130', 'gwl15', 'gwl3']
-    gwls = ['Historical', 'Current', '1.5 K warming', '3 K warming']
+    gg = ['gwl15', 'gwl2', 'gwl3']
+    gwls = ['Historical', '1.5 K warming', '2 K warming', '3 K warming']
     #gg = ['gwl15', 'gwl2', 'gwl25', 'gwl3', 'gwl35', 'gwl4']
     #gwls = ['current', '1.5 K warming', '2 K wariming', '2.5 K warming',
     #                    '3 K wariming', '3.5 K warming', '4 K warming']
-    odir = '/nobackup/rossby24/users/sm_chali/DATA/energi/skii/'
+    odir = '/nobackup/rossby26/users/sm_chali/DATA/energi/reindeer/sites/'
+    if args.delta:
+        odir = os.path.join(odir, 'delta/')
     os.makedirs(odir, exist_ok=True)
-    ddir = '/nobackup/rossby22/sm_chali/DATA/energi/res/gwls/EUR/'
+    ddir = '/nobackup/rossby26/users/sm_chali/DATA/energi/res/gwls/cordex/EUR11/'
     ffmt1 = '{}{}_{}_CC_{}.pdf'
     ffmt = '{}{}_{}_{}.pdf'
+    def _get_freq(var):                                                         
+        def _sm(x):                                                             
+            if x == 'season':                                                   
+                return ['djf', 'mam', 'jja', 'son']                             
+            elif x == 'month':                                                  
+                return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',               
+                        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']               
+            else:                                                               
+                return x                                                        
+        freqs = ouniqL_(flt_l([_sm(i) for i in vdict['freq_cfg'][var]]))        
+        return freqs                                                            
     ############################################################DOING SOMETHING
     xi_ = args.indices
     if xi_:
         vvv = xi_.split(',')
     else:
-        vvv = vdict.keys()
+        vvv = vdict['freq_cfg'].keys()
     si_ = args.sites
     if args.single:
         if si_:
-            if si_ == 'skate':
-                sites = list(sdict.keys())[16:]
-            elif si_ == 'skii':
+            if si_ == 'skii':
                 sites = list(sdict.keys())[:11]
-            elif si_ == 'reindeer':
+            elif si_ == 'skate':
                 sites = list(sdict.keys())[11:16]
+            elif si_ == 'reindeer':
+                sites = list(sdict.keys())[16:]
             else:
                 raise Exception("currently supporting options for -s with -i:"
                                 " skii, reindeer, and skate")
@@ -204,7 +247,7 @@ def main():
         else:
             sites = sdict.keys()
     for var in vvv:
-        freqs = vdict[var]
+        freqs = _get_freq(var)
         #freqs = ['Nov', 'Dec']
         for freq in freqs:
             t000 = l__('{} >>>>>> {}'.format(var, freq))
@@ -214,18 +257,24 @@ def main():
                 continue
             sc, unit = sc_unit_clmidx_(a[0][0], var)
             if args.single:
-                fn0 = ffmt.format(odir, var, freq, si_)
-                fig0 = init_fig_(fx=7.5, fy=7.5,
-                                r=.91, t=.96, l=.075, b=.13,
-                                w=.28, h=.35)
-                ncol = 2
+                ncol, x_ = (2, 1) if len(sites) < 11 else (3, 1.25)
                 nrow = int(np.ceil(len(sites) / ncol))
+                fn0 = ffmt.format(odir, var, freq, si_)
+                fig0 = init_fig_(fx=3.75*ncol, fy=2*nrow,
+                                 r=.91, t=.96, l=.075*x_, b=.13,
+                                 w=.28*x_, h=.35)
             for i, site in enumerate(sites):
                 t000 = l__('  {} >>>> {}'.format(i, site))
                 mm, ss, n = _min_mean_max(a, *sdict[site])
                 ll_('  < mmm', t000)
                 if args.single:
-                    #dm, ds = _dif_ttest(mm, ss, n)
+                    if args.delta:
+                        dm, ds = _dif_ttest(mm, ss, n)
+                        data, data_ = dm * sc, ds
+                        _plt = _hm1
+                    else:
+                        data, data_ = mm * sc, ss * sc
+                        _plt = _hm0
                     if i < len(sites) - 1:
                         xl, yl = [], []
                         vl = ''
@@ -234,7 +283,8 @@ def main():
                         xl = gwls
                         vl = '{} ({})'.format(var, unit)
                     ax_ = fig0.add_subplot(nrow, ncol, i + 1)
-                    _hm0(fig0, ax_, mm*sc, ss*sc, xl, yl, site, vl)
+                    _plt(fig0, ax_, data, data_, xl, yl, site, vl)
+                    #_hm0(fig0, ax_, mm*sc, ss*sc, xl, yl, site, vl)
                     #_hm1(fig0, ax_, dm*sc, ds, xl, yl, site, vl)
                 else:
                     dm, ds = _dif_ttest(mm, ss, n)
