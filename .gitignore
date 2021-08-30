@@ -4,7 +4,6 @@
 *.pyc
 *.log
 *.#
-*.sh
 *.swp
 *.nc
 *.hdf
