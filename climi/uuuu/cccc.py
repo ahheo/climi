@@ -1081,33 +1081,31 @@ def _get_xycoords(cube):
     return xycoords
 
 
-def _unify_1coord_points(cubeL, coord_name, thr=1e-10):
+def _unify_1coord_points(cubeL, coord_name, **close_kwArgs):
     epochs = {}
     emsg = "COORD {!r} can't be unified!".format(coord_name)
     emsg_ = "Bounds of COORD {!r} can't be unified!".format(coord_name)
     for c in cubeL:
         cc = c.coord(coord_name)
         d0 = epochs.setdefault('points', cc.points)
-        dp = np.max(np.abs(cc.points - d0))
-        if 0 < dp < thr:
+        if np.allclose(cc.points, d0, **close_kwArgs):
             cc.points = d0
-        elif dp > thr:
+        else:
             raise Exception(emsg)
         if cc.has_bounds():
             d1 = epochs.setdefault('bounds', cc.bounds)
-            db = np.max(np.abs(cc.bounds - d1))
-            if 0 < db < thr:
+            if np.allclose(cc.bounds, d1, **close_kwArgs):
                 cc.bounds = d1
-            elif db > thr:
+            else:
                 raise Exception(emsg_)
 
 
-def _unify_xycoord_points(cubeL, thr=1e-10):
+def _unify_xycoord_points(cubeL, **close_kwArgs):
     ll_('cccc: _unify_xycoord_points() called')
     if len(cubeL) > 1:
         coord_names = [i.name() for i in _get_xycoords(cubeL[0])]
         for coord_name in coord_names:
-            _unify_1coord_points(cubeL, coord_name, thr=thr)
+            _unify_1coord_points(cubeL, coord_name, **close_kwArgs)
 
 
 def _unify_1coord_attrs(cubeL, coord_name):
@@ -1196,7 +1194,7 @@ def _collect_errCC(x):
     return tmp[0].split(', ') if tmp else tmp
 
 
-def concat_cube_(cubeL, thr=1e-10):
+def concat_cube_(cubeL, **close_kwArgs):
     purefy_cubeL_(cubeL)
     try:
         o = cubeL.concatenate_cube()
@@ -1210,7 +1208,7 @@ def concat_cube_(cubeL, thr=1e-10):
                          if 'coordinates metadata differ' in i])
             if 'height' in tmp:
                 ll_("cccc: set COORD 'height' points to those of cubeL[0]")
-                _unify_1coord_points(cubeL, 'height', thr=10)
+                _unify_1coord_points(cubeL, 'height', atol=10)
                 tmp.remove('height')
             if len(tmp) > 0:
                 _unify_coord_attrs(cubeL, tmp)
@@ -1218,31 +1216,34 @@ def concat_cube_(cubeL, thr=1e-10):
             o = cubeL.concatenate_cube()
         except iris.exceptions.ConcatenateError as ce_:
             if any(['Expected only a single cube' in i for i in ce_.args[0]]):
-                _unify_xycoord_points(cubeL, thr=thr)
+                _unify_xycoord_points(cubeL, **close_kwArgs)
             o = cubeL.concatenate_cube()
     return o
 
 
-def merge_cube_(cubeL, thr=1e-10):
+def merge_cube_(cubeL, **close_kwArgs):
     purefy_cubeL_(cubeL)
     try:
         o = cubeL.merge_cube()
-    except iris.exceptions.ConcatenateError as ce_:
+    except iris.exceptions.MergeError as ce_:
         if any(['Data types' in i for i in ce_.args[0]]):
             _unify_dtype(cubeL)
         if any(['Cube metadata' in i for i in ce_.args[0]]):
             _unify_cellmethods(cubeL)
         if any(['coordinates metadata differ' in i for i in ce_.args[0]]):
-            if any(['height' in i for i in ce_.args[0]]):
+            tmp = flt_l([_collect_errCC(i) for i in ce_.args[0]
+                         if 'coordinates metadata differ' in i])
+            if 'height' in tmp:
                 ll_("cccc: set COORD 'height' points to those of cubeL[0]")
-                _unify_1coord_points(cubeL, 'height', thr=10)
-            else:
-                _unify_coord_attrs(cubeL)
+                _unify_1coord_points(cubeL, 'height', atol=10)
+                tmp.remove('height')
+            if len(tmp) > 0:
+                _unify_coord_attrs(cubeL, tmp)
         try:
             o = cubeL.merge_cube()
-        except iris.exceptions.ConcatenateError as ce_:
+        except iris.exceptions.MergeError as ce_:
             if any(['Expected only a single cube' in i for i in ce_.args[0]]):
-                _unify_xycoord_points(cubeL, thr=thr)
+                _unify_xycoord_points(cubeL, **close_kwArgs)
             o = cubeL.merge_cube()
     return o
 

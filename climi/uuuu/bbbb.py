@@ -228,7 +228,7 @@ def cmip6_dir_cubeL(idir, var='*', freq='*', gcm='*', exp='*', rip='*',
         return None
     elif ifconcat:
         try:
-            cube = concat_cube_(cubeL, thr=1e-5)
+            cube = concat_cube_(cubeL, atol=1e-5)
             p = sorted(info['p'])
             return {'cube': cube,
                     'p': '-'.join((p[0].split('-')[0], p[-1].split('-')[-1]))}
@@ -261,7 +261,7 @@ def cmip5_dir_cubeL(idir, var='*', freq='*', gcm='*', exp='*', rip='*',
         return None
     elif ifconcat:
         try:
-            cube = concat_cube_(cubeL, thr=1e-5)
+            cube = concat_cube_(cubeL, atol=1e-5)
             p = sorted(info['p'])
             return {'cube': cube,
                     'p': '-'.join((p[0].split('-')[0], p[-1].split('-')[-1]))}

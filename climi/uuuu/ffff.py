@@ -852,18 +852,62 @@ def consecutive_(x1d, func_, nn_=3, ffunc_=np.max):
     return ffunc_(ts) if ts else 0.
 
 
+def _sz(xnd, axis=None):
+    if axis is None:
+        return xnd.size
+    elif isinstance(axis, int):
+        return xnd.shape[cyl_(axis, xnd.ndim)]
+    elif isIter_(axis, xi=int):
+        ind = np.unique(cyl_(axis, xnd.ndim))
+        return np.prod(np.asarray(xnd.shape)[ind])
+    else:
+        raise Exception(f"I don't understand axis={axis!r}")
+
+
+def _shp_drop(shp, axis=None, replace=None):
+    if axis is not None:
+        axis = sorted(cyl_((axis,) if not isIter_(axis) else axis, len(shp)))
+        if replace is None:
+            return tuple(ii for i, ii in enumerate(shp) if i not in axis)
+        else:
+            tmp = (replace if i == axis[0] else ii for i, ii in enumerate(shp)
+                   if i not in axis[1:])
+            return tuple(flt_(tmp))
+    else:
+        return shp
+
+
+def _re_shp(xnd, dim0, ndim):
+    dim0 = cyl_(dim0, xnd.ndim)
+    tmp = np.prod(np.asarray(xnd.shape)[np.arange(dim0, dim0 + ndim)])
+    tmp_ = tuple(tmp if i == dim0 else ii for i, ii in enumerate(xnd.shape)
+                 if i not in range(dim0 + 1, dim0 + ndim))
+    return xnd.reshape(tmp_)
+
+
 def aggr_func_(xnd, V, axis=None, func_=np.ma.mean):
     #0 checking input arguments
-    xnd = xnd.ravel() if axis is None else xnd
-    axis = -1 if axis is None else axis
-    if V.size != xnd.shape[axis]:
+    arr = np.asarray(xnd)
+    lbl = np.asarray(V).ravel()
+    arr, axis = (arr.ravel(), -1) if axis is None else (arr, axis)
+    if lbl.size != _sz(arr, axis=axis):
         raise Exception("input arguments not matching!")
-    uV = np.unique(V)
-    nshp = list(xnd.shape)
-    nshp[axis] = uV.size
+    uV = np.unique(lbl)
+    nshp = _shp_drop(arr.shape, axis=axis, replace=uV.size)
+    if isIter_(axis, xi=int):
+        axis = sorted(np.unique(cyl_(axis, arr.ndim)))
+        naxi = axis[0]
+        if not all(np.diff(axis) == 1):
+            tmp = tuple(flt_((axis if i == axis[0] else i
+                              for i in range(arr.ndim)
+                              if i not in axis[1:])))
+            arr = arr.transpose(tmp)
+        arr = _re_shp(arr, axis[0], len(axis))
+    else:
+        naxi = axis
     o = np.empty(nshp)
     for i, ii in enumerate(uV):
-        o[ind_s_(len(nshp), axis, i)] = func_(
-            xnd[ind_s_(xnd.ndim, axis, V==ii)],
-            axis=axis)
+        ind_l = ind_s_(len(nshp), naxi, i)
+        ind_r = ind_s_(arr.ndim, naxi, lbl==ii)
+        o[ind_l] = func_(arr[ind_r], axis=naxi)
     return o
