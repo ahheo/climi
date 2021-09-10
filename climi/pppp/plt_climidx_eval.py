@@ -4,7 +4,7 @@ import matplotlib as mpl
 mpl.use('Agg', force=True)
 import matplotlib.pyplot as plt
 import iris
-import iris.coord_categorisation as cat 
+import iris.coord_categorisation as ica 
 import os
 import time
 import logging
@@ -20,8 +20,11 @@ from .pppp import *
 _here_ = get_path_(__file__)
 
 
+_djn = os.path.join
+
+
 def _shps():
-    shp = gpd_read(_here_ + 'swe_districts/distriktsanalys_polygon.shp')                 
+    shp = gpd_read(_djn(_here_, 'swe_districts/distriktsanalys_polygon.shp'))                 
     shp_ = shp.to_crs(epsg=4326)                                                
     idd = shp.ID.copy()                                                         
     idd.loc[:] = 0.                                                             
@@ -67,7 +70,7 @@ def ts__(cubeL, dn, unit, odir, var, freq, xx_='ts'):
             try:
                 yrs = cube.coord('year').points
             except:
-                cat.add_year(cube, 'time', name='year')
+                ica.add_year(cube, 'time', name='year')
                 yrs = cube.coord('year').points
         return yrs
             
@@ -249,7 +252,7 @@ def main():
 
     mpl.style.use('seaborn')
 
-    ne50 = gpd_read(_here_ + 'ne_50m/ne_50m_admin_0_countries.shp')
+    ne50 = gpd_read(_djn(_here_, 'ne_50m/ne_50m_admin_0_countries.shp'))
     sv = poly_to_path_(list(ne50.loc[ne50.NAME=='Sweden', 'geometry']))
     shp, shp_ = _shps()
     r24 = os.environ.get('r24')                                                 

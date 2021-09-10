@@ -12,6 +12,9 @@ from climi.uuuu import *
 _here_ = get_path_(__file__)
 
 
+_djn = os.path.join
+
+
 def _msk(cube, dn, fxdir):
     if fxdir:
         fn = schF_keys_(fxdir, '_{}_'.format(dn), 'sftlf')
@@ -133,7 +136,7 @@ def _m1cube(c, rgD, mtd):
 
 def main():
     #warnings.filterwarnings("ignore", category=UserWarning)
-    with open(_here_ + 'cfg_plt_hwmid_h8.yml', 'r') as ymlfile:
+    with open(_djn(_here_, 'cfg_plt_hwmid_h8.yml'), 'r') as ymlfile:
         cfg = yaml.safe_load(ymlfile)
     #output dirs
     ddir = cfg['ddir']

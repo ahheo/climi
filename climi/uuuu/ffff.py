@@ -8,9 +8,11 @@
 * consecutive_          : consecutive numbers
 * cyl_                  : values in cylinder axis           --> extract_win_
 * dgt_                  : digits of the int part of a number
+* el_join_              : element-wise join
 * ext_                  : get extension of file name
 * find_patt_            : extract list from items matching pattern
 * flt_                  : flatten (out: generator)          --> flt_l
+* flt_ndim_             : flatten number of consecutive dims
 * flt_l                 : flatten (out: list)               --> (o)uniqL_
 * get_path_             : get path from filename str
 * haversine_            : distance between geo points in radians
@@ -35,9 +37,10 @@
 * latex_unit_           : m s-1 -> m s$^{-1}$
 * ll_                   : end logging
 * mmmN_                 : months in season
-* mnN_                  : month order in the calendar 
+* mnN_                  : month order in the calendar
 * nSlice_               : total number of slices
 * nanMask_              : masked array -> array with NaN
+* ndigits_              : number of digits
 * nli_                  : if item is list flatten it
 * ouniqL_               : ordered unique elements of list
 * p_deoverlap_          : remove overlaping period from a list of periods
@@ -51,9 +54,11 @@
 * rest_mns_             : rest season named with month abbreviation
 * robust_bc2_           : robust alternative for numpy.broadcast_to
 * schF_keys_            : find files by key words
+* shp_drop_             : drop dims specified (and replace if desired)
 * slctStrL_             : select string list include or exclude substr(s)
 * ss_fr_sl_             : subgroups that without intersections
 * uniqL_                : unique elements of list
+* valid_seasons_        : if provided seasons valid
 * valueEqFront_         : move elements equal specified value to front
 ...
 
@@ -68,15 +73,8 @@ Date last modified: 24.09.2020
 
 
 import numpy as np
-import statsmodels.api as sm
-import time
-import logging
-import re
-import glob
-import os
+import pandas as pd
 import warnings
-from itertools import permutations, combinations
-from typing import Iterable, Iterator
 #import math
 
 
@@ -86,9 +84,11 @@ __all__ = ['aggr_func_',
            'consecutive_',
            'cyl_',
            'dgt_',
+           'el_join_',
            'ext_',
            'find_patt_',
            'flt_',
+           'flt_ndim_',
            'flt_l',
            'get_path_',
            'haversine_',
@@ -129,9 +129,11 @@ __all__ = ['aggr_func_',
            'rest_mns_',
            'robust_bc2_',
            'schF_keys_',
+           'shp_drop_',
            'slctStrL_',
            'ss_fr_sl_',
            'uniqL_',
+           'valid_seasons_',
            'valueEqFront_']
 
 
@@ -207,6 +209,7 @@ def flt_(l):
     """
     ... flatten a nested List deeply (generator) ...
     """
+    from typing import Iterable
     for el in l:
         if isinstance(el, Iterable) and not isinstance(el, (str, bytes)):
             yield from flt_(el)
@@ -230,6 +233,7 @@ def kde_(obs, **kde_opts):
         default option values as documented
         >>>help(sm.nonparametric.KDEUnivariate) #for more options
     """
+    import statsmodels.api as sm
     o = sm.nonparametric.KDEUnivariate(obs)
     o.fit(**kde_opts)
 
@@ -350,7 +354,7 @@ def inds_ss_(ndim, axis, sl_i, *vArg):
     if len(vArg) > 0:
         ax, sl = list(vArg[::2]), list(vArg[1::2])
         if (any(cyl_(ii, ndim) == cyl_(axis, ndim) for ii in ax)
-            or len(np.unique(cyl_(ax, ndim))) != len(ax)):
+            or len(pd.unique(cyl_(ax, ndim))) != len(ax)):
             raise ValueError('duplicated axis provided!')
         else:
             for ii, ss in zip(ax, sl):
@@ -378,7 +382,7 @@ def ind_inRange_(y, y0, y1, side='both', i_=False, r_=None):
         return np.where(ind) if i_ else ind
     else:
         if y0 > y1 and y0 - y1 < r_ / 2:
-            y0, y1 = y1, y0 
+            y0, y1 = y1, y0
         else:
             y1 = cyl_(y1, y0 + r_, y0)
         return ind_inRange_(cyl_(y, y0 + r_, y0), y0, y1, side=side, i_=i_)
@@ -417,6 +421,7 @@ def rTime_(t):
     """
     ... return readable style of time interval ...
     """
+    import time
     d = t / (60 * 60 * 24)
     if d >= 1:
         return r'passing :t::i:::m::::e::::: {:.2f} day(s)'.format(d)
@@ -443,6 +448,9 @@ def schF_keys_(idir, *keys, ext='*', ordered=False, h_=False):
     """
     ... find files that contain specified keyword(s) in the directory ...
     """
+    import glob
+    import os
+    from itertools import permutations
     s = '*'
     if ordered:
         pm = [s.join(keys)]
@@ -452,8 +460,8 @@ def schF_keys_(idir, *keys, ext='*', ordered=False, h_=False):
     fn = []
     for i in pm:
         if h_:
-            fn += glob.iglob(idir + '.*' + s.join([i, ext]))
-        fn += glob.glob(s.join([idir, i, ext]))
+            fn += glob.iglob(os.path.join(idir, '.*' + s.join([i, ext])))
+        fn += glob.glob(os.path.join(idir, s.join([i, ext])))
     fn = list(set(fn))
     fn.sort()
     return fn
@@ -485,15 +493,18 @@ def ext_(s):
     """
     ... get extension from filename (str) ...
     """
+    import os
+    return os.path.splitext(s)[1]
+    #import re
     #tmp = re.search(r'(?<=\w)\.\w+$', s)
     #return tmp.group() if tmp else ''
-    return os.path.splitext(s)[1]
 
 
 def find_patt_(p, s):
     """
     ... return s or list of items in s that match the given pattern ...
     """
+    import re
     if isinstance(s, str):
         return s if re.search(p, s) else None
     elif isIter_(s, xi=str):
@@ -504,6 +515,8 @@ def pure_fn_(s, no_etc=True):
     """
     ... get pure filename without path to and without extension ...
     """
+    #import re
+    import os
     def _rm_etc(s):
         #return re.sub(r'\.\w+$', '', s) if no_etc else s
         return os.path.splitext(s)[0] if no_etc else s
@@ -520,6 +533,7 @@ def get_path_(s):
     """
     ... get path from filename ...
     """
+    import re
     tmp = re.sub(r'[^\/]+$', '', s)
     return tmp if tmp else './'
 
@@ -568,6 +582,37 @@ def isSeason_(mmm, ismmm_=True):
         return (1 < len(mmm) < 12 and n != -1) or mmm.lower() in s4
 
 
+def valid_seasons_(seasons, ismmm_=True):
+    o = all(isSeason_(season, ismmm_=ismmm_) for season in seasons)
+    if o:
+        o_ = sorted(flt_l(mmmN_(season) for season in seasons))
+        return np.array_equal(o_, np.arange(12) + 1)
+    else:
+        return False
+
+
+def _month_season_numbers(seasons):
+    """Compute a mapping between months and season number.
+
+    Returns a list to be indexed by month number, where the value at
+    each index is the number of the season that month belongs to.
+
+    """
+    month_season_numbers = [None, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    for season_number, season in enumerate(seasons):
+        for month in mmmN_(season):
+            month_season_numbers[month] = season_number
+    return month_season_numbers
+
+
+def _v2s(month, seasons=('djf', 'mam', 'jja', 'son')):
+    ssm = _month_season_numbers(seasons)
+    return seasons[ssm[month]]
+
+
+v2s_ = np.vectorize(_v2s, excluded=['seasons'])
+
+
 def mmmN_(mmm):
     """
     ... months in season  ...
@@ -577,7 +622,7 @@ def mmmN_(mmm):
           'autumn': 'son',
           'winter': 'djf'}
     mmm = ss[mmm] if mmm in ss.keys() else mmm
-    
+
     mns = 'jfmamjjasond' * 2
     n = mns.find(mmm.lower())
     if n != -1:
@@ -629,6 +674,8 @@ def l__(msg, out=True):
     """
     ... starting logging msg giving a time stamp ...
     """
+    import time
+    import logging
     logging.info(' ' + msg + ' -->')
     if out:
         return time.time()
@@ -638,6 +685,8 @@ def ll_(msg, t0=None):
     """
     ... ending logging msg giving a time lapse if starting time stamp given
     """
+    import time
+    import logging
     logging.info(' {}{}'.format(msg, ' <--' if t0 else ''))
     if t0:
         logging.info(' ' + rTime_(time.time() - t0))
@@ -739,6 +788,7 @@ def p_deoverlap_(pl):
 
 
 def _match2shps(shape0, shape1, fw=False):
+    from itertools import combinations
     if len(shape1) < len(shape0):
         raise Exception('len(shape1) must >= len(shape0)!')
     cbs = list(combinations(shape1, len(shape0)))
@@ -767,7 +817,7 @@ def robust_bc2_(data, shape, axes=None, fw=False):
         axes = (axes,) if not isIter_(axes) else axes
         if len(axes) != len(dshp):
             raise ValueError("len(axes) != len(data.squeeze().shape)")
-        if (len(np.unique(axes)) != len(axes) or
+        if (len(pd.unique(axes)) != len(axes) or
             any([i not in range(len(shape)) for i in axes])):
             raise ValueError("one or more axes exceed target shape of data!")
     else:
@@ -811,10 +861,12 @@ def l2b_endian_(x):
 
 
 def isGI_(x):
+    from typing import Iterator
     return isinstance(x, Iterator)
 
 
 def isIter_(x, xi=None, XI=(str, bytes)):
+    from typing import Iterable
     o = isinstance(x, Iterable) and not isinstance(x, XI)
     if o and xi is not None:
         if not isGI_(x):
@@ -845,10 +897,13 @@ def compressLL_(LL):
     return (LL_, TFx, TFy)
 
 
-def consecutive_(x1d, func_, nn_=3, ffunc_=np.max):
+def consecutive_(x1d, func_,
+                 nn_=3,
+                 ffunc_=np.max,
+                 efunc_=lambda x: len(x[1:])):
     ts = np.split(np.concatenate(([0], x1d)),
                   np.concatenate(([1], np.where(func_(x1d))[0] + 1)))
-    ts = [len(x1d) - 1 for x1d in ts if len(x1d) >= nn_]
+    ts = [efunc_(its) for its in ts if len(its) > nn_]
     return ffunc_(ts) if ts else 0.
 
 
@@ -858,13 +913,13 @@ def _sz(xnd, axis=None):
     elif isinstance(axis, int):
         return xnd.shape[cyl_(axis, xnd.ndim)]
     elif isIter_(axis, xi=int):
-        ind = np.unique(cyl_(axis, xnd.ndim))
+        ind = pd.unique(cyl_(axis, xnd.ndim))
         return np.prod(np.asarray(xnd.shape)[ind])
     else:
         raise Exception(f"I don't understand axis={axis!r}")
 
 
-def _shp_drop(shp, axis=None, replace=None):
+def shp_drop_(shp, axis=None, replace=None):
     if axis is not None:
         axis = sorted(cyl_((axis,) if not isIter_(axis) else axis, len(shp)))
         if replace is None:
@@ -877,32 +932,38 @@ def _shp_drop(shp, axis=None, replace=None):
         return shp
 
 
-def _re_shp(xnd, dim0, ndim):
+def flt_ndim_(xnd, dim0, ndim):
     dim0 = cyl_(dim0, xnd.ndim)
-    tmp = np.prod(np.asarray(xnd.shape)[np.arange(dim0, dim0 + ndim)])
-    tmp_ = tuple(tmp if i == dim0 else ii for i, ii in enumerate(xnd.shape)
+    tmp_ = tuple(-1 if i == dim0 else ii for i, ii in enumerate(xnd.shape)
                  if i not in range(dim0 + 1, dim0 + ndim))
     return xnd.reshape(tmp_)
 
 
-def aggr_func_(xnd, V, axis=None, func_=np.ma.mean):
+def aggr_func_(xnd, *V, axis=None, func_=np.ma.mean, uniqV=False):
     #0 checking input arguments
     arr = np.asarray(xnd)
-    lbl = np.asarray(V).ravel()
+    if len(V) == 1:
+        lbl = np.asarray(V[0]).ravel()
+    elif len(V) > 1:
+        lbl = np.asarray(el_join_([np.asarray(i).ravel() for i in V]))
+    else:
+        raise Exception("at least one label array is required, "
+                        "but none is provided!")
     arr, axis = (arr.ravel(), -1) if axis is None else (arr, axis)
+    print(lbl)
     if lbl.size != _sz(arr, axis=axis):
         raise Exception("input arguments not matching!")
-    uV = np.unique(lbl)
-    nshp = _shp_drop(arr.shape, axis=axis, replace=uV.size)
+    uV = pd.unique(lbl)
+    nshp = shp_drop_(arr.shape, axis=axis, replace=uV.size)
     if isIter_(axis, xi=int):
-        axis = sorted(np.unique(cyl_(axis, arr.ndim)))
-        naxi = axis[0]
+        axis = np.unique(cyl_(axis, arr.ndim))
         if not all(np.diff(axis) == 1):
             tmp = tuple(flt_((axis if i == axis[0] else i
                               for i in range(arr.ndim)
                               if i not in axis[1:])))
             arr = arr.transpose(tmp)
-        arr = _re_shp(arr, axis[0], len(axis))
+        arr = flt_ndim_(arr, axis[0], len(axis))
+        naxi = axis[0]
     else:
         naxi = axis
     o = np.empty(nshp)
@@ -910,4 +971,8 @@ def aggr_func_(xnd, V, axis=None, func_=np.ma.mean):
         ind_l = ind_s_(len(nshp), naxi, i)
         ind_r = ind_s_(arr.ndim, naxi, lbl==ii)
         o[ind_l] = func_(arr[ind_r], axis=naxi)
-    return o
+    return (o, uV) if uniqV else o
+
+
+def el_join_(caL, jointer='.'):
+    return [jointer.join(iter_str_(i)) for i in zip(*caL)]

@@ -46,6 +46,9 @@ __all__ = ['p25_75_', 'md_', 'tE', 'tE_', 'thr_', 'dt_thr_', 'subH', 'subH_',
            'get_kde_']
 
 
+_djn = os.path.join
+_isf = os.path.isfile
+
 #def p25_75_(pn, dict_p, cube, axis=None):
 #    warnings.filterwarnings("ignore", message="All-NaN slice encountered")
 #    t_ref = pSTAT_cube(extract_period_cube(cube, *dict_p[pn]), 'MEAN').data
@@ -57,7 +60,7 @@ __all__ = ['p25_75_', 'md_', 'tE', 'tE_', 'thr_', 'dt_thr_', 'subH', 'subH_',
 
 def p25_75_(t_ref, ax_t, yr_ref=None):
     warnings.filterwarnings("ignore", message="All-NaN slice encountered")
-    tmp = t_ref if yr_ref is None else aggr_func_(t_ref, yr_ref, ax_t)
+    tmp = t_ref if yr_ref is None else aggr_func_(t_ref, yr_ref, axis=x_t)
     p25 = np.nanpercentile(tmp, 25, ax_t, keepdims=True)
     p75 = np.nanpercentile(tmp, 75, ax_t, keepdims=True)
     return (p25, p75)
@@ -429,9 +432,9 @@ def get_thr_(mdir, fnthr, dict_p, rref, *cube0, pctl=90, hw=True):
         doy_ref: day-of-year index of t_ref
     """
 
-    fn = mdir + fnthr
+    fn = _djn(mdir, fnthr)
     fr_f = True
-    if os.path.isfile(fn):
+    if _isf(fn):
         logging.info(' reading thr from file ...')
         t_thr = iris.load_cube(fn).data
         t_thr = nanMask_(t_thr)
@@ -544,8 +547,8 @@ def get_kde_(mdir, fnkde, dict_p, kde_opts, minL, *othr,
           kde[x]: support values of KernelDistributionEstimate object
     """
 
-    fn = mdir + fnkde
-    if os.path.isfile(fn):
+    fn = _djn(mdir, fnkde)
+    if _isf(fn):
         logging.info(' reading kde from file...')
         kde = np.load(fn)
     elif len(othr) >= 3:

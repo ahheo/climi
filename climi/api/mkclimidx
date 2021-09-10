@@ -5,7 +5,7 @@ from climi.climidx import *
 
 import numpy as np
 import iris
-import iris.coord_categorisation as cat
+import iris.coord_categorisation as ica
 import os
 import re
 import yaml
@@ -18,6 +18,9 @@ from time import localtime, strftime
 
 
 _here_ = get_path_(__file__)
+
+
+_djn = os.path.join
 
 
 # INDEX DICT: FORMAT:
@@ -811,15 +814,15 @@ def _get_freq(v_, user_cfg=None):
 
 
 def _to1(v_, dgpi, freq=None):
-    fn = '{}{}.nc'
     dn, gwl, po_ = dgpi[:3]
 
     def _fns(fff):
-        return schF_keys_(po_, '_'.join((i for i in (v_, dn, fff, gwl, '__*')
-                                         if i)))
+        return schF_keys_(
+                po_,
+                '_'.join((i for i in (v_, dn, fff, gwl, '__*') if i)))
 
     def _fn(fff):
-        return fn.format(po_, '_'.join((i for i in (v_, dn, fff, gwl) if i)))
+        return _fnfmt(po_, v_, dn, fff, gwl)
 
     freq = freq if freq else _get_freq(v_, dgpi[4])
     if len(freq) == 1:
@@ -852,17 +855,14 @@ def _dn(*terms):
 
 def _fnfmt(idir, *terms):
     nm_ = '{}.nc'.format('_'.join(i for i in terms if i))
-    return os.path.join(idir, nm_)
+    return _djn(idir, nm_)
 
 
 def _sv(v_, o, dgpi, freq=None, _nm=None):
-    #fn = '{}{}.nc'
     dn, gwl, po_ = dgpi[:3]
 
     def _fn(fff):
         return _fnfmt(po_, v_, dn, fff, gwl, _nm)
-        #return fn.format(po_,
-        #                 '_'.join((i for i in (v_, dn, fff, gwl, _nm) if i)))
 
     freq = freq if freq else _get_freq(v_, dgpi[4])
     assert isIter_(freq), "type {!r} not acceptable here!".format(type(freq))
@@ -1527,7 +1527,7 @@ def _afm_n(cL, ax, func, out, *args, npr=32, xm=80, **kwargs):
 
 def _xx(pi_, freq):
     if isinstance(pi_, str):
-        return pi_ + '*' + freq + '/'
+        return _djn(pi_, '*' + freq)
     elif isinstance(pi_, (tuple, list, set, np.ndarray)):
         return [_xx(i, freq) for i in pi_]
     else:
@@ -1536,7 +1536,7 @@ def _xx(pi_, freq):
 
 def _to_xhr(cube, x=6, valid=True):
     nh = 24 / x
-    cat.add_categorised_coord(cube, 'xxx', 'time',
+    ica.add_categorised_coord(cube, 'xxx', 'time',
                               lambda coord, v: np.ceil(v * nh) / nh)
     o = cube.aggregated_by('xxx',iris.analysis.MEAN)
     if valid:
@@ -1599,9 +1599,9 @@ def rf__(pi_, freq, folder='cordex', reg_d=None, **kwargs):
 
 def _gg(folder='cordex'):
     if folder == 'cmip5':
-        yf = _here_ + 'gcm_gwls_.yml'
+        yf = _djn(_here_, 'gcm_gwls_.yml')
     elif folder == 'cordex':
-        yf = _here_ + 'gcm_gwls.yml'
+        yf = _djn(_here_, 'gcm_gwls.yml')
     else:
         raise Exception("unknown folder: {!r}".format(folder))
     with open(yf, 'r') as ymlfile:
@@ -1639,14 +1639,14 @@ def _yy_dn(pD, dn, gwl, gg, curr):
 def cmip6_rcp_(il_, reg_d, reg_n, po_,
                sss=None, eee=None, idx=None, yml=None, tii=None,
                subg=None, xvn=9, user_cfg=None):
-    pp = _pp(yml) if yml else _pp(_here_ + 'cmip6_smhi_len.yml')
+    pp = _pp(yml) if yml else _pp(_djn(_here_, 'cmip6_smhi_len.yml'))
     pp_ = l_ind_(pp['p_'], [int(i) for i in idx.split(',')]) if idx else\
           pp['p_'][sss:eee]
     for p_ in pp_:
         tmp = path2cmip6_info_(p_)
         dn = _dn(tmp['gcm'], tmp['rcp'], tmp['rip'], reg_n)
         t0 = l__('>>>>>>>' + dn)
-        pi_ = pp['root'] + p_
+        pi_ = _djn(pp['root'], p_)
         tis = ['mon', 'day'] if tii is None else tii.split(',')
         for tint in tis:
             _xyz(il_, tint, pi_, dn, '', None, po_, reg_d, folder='cmip6',
@@ -1657,14 +1657,14 @@ def cmip6_rcp_(il_, reg_d, reg_n, po_,
 def cmip5_imp_rcp_(il_, reg_d, reg_n, po_,
                    sss=None, eee=None, idx=None, yml=None, tii=None,
                    subg=None, xvn=9, user_cfg=None):
-    pp = _pp(yml) if yml else _pp(_here_ + 'cmip5_import_.yml')
+    pp = _pp(yml) if yml else _pp(_djn(_here_, 'cmip5_import_.yml'))
     pp_ = l_ind_(pp['p_'], [int(i) for i in idx.split(',')]) if idx else\
           pp['p_'][sss:eee]
     for p_ in pp_:
         tmp = path2cmip5_info_(p_)
         dn = _dn(tmp['gcm'], tmp['rcp'], tmp['rip'], reg_n)
         t0 = l__('>>>>>>>' + dn)
-        pi_ = pp['root'] + p_
+        pi_ = _djn(pp['root'], p_)
         tis = ['mon', 'day'] if tii is None else tii.split(',')
         for tint in tis:
             _xyz(il_, tint, pi_, dn, '', None, po_, reg_d, folder='cmip5',
@@ -1675,8 +1675,8 @@ def cmip5_imp_rcp_(il_, reg_d, reg_n, po_,
 def cmip5_imp_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
                   sss=None, eee=None, idx=None, yml=None, tii=None,
                   subg=None, xvn=9, user_cfg=None):
-    pp = _pp(yml) if yml else _pp(_here_ + 'cmip5_import.yml')
-    #pp = _pp(_here_ + 'cmip5_import_cp.yml')
+    pp = _pp(yml) if yml else _pp(_djn(_here_, 'cmip5_import.yml'))
+    #pp = _pp(_djn(_here_, 'cmip5_import_cp.yml'))
     gg = _gg('cmip5')
     pp_ = l_ind_(pp['p_'], [int(i) for i in idx.split(',')]) if idx else\
           pp['p_'][sss:eee]
@@ -1701,7 +1701,7 @@ def cmip5_imp_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
 def norcp_rcp_(il_, reg_d, reg_n, po_,
                sss=None, eee=None, idx=None, yml=None, tii=None,
                subg=None, xvn=9, user_cfg=None):
-    pp = _pp(yml) if yml else _pp(_here_ + 'norcp_.yml')
+    pp = _pp(yml) if yml else _pp(_djn(_here_, 'norcp_.yml'))
     pp_ = l_ind_(pp['p_'], [int(i) for i in idx.split(',')]) if idx else\
           pp['p_'][sss:eee]
     for p_ in pp_:
@@ -1709,7 +1709,7 @@ def norcp_rcp_(il_, reg_d, reg_n, po_,
         dn = _dn(tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
                  tmp['ver'], tmp['prd'], reg_n)
         t0 = l__('>>>>>>>' + dn)
-        pi_ = pp['root'] + p_
+        pi_ = _djn(pp['root'], p_)
         tis = ['mon', 'day', '3hr'] if tii is None else tii.split(',')
         for tint in tis:
             _xyz(il_, tint, pi_, dn, '', None, po_, reg_d, folder='norcp',
@@ -1720,7 +1720,7 @@ def norcp_rcp_(il_, reg_d, reg_n, po_,
 def eur11_imp_rcp_(il_, reg_d, reg_n, po_,
                    sss=None, eee=None, idx=None, yml=None, tii=None,
                    subg=None, xvn=9, user_cfg=None):
-    pp = _pp(yml) if yml else _pp(_here_ + 'eur-11_import__.yml')
+    pp = _pp(yml) if yml else _pp(_djn(_here_, 'eur-11_import__.yml'))
     pp_ = l_ind_(pp['p_'], [int(i) for i in idx.split(',')]) if idx else\
           pp['p_'][sss:eee]
     for p_ in pp_:
@@ -1728,7 +1728,7 @@ def eur11_imp_rcp_(il_, reg_d, reg_n, po_,
         dn = _dn(tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
                  tmp['ver'], reg_n)
         t0 = l__('>>>>>>>' + dn)
-        pi_ = pp['root'] + p_
+        pi_ = _djn(pp['root'], p_)
         tis = ['mon', 'day'] if tii is None else tii.split(',')
         for tint in tis:
             _xyz(il_, tint, pi_, dn, '', None, po_, reg_d,
@@ -1739,7 +1739,7 @@ def eur11_imp_rcp_(il_, reg_d, reg_n, po_,
 def eur11_imp_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
                   sss=None, eee=None, idx=None, yml=None, tii=None,
                   subg=None, xvn=9, user_cfg=None):
-    pp = _pp(yml) if yml else _pp(_here_ + 'eur-11_import.yml')
+    pp = _pp(yml) if yml else _pp(_djn(_here_, 'eur-11_import.yml'))
     gg = _gg()
     pp_ = l_ind_(pp['p_'], [int(i) for i in idx.split(',')]) if idx else\
           pp['p_'][sss:eee]
@@ -1766,7 +1766,7 @@ def eur11_imp_eval(il_, reg_d, reg_n, po_,
                    sss=None, eee=None, idx=None, yml=None, tii=None,
                    subg=None, xvn=9, user_cfg=None):
     gwl = ''
-    pp = _pp(yml) if yml else _pp(_here_ + 'eur-11_import_eval.yml')
+    pp = _pp(yml) if yml else _pp(_djn(_here_, 'eur-11_import_eval.yml'))
     pp_ = l_ind_(pp['p_'], [int(i) for i in idx.split(',')]) if idx else\
           pp['p_'][sss:eee]
     for p_ in pp_:
@@ -1774,7 +1774,7 @@ def eur11_imp_eval(il_, reg_d, reg_n, po_,
         dn = _dn(tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
                  tmp['ver'], reg_n)
         t0 = l__('>>>>>>>' + dn)
-        pi_ = pp['root'] + p_
+        pi_ = _djn(pp['root'], p_)
         tis = ['mon', 'day'] if tii is None else tii.split(',')
         for tint in tis:
             _xyz(il_, tint, pi_, dn, gwl, None, po_, reg_d,
@@ -1785,14 +1785,14 @@ def eur11_imp_eval(il_, reg_d, reg_n, po_,
 def eur11_imp_eval_dmi(il_, reg_d, reg_n, po_,
                        tii=None, subg=None, xvn=9, user_cfg=None):
     gwl = ''
-    pp = _pp(_here_ + 'eur-11_import_eval.yml')
+    pp = _pp(_djn(_here_, 'eur-11_import_eval.yml'))
     y0y1 = [1989, 2010]
     for p_ in pp['p__']:
         tmp = path2cordex_info_(p_)
         dn = _dn(tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
                  tmp['ver'], reg_n)
         t0 = l__('>>>>>>>' + dn)
-        pi_ = pp['root'] + p_
+        pi_ = _djn(pp['root'], p_)
         tis = ['mon', 'day'] if tii is None else tii.split(',')
         for tint in tis:
             _xyz(il_, tint, pi_, dn, gwl, y0y1, po_, reg_d,
@@ -1803,7 +1803,7 @@ def eur11_imp_eval_dmi(il_, reg_d, reg_n, po_,
 def eur11_smhi_eval(il_, reg_d, reg_n, po_, yml=None, tii=None,
                     subg=None, xvn=9, user_cfg=None):
     gwl = ''
-    pp = _pp(yml) if yml else _pp(_here_ + 'eur-11_smhi-rca4.yml')
+    pp = _pp(yml) if yml else _pp(_djn(_here_, 'eur-11_smhi-rca4.yml'))
     p_ = pp['root'] + str(pp['eval']) + '/netcdf/'
     gcm = pp[pp['eval']]['gcm']
     rcp = pp[pp['eval']]['rcp']
@@ -1822,11 +1822,11 @@ def eur11_smhi_eval(il_, reg_d, reg_n, po_, yml=None, tii=None,
 def eur11_smhi_rcp_(il_, reg_d, reg_n, po_,
                     sss=None, eee=None, idx=None, yml=None, tii=None,
                     subg=None, xvn=9, user_cfg=None):
-    pp = _pp(yml) if yml else _pp(_here_ + 'eur-11_smhi-rca4.yml')
+    pp = _pp(yml) if yml else _pp(_djn(_here_, 'eur-11_smhi-rca4.yml'))
     pp_ = l_ind_(pp['h248'], [int(i) for i in idx.split(',')]) if idx else\
           pp['h248'][sss:eee]
     for ppi in pp_:
-        pi_ = '{}{}/netcdf/'.format(pp['root'], ppi)
+        pi_ = _djn(pp['root'], ppi, 'netcdf')
         dn = _dn(pp[ppi]['gcm'], pp[ppi]['rcp'], pp[ppi]['rip'],
                  pp[ppi]['rcm'], pp[ppi]['ver'], reg_n)
         t0 = l__('>>>>>>>' + dn)
@@ -1840,14 +1840,14 @@ def eur11_smhi_rcp_(il_, reg_d, reg_n, po_,
 def eur11_smhi_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
                    sss=None, eee=None, idx=None, yml=None, tii=None,
                    subg=None, xvn=9, user_cfg=None):
-    pp = _pp(yml) if yml else _pp(_here_ + 'eur-11_smhi-rca4.yml')
+    pp = _pp(yml) if yml else _pp(_djn(_here_, 'eur-11_smhi-rca4.yml'))
     gg = _gg()
     pp_ = l_ind_(pp['rcps'], [int(i) for i in idx.split(',')]) if idx else\
           pp['rcps'][sss:eee]
     for p0p1 in pp_:
         pi0, pi1 = p0p1[0], p0p1[1]
-        pi0_, pi1_ = ('{}{}/netcdf/'.format(pp['root'], pi0),
-                      '{}{}/netcdf/'.format(pp['root'], pi1))
+        pi0_, pi1_ = (_djn(pp['root'], pi0, 'netcdf'),
+                      _djn(pp['root'], pi1, 'netcdf'))
         dn = _dn(pp[pi1]['gcm'], pp[pi1]['rcp'], pp[pi1]['rip'],
                  pp[pi1]['rcm'], pp[pi1]['ver'], reg_n)
         y0y1, dn = _yy_dn(pp[pi1], dn, gwl, gg, curr)
@@ -1873,8 +1873,8 @@ def eobs20_(il_, reg_d, reg_n, po_, y0y1=None, user_cfg=None):
           }
 
     def _eobs_load(var):
-        o = iris.load_cube('{}{}_ens_mean_0.1deg_reg_v20.0e.nc'
-                           .format(idir, vo[var][0]))
+        o = iris.load_cube(_djn(idir,
+            '{}_ens_mean_0.1deg_reg_v20.0e.nc'.format(vo[var][0]))
         if reg_d is not None:
             o = intersection_(o, **reg_d)
         if vo[var][1] is None and vo[var][2]:
@@ -2020,8 +2020,8 @@ def main():
         if os.path.isfile(args.cfg):
             with open(args.cfg, 'r') as yf:
                 user_cfg = yaml.safe_load(yf)
-        elif os.path.isfile(_here_ + args.cfg):
-            with open(_here_ + args.cfg, 'r') as yf:
+        elif os.path.isfile(_djn(_here_, args.cfg)):
+            with open(_djn(_here_, args.cfg), 'r') as yf:
                 user_cfg = yaml.safe_load(yf)
     if args.lll:
         lo0, lo1, la0, la1 = [float(i) for i in args.lll.split(',')]

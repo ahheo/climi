@@ -17,6 +17,9 @@ from climi.uuuu import *
 _here_ = get_path_(__file__)
 
 
+_djn = os.path.join
+
+
 def _fld(idir):
     tmp = idir.split('/')
     ind = tmp.index('res') + 1

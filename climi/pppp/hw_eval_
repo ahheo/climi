@@ -18,7 +18,11 @@ from climi.uuuu.cccc import _get_ind_lolalim as lllim_
 from skextremes.models.classic import GEV
 from sklearn.metrics import mean_squared_error as mse_, r2_score as r2_
 
+
 _here_ = get_path_(__file__)
+
+
+_djn = os.path.join
 
 
 def _vlabel(var, year=None, ts=None):
@@ -293,7 +297,7 @@ def main():
     parser.add_argument("--test", action="store_true",
                         help="as in testing mode")
     args = parser.parse_args()
-    with open(_here_ + 'cfg_plt_hwmid_eval.yml', 'r') as ymlfile:
+    with open(_djn(_here_, 'cfg_plt_hwmid_eval.yml'), 'r') as ymlfile:
         cfg = yaml.safe_load(ymlfile)
     #output dirs
     #ddir = cfg['ddir']
@@ -347,14 +351,14 @@ def main():
                     else:
                         hh = range(6, 16)
                     vl = _vlabel(var, year)
-                    ffmt = '{}{}_{}_ref{}-{}_{}_{}.pdf'
+                    ffmt = '{}_{}_ref{}-{}_{}_{}.pdf'
                     pD = _pdict(var, year)
                     print('    {} map'.format(year))
                     (o, oo, ooo), (d, dd, ddd), mstat = _map_data(
                         clo, clr, obss0, rcms0, year, rgD_eur, hh
                         )
                     _mp(
-                        ffmt.format(fdir, 'mp', var, *ref, freq, year),
+                        _djn(fdir, ffmt.format('mp', var, *ref, freq, year)),
                         (o, oo + ooo), (d, dd + ddd),
                         mstat, (d, dd, ddd), hh,
                         pD, rgD_eur, vl
@@ -369,13 +373,13 @@ def main():
                         (o, oo, ooo), (d, dd, ddd) =_ts_data(
                             clo, clr, obss0, rcms0, ts, rgDs[rg]
                             )
-                        ffmt = '{}{}_{}_ref{}-{}_{}_{}.pdf'
-                        fn = ffmt.format(fdir, ts, var, *ref, freq, rg)
+                        ffmt = '{}_{}_ref{}-{}_{}_{}.pdf'
+                        fn = _djn(fdir, ffmt.format(ts, var, *ref, freq, rg))
                         _ts(fn, o + oo + ooo, d + dd + ddd,
                             np.arange(y0y1[0], y0y1[-1] + 1),
                             vl_)
-                        ffmt = '{}{}_{}_ref{}-{}_{}_{}.txt'
-                        fn = ffmt.format(tdir, ts, var, *ref, freq, rg)
+                        ffmt = '{}_{}_ref{}-{}_{}_{}.txt'
+                        fn = _djn(tdir, ffmt.format(ts, var, *ref, freq, rg))
                         corr_tr_(ooo, o + oo, ddd, d + dd, fn)
 
 

@@ -84,7 +84,7 @@ Date last modified: 11.11.2020
 
 import numpy as np
 import iris
-import iris.coord_categorisation as cat
+import iris.coord_categorisation as ica
 from iris.experimental.equalise_cubes import equalise_attributes
 
 import cf_units
@@ -295,7 +295,7 @@ def unique_yrs_of_cube(cube, ccsn='year', mmm=None):
                     emsg = "'mmm' must not be None for adding coord {!r}!"
                     raise ValueError(emsg.format(ccsn))
             else:
-                cat.add_year(c, 'time', name=ccsn)
+                ica.add_year(c, 'time', name=ccsn)
         return np.unique(c.coord(ccsn).points)
     elif isIter_(cube, xi=iris.cube.Cube):
         return [unique_yrs_of_cube(i) for i in cube]
@@ -315,7 +315,7 @@ def y0y1_of_cube(cube, ccsn='year', mmm=None):
                     emsg = "'mmm' must not be None for adding coord {!r}!"
                     raise ValueError(emsg.format(ccsn))
             else:
-                cat.add_year(c, 'time', name=ccsn)
+                ica.add_year(c, 'time', name=ccsn)
         elif mmm and 'season' in ccsn:
             c.remove_coord(ccsn)
             seasonyr_cube(c, mmm, name=ccsn)
@@ -349,7 +349,7 @@ def extract_period_cube(cube, y0, y1, yy=False, ccsn='year', mmm=None):
                 emsg = "'mmm' must not be None for adding coord {!r}!"
                 raise ValueError(emsg.format(ccsn))
         else:
-            cat.add_year(c, 'time', name=ccsn)
+            ica.add_year(c, 'time', name=ccsn)
     elif mmm and 'season' in ccsn:
         c.remove_coord(ccsn)
         seasonyr_cube(c, mmm, name=ccsn)
@@ -375,7 +375,7 @@ def extract_win_cube(cube, d, r=15):
     """
     c = cube.copy()
     try:
-        cat.add_day_of_year(c, 'time', name='doy')
+        ica.add_day_of_year(c, 'time', name='doy')
     except ValueError:
         pass
     x1, x2 = cyl_(d - r, 365), cyl_(d + r, 365)
@@ -404,10 +404,10 @@ def extract_season_cube(cube, mmm, valid_season=True):
         else:
             c = cube.copy() # to avoid changing metadata of original cube
             try:
-                cat.add_season_membership(c, 'time', mmm, name=mmm)
+                ica.add_season_membership(c, 'time', mmm, name=mmm)
             except ValueError:
                 c.remove_coord(mmm)
-                cat.add_season_membership(c, 'time', mmm, name=mmm)
+                ica.add_season_membership(c, 'time', mmm, name=mmm)
             c.coord(mmm).points = c.coord(mmm).points.astype(np.int)
             ncube = c.extract(iris.Constraint(**{mmm: True}))
         if valid_season and not ismono_(mmmN_(mmm)):
@@ -425,7 +425,7 @@ def extract_season_cube(cube, mmm, valid_season=True):
 def extract_month_cube(cube, Mmm):
     c = cube.copy()
     try:
-        cat.add_month(c, 'time', name='month')
+        ica.add_month(c, 'time', name='month')
     except ValueError:
         pass
     ncube = c.extract(iris.Constraint(month=Mmm.capitalize()))
@@ -580,10 +580,10 @@ def seasonyr_cube(cube, mmm, name='seasonyr'):
         else:
             raise Exception("unknown seasons {!r}!".format(mmm))
         try:
-            cat.add_season_year(cube, 'time', name=name, seasons=seasons)
+            ica.add_season_year(cube, 'time', name=name, seasons=seasons)
         except ValueError:
             cube.remove_coord(name)
-            cat.add_season_year(cube, 'time', name=name, seasons=seasons)
+            ica.add_season_year(cube, 'time', name=name, seasons=seasons)
     elif isIter_(cube, xi=(iris.cube.Cube, iris.cube.CubeList, tuple, list)):
         for c in cube:
             seasonyr_cube(c, mmm, name=name)
@@ -595,13 +595,13 @@ def yr_doy_cube(cube):
     """
     if isinstance(cube, iris.cube.Cube):
         try:
-            cat.add_year(cube, 'time', name='year')
+            ica.add_year(cube, 'time', name='year')
         except ValueError:
             pass
         else:
             cube.coord('year').attributes = {}
         try:
-            cat.add_day_of_year(cube, 'time', name='doy')
+            ica.add_day_of_year(cube, 'time', name='doy')
         except ValueError:
             pass
         else:
@@ -1563,11 +1563,11 @@ def pSTAT_cube(cube, method, *freq, valid_season=True, **method_opts):
              day=('doy', 'year'),
              hour=('hour', 'year'))
 
-    dd = dict(hour=(cat.add_hour, ('time',), dict(name='hour')),
-              day=(cat.add_day_of_year, ('time',), dict(name='doy')),
-              month=(cat.add_month, ('time',), dict(name='month')),
-              year=(cat.add_year, ('time',), dict(name='year')),
-              season=(cat.add_season, ('time',), dict(name='season',
+    dd = dict(hour=(ica.add_hour, ('time',), dict(name='hour')),
+              day=(ica.add_day_of_year, ('time',), dict(name='doy')),
+              month=(ica.add_month, ('time',), dict(name='month')),
+              year=(ica.add_year, ('time',), dict(name='year')),
+              season=(ica.add_season, ('time',), dict(name='season',
                                                       seasons=s4)),
               seasonyr=(seasonyr_cube, (s4,), dict(name='seasonyr')))
 
@@ -1586,7 +1586,7 @@ def pSTAT_cube(cube, method, *freq, valid_season=True, **method_opts):
             if x in d.keys():
                 return (dd.copy(), None)
             elif isSeason_(x):
-                tmp = {x: (cat.add_season_membership, ('time', x),
+                tmp = {x: (ica.add_season_membership, ('time', x),
                            dict(name=x)),
                        'seasonyr': (seasonyr_cube, (x,),
                                     dict(name='seasonyr'))}
@@ -1606,7 +1606,7 @@ def pSTAT_cube(cube, method, *freq, valid_season=True, **method_opts):
                 #    raise("one or more specified 'freqs' unreconigsed; "
                 #          "check input!")
                 if len(f_) == 1 and isSeason_(f_[0]):
-                    tmp = {f_[0]: (cat.add_season_membership, ('time', f_[0]),
+                    tmp = {f_[0]: (ica.add_season_membership, ('time', f_[0]),
                                    dict(name=f_[0])),
                            'seasonyr': (seasonyr_cube, (f_[0],),
                                         dict(name='seasonyr'))}
@@ -1667,32 +1667,32 @@ def pSTAT_cube(cube, method, *freq, valid_season=True, **method_opts):
     #    freq = ('year',)
     #if any(i in freqs for i in ('hour', 'day', 'month', 'year')):
     #    try:
-    #        cat.add_year(cube, 'time', name='year')
+    #        ica.add_year(cube, 'time', name='year')
     #    except ValueError:
     #        pass
     #if 'hour' in freqs:
     #    try:
-    #        cat.add_hour(cube, 'time', name='hour')
+    #        ica.add_hour(cube, 'time', name='hour')
     #    except ValueError:
     #        pass
     #if 'day' in freqs:
     #    try:
-    #        cat.add_day_of_year(cube, 'time', name='doy')
+    #        ica.add_day_of_year(cube, 'time', name='doy')
     #    except ValueError:
     #        pass
     #if 'month' in freqs:
     #    try:
-    #        cat.add_month(cube, 'time', name='month')
+    #        ica.add_month(cube, 'time', name='month')
     #    except ValueError:
     #        pass
     #if 'season' in freqs:
     #    try:
-    #        cat.add_season(cube, 'time', name='season',
+    #        ica.add_season(cube, 'time', name='season',
     #                       seasons=('djf', 'mam', 'jja', 'son'))
     #    except ValueError:
     #        pass
     #    try:
-    #        cat.add_season_year(cube, 'time', name='seasonyr',
+    #        ica.add_season_year(cube, 'time', name='seasonyr',
     #                            seasons=('djf', 'mam', 'jja', 'son'))
     #    except ValueError:
     #        pass

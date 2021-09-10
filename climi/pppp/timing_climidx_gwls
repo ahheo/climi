@@ -11,6 +11,9 @@ from climi.uuuu import *
 _here_ = get_path_(__file__)
 
 
+_djn = os.path.join
+
+
 def _yyyy(idir, var, gwls, folder=None):
     tmp = 'clmidx_finfo_'
     if folder:
@@ -51,11 +54,11 @@ def main():
     if os.path.isfile(args.config):
         yf = args.config
     elif args.config == '2':
-        yf = _here_ + 'cfg_plt_climidx_gwls.yml'
+        yf = _djn(_here_, 'cfg_plt_climidx_gwls.yml')
     elif args.config == '4':
-        yf = _here_ + 'cfg_plt_climidx_gwls_.yml'
+        yf = _djn(_here_, 'cfg_plt_climidx_gwls_.yml')
     elif args.config == '3':
-        yf = _here_ + 'cfg_plt_climidx_gwls__.yml'
+        yf = _djn(_here_, 'cfg_plt_climidx_gwls__.yml')
     else:
         raise ValueError("unknown configuration!")
     with open(yf, 'r') as ymlfile:
@@ -70,10 +73,10 @@ def main():
     root = cfg['root']
     ddir = cfg['ddir']
     ######################################################INDEPENDENT VARIABLES
-    vf = _here_ + 'var_dict.yml'
+    vf = _djn(_here_, 'var_dict.yml')
     with open(vf, 'r') as ymlfile:
         vdict = yaml.safe_load(ymlfile)
-    yf = _here_ + 'rg_dict.yml'
+    yf = _djn(_here_, 'rg_dict.yml')
     with open(yf, 'r') as ymlfile:
         rdict = yaml.safe_load(ymlfile)
     #######################################VARIABLES VARY CORRISPONDING TO OPT_

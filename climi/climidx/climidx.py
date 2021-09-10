@@ -58,7 +58,6 @@
 import numpy as np
 import dask.array as da
 import iris
-import iris.coord_categorisation as cat
 from climi.uuuu import *
 
 

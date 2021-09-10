@@ -18,7 +18,7 @@ Date last modified: 11.06.2020
 
 import numpy as np
 import iris
-import iris.coord_categorisation as cat
+import iris.coord_categorisation as ica
 import math
 import logging
 from climi.uuuu import *

@@ -44,15 +44,19 @@ __all__ = ['hwmi_obs_',
 _here_ = get_path_(__file__)
 
 
+_djn = os.path.join
+_isf = os.path.isfile
+
+
 def _dictdict(cfg, fn_):
     dd = {}
-    mdir = '{}{}/med/'.format(cfg['root'], cfg['experiment'])
+    mdir = _djn(cfg['root'], cfg['experiment'], 'med')
     rref = rPeriod_(cfg['p_']['ref'])
     minL = cfg['minL'] if 'minL' in cfg else 3
     pctl = cfg['thr_pctl'] if 'thr_pctl' in cfg else 90
-    fnthr = '{}_{}_{}_{}.nc'.format('thr', fn_, rref, pctl)
+    fnthr = '{}.nc'.format('_'.join('thr', fn_, rref, pctl))
     mtd = cfg['data4kde_mtd'] if 'data4kde_mtd' in cfg else 'ymax'
-    fnkde = '{}_{}_{}_{}-{}.npz'.format('kde', fn_, rref, pctl, mtd)
+    fnkde = '{}-{}.npz'.format('_'.join('kde', fn_, rref, pctl), mtd)
     kdeo = cfg['kde_opts'] if 'kde_opts' in cfg else {}
     mm = cfg['season'] if 'season' in cfg else 'j-d'
     dd.update({'dict_p': cfg['p_'],
@@ -85,9 +89,9 @@ def _cmip5_dirs(cfg, gcm, rip):
     else:
         o0, o1 = _cmip5_dir(incl + [cfg['ehr']])
         if o1:
-            o0 += '{}/'.format(freq)
-            _o0 = '{}{}/'.format(_cmip5_dir(incl + ['rcp85'])[0], freq)
-            o0_ = '{}{}/'.format(_cmip5_dir(incl + ['historical'])[0], freq)
+            o0 = _djn(o0, freq)
+            _o0 = _djn(_cmip5_dir(incl + ['rcp85'])[0], freq)
+            o0_ = _djn(_cmip5_dir(incl + ['historical'])[0], freq)
             cfg.update({'rdir': [o0_, _o0]})
             if 'periods' in cfg:
                 if cfg['ehr'][:3] == 'rcp':
@@ -136,13 +140,12 @@ def _cordex_dirs(cfg, gcm, rcm, rip, dL=None, sY=None):
     else:
         o0, o1 = _dir(incl + [cfg['ehr']], _dirA)
         if o1:
-            o0 += '{}/'.format(freq)
+            o0 = _djn(o0, freq)
             if cfg['ehr'] == 'evaluation':
                 cfg.update({'rdir': o0, 'ddir': o0})
             else:
-                _o0 = '{}{}/'.format(_dir(incl + ['rcp85'], _dirA)[0], freq)
-                o0_ = '{}{}/'.format(_dir(incl + ['historical'], _dirA)[0],
-                                     freq)
+                _o0 = _djn(_dir(incl + ['rcp85'], _dirA)[0], freq)
+                o0_ = _djn(_dir(incl + ['historical'], _dirA)[0], freq)
                 cfg.update({'rdir': [o0_, _o0]})
                 if 'periods' in cfg:
                     if cfg['ehr'][:3] == 'rcp':
@@ -170,7 +173,7 @@ def _imp_dir(incl, dL=None):
 
 def _smhi_dir(incl, sY=None):
     if sY is None:
-        with open(_here_ + 'eur-11_smhi-rca4.yml') as yf:
+        with open(_djn(_here_, 'eur-11_smhi-rca4.yml')) as yf:
             sY = yaml.safe_load(yf)
     out = [i for i in sY if isinstance(i, int) and
            all([ii in sY[i].values() for ii in incl])]
@@ -180,7 +183,7 @@ def _smhi_dir(incl, sY=None):
         tmp = sY[out[-1]]
         fn = '_'.join([tmp['gcm'], tmp['rcp'], tmp['rip'], tmp['rcm'],
                        tmp['ver']])
-        return ('{}{}/netcdf/'.format(sY['root'], out[-1]), fn)
+        return (_djn(sY['root'], out[-1], 'netcdf'), fn)
 
 
 def _var(cfg, hORc):
@@ -192,13 +195,13 @@ def _var(cfg, hORc):
 
 
 def _mk_odir(cfg):
-    odir = '{}{}/res/{}/{}/'.format(cfg['root'], cfg['experiment'],
-                                  cfg['proj'], cfg['thr_pctl'])
     if not cfg['_d']:
         mtd = cfg['data4kde_mtd'] if 'data4kde_mtd' in cfg else 'ymax'
-        odir += '{}/'.format(mtd)
-    #if 'ehr' in cfg:
-    #    odir += '{}/'.format(cfg['ehr'])
+        odir = _djn(cfg['root'], cfg['experiment'], 'res', cfg['proj'],         
+                    cfg['thr_pctl'], mtd)
+    else:
+        odir = _djn(cfg['root'], cfg['experiment'], 'res', cfg['proj'],
+                    cfg['thr_pctl'])
     os.makedirs(odir, exist_ok=True)
     return odir
 
@@ -206,10 +209,9 @@ def _mk_odir(cfg):
 def _check_med_f(dd, _d=False):
     if _d:
         return False
-        #return os.path.isfile(dd['mdir'] + dd['fnthr'])
     else:
-        return os.path.isfile(dd['mdir'] + dd['fnkde']) and \
-               os.path.isfile(dd['mdir'] + dd['fnthr'])
+        return _isf(_djn(dd['mdir'], dd['fnkde'])) and \
+               _isf(_djn(dd['mdir'], dd['fnthr']))
 
 
 def _inloop_func(hORc, dd, _d=False):
@@ -222,15 +224,17 @@ def _inloop_func(hORc, dd, _d=False):
 
 def _tof(out, odir, fn__, hORc, _d=False, _sdi=True):
     var_ = 'hwmi' if hORc[:4] == 'heat' else 'cwmi'
-    iris.save(out['hwmi'], '{}{}{}-{}.nc'.format(odir, var_, 'd' * _d, fn__))
+    var_ += 'd' * _d
+    iris.save(out['hwmi'], _djn(odir, '-'.join(var_, fn__)))
     if _sdi:
         var_ = 'wsdi' if hORc[:4] == 'heat' else 'csdi'
-        iris.save(out['wsdi'], '{}{}-{}.nc'.format(odir, var_, fn__))
+        iris.save(out['wsdi'], _djn(odir, '-'.join(var_, fn__)))
 
 
 def _frf(odir, fn__, hORc, _d=False, _sdi=True):
     def _v_vd(v, vd):
-        fns = schF_keys_(odir, '{}{}-{}_'.format(v, 'd' * vd, fn__))
+        v_ = v + 'd' * vd
+        fns = schF_keys_(odir, '{}-{}_'.format(v_, fn__))
         if len(fns) > 2:
             o0 = iris.load(fns)
             if len(o0) > 2:
@@ -244,7 +248,7 @@ def _frf(odir, fn__, hORc, _d=False, _sdi=True):
                         ll_('merge_cube() or concatenate_cube() failure!')
             else:
                 o0 = o0[0]
-            iris.save(o0, '{}{}{}-{}.nc'.format(odir, v, 'd' * vd, fn__))
+            iris.save(o0, _djn(odir, '{}-{}.nc'.format(c_, fn__)))
             for i in fns:
                 os.remove(i)
     var_ = 'hwmi' if hORc[:4] == 'heat' else 'cwmi'
@@ -270,7 +274,7 @@ def _get_cube_obs(idir, dn, rn, dict_rg, *fn, season=None, hORc='heat',
     t0 = l__('loading {}'.format(dn))
     if len(fn) != 0:
         intersect_it = any([rn not in i for i in fn])
-        fn = [idir + i for i in fn]
+        fn = [_djn(idir, i) for i in fn]
     else:
         fn = schF_keys_(idir, dn, rn, *keys)
         intersect_it = False
@@ -353,9 +357,10 @@ def hwmi_obs_(cfg):
             #updating dd
             dd.update({'dCube': dCube, 'rCube': rCube})
             #preparing output names
-            fn__ = '{}_ref{}-{}_{}'.format(fn_, *cfg['p_']['ref'],
-                                           cfg['season'] if 'season' in cfg
-                                           else 'j-d')
+            fn__ = '{}_ref{}-{}_{}'.format(
+                    fn_,
+                    *cfg['p_']['ref'],
+                    cfg['season'] if 'season' in cfg else 'j-d')
             if 'periods' in cfg:
                 for pn in cfg['periods']:
                     dd.update({'pn': pn})
@@ -434,7 +439,6 @@ def _get_cube0_m(cfg, mdict):
         tmp = _dir_cubeL(cfg['proj'], cfg['rdir'], **cfg['f_opts'], **mdict,
                          period=cfg['p_']['ref'], ifconcat=True)
         rcube0 = tmp['cube'] if tmp else None
-        #tmp = _dir_cubeL(cfg['proj'], cfg['ddir'], **cfg['f_opts'], **mdict)
         tmp = _dir_cubeL(cfg['proj'], cfg['ddir'], **cfg['f_opts'], **mdict,
                          ifconcat=True)
         dcube0 = tmp['cube'] if tmp else None
@@ -607,7 +611,7 @@ def _get_cube0_o(cfg, dn):
     keys = (cfg['f_opts']['var'] + '_',)\
            if 'f_opts' in cfg and 'var' in cfg['f_opts'] else\
            (('tasmin_',) if cfg['hORc'] == 'cold' else ('tasmax_'))
-    fnL = schF_keys_(cfg['idir'] + dn + '/', *keys, ext='.nc')
+    fnL = schF_keys_(_djn(cfg['idir'], dn), *keys, ext='.nc')
     o = iris.load(fnL, 'air_temperature')
     out0 = _realzL(o[0]) if len(o) == 1 else\
            (iris.load_cube(i, 'air_temperature') for i in fnL)
@@ -617,7 +621,7 @@ def _get_cube0_o(cfg, dn):
     else:
         out2 = None
 
-    tmp = schF_keys_('{}{}/'.format(cfg['idir'], dn), 'sftlf')
+    tmp = schF_keys_(_djn(cfg['idir'], dn), 'sftlf')
     if len(tmp) != 0:
         out1 = (iris.load_cube(tmp[0]),)
     else:

@@ -22,13 +22,16 @@ from climi.pppp import *
 _here_ = get_path_(__file__)
 
 
+_djn = os.path.join
+
+
 def _fnfmt(idir, *terms, ext='.pdf'):
     nm_ = '_'.join(i for i in terms if i) + ext
-    return os.path.join(idir, nm_)
+    return _djn(idir, nm_)
 
 
 def _shps(n):
-    shp = gpd_read(_here_ + 'swe_districts/distriktsanalys_polygon.shp')
+    shp = gpd_read(_djn(_here_, 'swe_districts/distriktsanalys_polygon.shp'))
     shp_ = shp.to_crs(epsg=4326)
     idd = shp.ID.copy()
     idd.loc[:] = 0.
@@ -373,9 +376,9 @@ def main():
     if os.path.isfile(args.config):
         yf = args.config
     elif args.config == '2':
-        yf = os.path.join(_here_, 'cfg_plt_climidx_gwls.yml')
+        yf = _djn(_here_, 'cfg_plt_climidx_gwls.yml')
     elif args.config == '4':
-        yf = os.path.join(_here_, 'cfg_plt_climidx_gwls_.yml')
+        yf = _djn(_here_, 'cfg_plt_climidx_gwls_.yml')
     else:
         raise ValueError("unknown configuration!")
     with open(yf, 'r') as ymlfile:
@@ -393,32 +396,32 @@ def main():
     yml_ = args.yml
     if yml_ and os.path.isfile(yml_):                                           
         vf = yml_                                                               
-    elif yml_ and os.path.isfile(os.path.join(_here_, yml_)):                   
-        vf = os.path.join(_here_, yml_)                                         
+    elif yml_ and os.path.isfile(_djn(_here_, yml_)):                   
+        vf = _djn(_here_, yml_)                                         
     else:                                                                       
-        vf = os.path.join(_here_, 'var_dict.yml')                               
+        vf = _djn(_here_, 'var_dict.yml')                               
     with open(vf, 'r') as ymlfile:                                              
         vdict = yaml.safe_load(ymlfile)
-    yf = os.path.join(_here_, 'rg_dict.yml')
+    yf = _djn(_here_, 'rg_dict.yml')
     with open(yf, 'r') as ymlfile:
         rdict = yaml.safe_load(ymlfile)
     #######################################VARIABLES VARY CORRISPONDING TO OPT_
     #rn = 'EUR' if opt_ in (0, 1) else 'GLB'
     #idir = '{}{}/'.format(ddir, rn)
     rn = None
-    idir = os.path.join(ddir, 'cordex/EUR11' if opt_ in (0, 1) else 'cmip5')
-    odir = os.path.join(root, 'DATA/energi/', version,
+    idir = _djn(ddir, 'cordex/EUR11' if opt_ in (0, 1) else 'cmip5')
+    odir = _djn(root, 'DATA/energi/', version,
                         'fig{}K/'.format(gg[-1][3:]))
     _rn = 'SWE/' if opt_ == 0 else ('EUR/' if opt_ == 1 else 'SS/')
-    _od0 = lambda x: os.path.join(odir, x, _rn)
-    _od1 = lambda x: os.path.join(odir.replace('/fig', '/nc'), x)
+    _od0 = lambda x: _djn(odir, x, _rn)
+    _od1 = lambda x: _djn(odir.replace('/fig', '/nc'), x)
     #r24 = os.environ.get('r24')
     #odir = '{}DATA/energi/2/fig{}K/'.format(r24, gg[-1][3:])
     #os.makedirs(odir, exist_ok=True)
     #idir = '/nobackup/rossby22/sm_chali/DATA/energi/res/gwls/EUR/'
     #fxdir = '/nobackup/rossby22/sm_chali/DATA/fx/'
     if opt_ == 0:
-        ne50 = gpd_read(_here_ + 'ne_50m/ne_50m_admin_0_countries.shp')
+        ne50 = gpd_read(_djn(_here_, 'ne_50m/ne_50m_admin_0_countries.shp'))
         sv = poly_to_path_(list(ne50.loc[ne50.NAME=='Sweden', 'geometry']))
         shp, shp_ = _shps(len(gwls) * 2 - 1)
         rD_map = rdict[0]['SWE']
@@ -446,13 +449,13 @@ def main():
         vvv_ = list(vdict['freq_cfg'].keys())[sss_:eee_]
         lD = dict()
         tsD = dict(fxdir=fxdir)
-        cref = iris.load_cube(os.path.join(fxdir, 'sftlf_EUR-11_ECMWF-ERAINT_'
+        cref = iris.load_cube(_djn(fxdir, 'sftlf_EUR-11_ECMWF-ERAINT_'
                                            'evaluation_r0i0p0_SMHI-RCA4_v1_'
                                            'fx.nc'))
     else:
         vvv_ = ['SST', 'SIC']
         tsD = lD = dict(folder='cmip5')
-        cref = iris.load_cube(os.path.join(fxdir, 'sftlf_fx_HadGEM2-ES_'
+        cref = iris.load_cube(_djn(fxdir, 'sftlf_fx_HadGEM2-ES_'
                                            'historical_r0i0p0.nc'))
     #############################################################FREQS & SUBDIR
     def _get_freq(var):

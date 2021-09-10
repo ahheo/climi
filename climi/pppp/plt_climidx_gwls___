@@ -22,8 +22,11 @@ from climi.pppp import *
 _here_ = get_path_(__file__)
 
 
+_djn = os.path.join
+
+
 def _shps(n):
-    shp = gpd_read(_here_ + 'swe_districts/distriktsanalys_polygon.shp')
+    shp = gpd_read(_djn(_here_, 'swe_districts/distriktsanalys_polygon.shp'))
     shp_ = shp.to_crs(epsg=4326)
     idd = shp.ID.copy()
     idd.loc[:] = 0.
@@ -198,9 +201,9 @@ def main():
     if os.path.isfile(args.config):
         yf = args.config
     elif args.config == '2':
-        yf = _here_ + 'cfg_plt_climidx_gwls.yml'
+        yf = _djn(_here_, 'cfg_plt_climidx_gwls.yml')
     elif args.config == '4':
-        yf = _here_ + 'cfg_plt_climidx_gwls_.yml'
+        yf = _djn(_here_, 'cfg_plt_climidx_gwls_.yml')
     else:
         raise ValueError("unknown configuration!")
     with open(yf, 'r') as ymlfile:
@@ -215,10 +218,10 @@ def main():
     root = cfg['root']
     ddir, fxdir = cfg['ddir'], cfg['fxdir']
     ######################################################INDEPENDENT VARIABLES
-    vf = _here_ + 'var_dict.yml'
+    vf = _djn(_here_, 'var_dict.yml')
     with open(vf, 'r') as ymlfile:
         vdict = yaml.safe_load(ymlfile)
-    yf = _here_ + 'rg_dict.yml'
+    yf = _djn(_here_, 'rg_dict.yml')
     with open(yf, 'r') as ymlfile:
         rdict = yaml.safe_load(ymlfile)
     #######################################VARIABLES VARY CORRISPONDING TO OPT_
@@ -235,7 +238,7 @@ def main():
     #idir = '/nobackup/rossby22/sm_chali/DATA/energi/res/gwls/EUR/'
     #fxdir = '/nobackup/rossby22/sm_chali/DATA/fx/'
     if opt_ == 0:
-        ne50 = gpd_read(_here_ + 'ne_50m/ne_50m_admin_0_countries.shp')
+        ne50 = gpd_read(_djn(_here_, 'ne_50m/ne_50m_admin_0_countries.shp'))
         sv = poly_to_path_(list(ne50.loc[ne50.NAME=='Sweden', 'geometry']))
         shp, shp_ = _shps(len(gwls) * 2 - 1)
         rD_map = rdict[0]['SWE']

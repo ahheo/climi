@@ -19,6 +19,9 @@ from climi.uuuu.cccc import _get_ind_lolalim as lllim_
 _here_ = get_path_(__file__)
 
 
+_djn = os.path.join
+
+
 def _vlabel(var, mtd=None):
     v = var.split('-')[0]
     yl = v[:4].upper() + v[4:]
@@ -189,7 +192,7 @@ def _mp22(fn, cgL, cgL1, crLL, crLL1, gcms, rcms, prds, pD, dpD, rgD, vl):
 def main():
     warnings.filterwarnings("ignore", category=UserWarning)
     warnings.filterwarnings("ignore", category=UnknownCellMethodWarning)
-    with open(_here_ + 'cfg_plt_hwmid_h8.yml', 'r') as ymlfile:
+    with open(_djn(_here_, 'cfg_plt_hwmid_h8.yml'), 'r') as ymlfile:
         cfg = yaml.safe_load(ymlfile)
     #output dirs
     ddir, fdir, tdir = cfg['ddir'], cfg['fdir'], cfg['tdir']

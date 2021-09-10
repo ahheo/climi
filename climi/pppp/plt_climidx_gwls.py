@@ -20,8 +20,11 @@ from climi.pppp import *
 _here_ = get_path_(__file__)
 
 
+_djn = os.path.join
+
+
 def _shps(n):
-    shp = gpd_read(_here_ + 'swe_districts/distriktsanalys_polygon.shp')
+    shp = gpd_read(_djn(_here_, 'swe_districts/distriktsanalys_polygon.shp'))
     shp_ = shp.to_crs(epsg=4326)
     idd = shp.ID.copy()
     idd.loc[:] = 0.
@@ -359,7 +362,7 @@ def main():
     logging.info(strftime(" %a, %d %b %Y %H:%M:%S +0000", localtime()))
     logging.info(' ')
     ##################################################################CONFIGURE
-    yf = _here_ + 'cfg_plt_climidx_gwls.yml'
+    yf = _djn(_here_, 'cfg_plt_climidx_gwls.yml')
     with open(yf, 'r') as ymlfile:
         cfg = yaml.safe_load(ymlfile)
     version = cfg['version']
@@ -372,10 +375,10 @@ def main():
     root = cfg['root']
     ddir, fxdir = cfg['ddir'], cfg['fxdir']
     ######################################################INDEPENDENT VARIABLES
-    vf = _here_ + 'var_dict.yml'
+    vf = _djn(_here_, 'var_dict.yml')
     with open(vf, 'r') as ymlfile:
         vdict = yaml.safe_load(ymlfile)
-    yf = _here_ + 'rg_dict.yml'
+    yf = _djn(_here_, 'rg_dict.yml')
     with open(yf, 'r') as ymlfile:
         rdict = yaml.safe_load(ymlfile)
     #######################################VARIABLES VARY CORRISPONDING TO OPT_
@@ -391,7 +394,7 @@ def main():
     #idir = '/nobackup/rossby22/sm_chali/DATA/energi/res/gwls/EUR/'
     #fxdir = '/nobackup/rossby22/sm_chali/DATA/fx/'
     if opt_ == 0:
-        ne50 = gpd_read(_here_ + 'ne_50m/ne_50m_admin_0_countries.shp')
+        ne50 = gpd_read(_djn(_here_, 'ne_50m/ne_50m_admin_0_countries.shp'))
         sv = poly_to_path_(list(ne50.loc[ne50.NAME=='Sweden', 'geometry']))
         shp, shp_ = _shps(len(gwls) * 2 - 1)
         rD_map = rdict[0]['SWE']
@@ -494,10 +497,10 @@ def main_():
     odir = '{}DATA/energi/2/fig{}K/'.format(r24, gg[-1][3:])
     os.makedirs(odir, exist_ok=True)
     idir = '/nobackup/rossby22/sm_chali/DATA/energi/res/gwls/EUR/'
-    vf = _here_ + 'var_dict.yml'
+    vf = _djn(_here_, 'var_dict.yml')
     with open(vf, 'r') as ymlfile:
         vdict = yaml.safe_load(ymlfile)
-    rf = _here_ + 'rg_dict.yml'
+    rf = _djn(_here_, 'rg_dict.yml')
     with open(rf, 'r') as ymlfile:
         rdict = yaml.safe_load(ymlfile)
     #figD = dict(fx=15, h=.02, w=.05,
@@ -558,10 +561,10 @@ def main__():
     os.makedirs(odir, exist_ok=True)
     idir = '/nobackup/rossby22/sm_chali/DATA/energi/res/cmip5/GLB/'
     #fxdir = '/nobackup/rossby22/sm_chali/DATA/fx/'
-    vf = _here_ + 'var_dict.yml'
+    vf = _djn(_here_, 'var_dict.yml')
     with open(vf, 'r') as ymlfile:
         vdict = yaml.safe_load(ymlfile)
-    rf = _here_ + 'rg_dict.yml'
+    rf = _djn(_here_, 'rg_dict.yml')
     with open(rf, 'r') as ymlfile:
         rdict = yaml.safe_load(ymlfile)
     figD = dict(fx=24, fy=12, h=.15, w=.015,

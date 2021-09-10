@@ -18,7 +18,11 @@ from climi.uuuu.cccc import _get_ind_lolalim as lllim_
 from skextremes.models.classic import GEV
 from sklearn.metrics import mean_squared_error as mse_, r2_score as r2_
 
+
 _here_ = get_path_(__file__)
+
+
+_djn = os.path.join
 
 
 def _vlabel(var, year=None, ts=None):
@@ -131,7 +135,7 @@ def main():
     parser.add_argument("--test", action="store_true",
                         help="as in testing mode")
     args = parser.parse_args()
-    with open(_here_ + 'cfg_plt_hwmid_eval.yml', 'r') as ymlfile:
+    with open(_djn(_here_, 'cfg_plt_hwmid_eval.yml'), 'r') as ymlfile:
         cfg = yaml.safe_load(ymlfile)
     #output dirs
     ddir, fdir, tdir = cfg['ddir'], cfg['fdir'], cfg['tdir']
@@ -180,10 +184,10 @@ def main():
                 else:
                     hh = range(6, 16)
                 vl = _vlabel(var, year)
-                ffmt = '{}{}_{}_ref{}-{}_{}_{}.txt'
+                ffmt = '{}_{}_ref{}-{}_{}_{}.txt'
                 print('    {} map'.format(year))
                 _mp(
-                    ffmt.format(tdir, 'mp', var, *ref, freq, year),
+                    _djn(tdir, ffmt.format('mp', var, *ref, freq, year),
                     clo, clr, obss0, rcms0, year, mD
                     )
 

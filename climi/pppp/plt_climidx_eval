@@ -6,7 +6,7 @@ import matplotlib as mpl
 mpl.use('pdf', force=True)
 import matplotlib.pyplot as plt
 import iris
-import iris.coord_categorisation as cat
+import iris.coord_categorisation as ica
 import os
 import time
 import logging
@@ -21,13 +21,16 @@ from climi.pppp import *
 _here_ = get_path_(__file__)
 
 
+_djn = os.path.join
+
+
 def _fnfmt(idir, *terms, ext='.pdf'):
     nm_ = '_'.join(i for i in terms if i) + ext
-    return os.path.join(idir, nm_)
+    return _djn(idir, nm_)
 
 
 def _shps():
-    shp = gpd_read(_here_ + 'swe_districts/distriktsanalys_polygon.shp')
+    shp = gpd_read(_djn(_here_, 'swe_districts/distriktsanalys_polygon.shp'))
     shp_ = shp.to_crs(epsg=4326)
     idd = shp.ID.copy()
     idd.loc[:] = 0.
@@ -77,7 +80,7 @@ def ts__(cubeL, dn, unit, odir, var, freq, xx_='ts'):
             try:
                 yrs = cube.coord('year').points
             except:
-                cat.add_year(cube, 'time', name='year')
+                ica.add_year(cube, 'time', name='year')
                 yrs = cube.coord('year').points
         return yrs
 
@@ -265,20 +268,20 @@ def main():
 
     mpl.style.use('seaborn')
 
-    ne50 = gpd_read(_here_ + 'ne_50m/ne_50m_admin_0_countries.shp')
+    ne50 = gpd_read(_djn(_here_, 'ne_50m/ne_50m_admin_0_countries.shp'))
     sv = poly_to_path_(list(ne50.loc[ne50.NAME=='Sweden', 'geometry']))
     shp, shp_ = _shps()
     root = os.environ.get('r26')
-    odir = os.path.join(root, 'DATA/energi/reindeer/fig_eval/')
+    odir = _djn(root, 'DATA/energi/reindeer/fig_eval/')
     os.makedirs(odir, exist_ok=True)
-    idir = os.path.join(root, 'DATA/energi/res/eval/')
+    idir = _djn(root, 'DATA/energi/res/eval/')
     fxdir = '/nobackup/rossby22/sm_chali/DATA/fx/'
     if yml_ and os.path.isfile(yml_):
         vf = yml_
-    elif yml_ and os.path.isfile(os.path.join(_here_, yml_)):
-        vf = os.path.join(_here_, yml_)
+    elif yml_ and os.path.isfile(_djn(_here_, yml_)):
+        vf = _djn(_here_, yml_)
     else:
-        vf = os.path.join(_here_, 'var_dict.yml')
+        vf = _djn(_here_, 'var_dict.yml')
     with open(vf, 'r') as ymlfile:
         vdict = yaml.safe_load(ymlfile)
     rg_dict = {'longitude': [10.0, 23.0], 'latitude': [55.0, 69.0]}
@@ -305,7 +308,7 @@ def main():
             continue
         ####
         freqs = _get_freq(var)
-        odir_ = os.path.join(odir, _get_odir(var))
+        odir_ = _djn(odir, _get_odir(var))
         for freq in freqs:
             t000 = l__('{} >>>>>> {}'.format(var, freq))
             p_= [1990, 2008] if 'dj' in freq else [1989, 2008]

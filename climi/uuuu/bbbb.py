@@ -71,28 +71,25 @@ __all__ = ['bi_cmip5_info_',
 _here_ = get_path_(__file__)
 
 
+_djn = os.path.join
+
+
 def cmip6_dir_finfo(idir, var='*', freq='*', gcm='*', exp='*', rip='*',
                     gl='*', ver='*', p=None, ext='.nc'):
     """
     Purpose: get data info from a cmip5 data directory
     """
     varL, freqL, gcmL, expL, ripL, glL, pL = [[] for _ in range(7)]
-    def idir_(idir_i, var, gl, ver):
-        return '{}{}/{}/{}/'.format(idir_i, var, gl, ver)
     s = '_'
     if isinstance(idir, str):
         idir = [idir]
     files = []
     for i in idir:
         if p is None:
-            tmp = glob.glob(idir_(i, var, gl, ver) +
-                            s.join([var, '*' + freq, gcm, exp, rip, gl]) +
-                            '*' + ext)
+            tmp = s.join([var, '*' + freq, gcm, exp, rip, gl]) + '*' + ext
         else:
-            tmp = glob.glob(idir_(i, var, gl, ver) +
-                            s.join([var, '*' + freq, gcm, exp, rip, gl, p]) +
-                            ext)
-        files += tmp
+            tmp = s.join([var, '*' + freq, gcm, exp, rip, gl, p]) + ext
+        files += glob.glob(_djn(i, var, gl, ver, tmp)
     files.sort()
     for f in files:
         s_s = pure_fn_(f).split(s)
@@ -124,10 +121,10 @@ def cmip5_dir_finfo(idir, var='*', freq='*', gcm='*', exp='*', rip='*',
     files = []
     for i in idir:
         if p is None:
-            tmp = glob.glob(i + s.join([var, freq, gcm, exp, rip]) + '*' + ext)
+            tmp = s.join([var, freq, gcm, exp, rip]) + '*' + ext
         else:
-            tmp = glob.glob(i + s.join([var, freq, gcm, exp, rip, p]) + ext)
-        files += tmp
+            tmp = s.join([var, freq, gcm, exp, rip, p]) + ext
+        files += glob.glob(_djn(i, tmp))
     files.sort()
     for f in files:
         s_s = pure_fn_(f).split(s)
@@ -150,9 +147,9 @@ def norcp_dir_finfo(idir, var='*', dm='*', gcm='*', exp='*', rip='*',
     Purpose: get data info from a cordex data directory
     """
     if isinstance(idir, str):
-        idir_ = '{}{}/'.format(idir, var)
+        idir_ = _djn(idir, var)
     else:
-        idir_ = ['{}{}/'.format(i, var) for i in idir]
+        idir_ = [_djn(i, var) for i in idir]
     return cordex_dir_finfo(idir_, var=var, dm=dm, gcm=gcm, exp=exp, rip=rip,
                             rcm=rcm, ver=ver, freq=freq, p=p, ext=ext)
 
@@ -169,13 +166,10 @@ def cordex_dir_finfo(idir, var='*', dm='*', gcm='*', exp='*', rip='*',
     files = []
     for i in idir:
         if p is None:
-            tmp = glob.glob(i +
-                            s.join([var, dm, gcm, exp, rip, rcm, ver, freq])
-                            + '*' + ext)
+            tmp = s.join([var, dm, gcm, exp, rip, rcm, ver, freq]) + '*' + ext)
         else:
-            tmp = glob.glob(i + s.join([var, dm, gcm, exp, rip, rcm, ver,
-                                        freq, p]) + ext)
-        files += tmp
+            tmp = s.join([var, dm, gcm, exp, rip, rcm, ver, freq, p]) + ext)
+        files += glob.glob(_djn(i, tmp))
     files.sort()
     for f in files:
         s_s = pure_fn_(f).split(s)
@@ -281,9 +275,9 @@ def norcp_dir_cubeL(idir, var='*', dm='*', gcm='*', exp='*', rcm='*',
     Purpose: load cube list from a cordex data directory
     """
     if isinstance(idir, str):
-        idir_ = '{}{}/'.format(idir, var)
+        idir_ = _djn(idir, var)
     else:
-        idir_ = ['{}{}/'.format(i, var) for i in idir]
+        idir_ = [_djn(i, var) for i in idir]
     return cordex_dir_cubeL(idir_, var=var, dm=dm, gcm=gcm, exp=exp, rcm=rcm,
                             freq=freq, ver=ver, rip=rip, p=p, ext=ext,
                             period=period, ifconcat=ifconcat)
@@ -356,28 +350,28 @@ def bi_cmip5_info_(root, o_o='list'):
                         " Either 'list' (default) or 'dict' accepted!")
     gcms = os.listdir(root)
     for gg in gcms:
-        if not os.path.isdir(root + gg):
+        if not os.path.isdir(_djn(root, gg)):
             continue
-        rcps = os.listdir(root + gg)
+        rcps = os.listdir(_djn(root, gg))
         for rcp in rcps:
-            if not os.path.isdir(root + '/'.join((gg, rcp))):
+            if not os.path.isdir(_djn(root, gg, rcp)):
                 continue
-            rips = os.listdir(root + '/'.join((gg, rcp)))
+            rips = os.listdir(_djn(root, gg, rcp))
             for rip in rips:
-                if not os.path.isdir(root + '/'.join((gg, rcp, rip))):
+                if not os.path.isdir(_djn(root, gg, rcp, rip)):
                     continue
                 if o_o == 'list':
-                    o.append(root + '/'.join((gg, rcp, rip, 'input/')))
+                    o.append(_djn(root, gg, rcp, rip, 'input'))
                 else:
                     if gg not in o:
-                        o.update({gg: {rcp: {rip: root + '/'.join((gg, rcp,
-                                 rip, 'input/'))}}})
+                        o.update({gg: {rcp: {rip: _djn(
+                            root, gg, rcp, rip, 'input')}}})
                     elif rcp not in o[gg]:
-                        o[gg].update({rcp: {rip: root + '/'.join((gg, rcp,
-                                     rip, 'input/'))}})
+                        o[gg].update({rcp: {rip: _djn(
+                            root, gg, rcp, rip, 'input')}})
                     elif rip not in o[gg][rcp]:
-                        o[gg][rcp].update({rip: root + '/'.join((gg, rcp, rip,
-                                          'input/'))})
+                        o[gg][rcp].update({rip: _djn(
+                            root, gg, rcp, rip, 'input')})
     return o
 
 
@@ -391,44 +385,42 @@ def bi_cordex_info_(root, o_o='list'):
                         " Either 'list' (default) or 'dict' accepted!")
     rcms = os.listdir(root)
     for rr in rcms:
-        if not os.path.isdir(root + rr):
+        if not os.path.isdir(_djn(root, rr)):
             continue
-        vers = os.listdir(root + rr)
+        vers = os.listdir(_djn(root, rr))
         for vv in vers:
-            if not os.path.isdir(root + '/'.join((rr, vv))):
+            if not os.path.isdir(_djn(root, rr, vv)):
                 continue
-            gcms = os.listdir(root + '/'.join((rr, vv)))
+            gcms = os.listdir(_djn(root, rr, vv))
             for gg in gcms:
-                if not os.path.isdir(root + '/'.join((rr, vv, gg))):
+                if not os.path.isdir(_djn(root, rr, vv, gg)):
                     continue
-                rips = os.listdir(root + '/'.join((rr, vv, gg)))
+                rips = os.listdir(_djn(root, rr, vv, gg))
                 for rip in rips:
-                    if not os.path.isdir(root + '/'.join((rr, vv, gg, rip))):
+                    if not os.path.isdir(_djn(root, rr, vv, gg, rip)):
                         continue
-                    rcps = os.listdir(root + '/'.join((rr, vv, gg, rip)))
+                    rcps = os.listdir(_djn(root, rr, vv, gg, rip))
                     for rcp in rcps:
-                        if not os.path.isdir(root + '/'.join((rr, vv, gg, rip,
-                                                              rcp))):
+                        if not os.path.isdir(_djn(root, rr, vv, gg, rip, rcp)):
                             continue
                         if o_o == 'list':
-                            o.append(root + '/'.join((rr, vv, gg, rip, rcp,
-                                                      'input/')))
+                            o.append(_djn(root, rr, vv, gg, rip, rcp, 'input'))
                         else:
                             if rr not in o:
-                                o.update({rr: {vv: {gg: {rip: {rcp:
-                       root + '/'.join((rr, vv, gg, rip, rcp, 'input/'))}}}}})
+                                o.update({rr: {vv: {gg: {rip: {rcp: _djn(
+                                    root, rr, vv, gg, rip, rcp, 'input')}}}}})
                             elif vv not in o[rr]:
-                                o[rr].update({vv: {gg: {rip: {rcp:
-                       root + '/'.join((rr, vv, gg, rip, rcp, 'input/'))}}}})
+                                o[rr].update({vv: {gg: {rip: {rcp: _djn(
+                                    root, rr, vv, gg, rip, rcp, 'input')}}}})
                             elif gg not in o[rr][vv]:
-                                o[rr][vv].update({gg: {rip: {rcp:
-                       root + '/'.join((rr, vv, gg, rip, rcp, 'input/'))}}})
+                                o[rr][vv].update({gg: {rip: {rcp: _djn(
+                                    root, rr, vv, gg, rip, rcp, 'input')}}})
                             elif rip not in o[rr][vv][gg]:
-                                o[rr][vv][gg].update({rip: {rcp:
-                       root + '/'.join((rr, vv, gg, rip, rcp, 'input/'))}})
+                                o[rr][vv][gg].update({rip: {rcp: _djn(
+                                    root, rr, vv, gg, rip, rcp, 'input')}})
                             elif rcp not in o[rr][vv][gg][rip]:
-                                o[rr][vv][gg][rip].update({rcp:
-                       root + '/'.join((rr, vv, gg, rip, rcp, 'input/'))})
+                                o[rr][vv][gg][rip].update({rcp: _djn(
+                                    root, rr, vv, gg, rip, rcp, 'input')})
     return o
 
 
@@ -549,7 +541,7 @@ def _clmidx_dn_rplrcp(dn, nrcp='historical'):
 
 def _fnfmt(idir, *terms):
     nm_ = '_'.join(i for i in terms if i) + '.nc'
-    return os.path.join(idir, nm_)
+    return _djn(idir, nm_)
 
 
 def clmidx_finfo_(idir, var, gwls=['gwl15', 'gwl2'],
@@ -936,7 +928,7 @@ def get_ts_h248_(cubeL, fnL=None, folder='cordex', fxdir=None, poly=None,
 
 
 def _lly(yfn):
-    with open(_here_ + yfn, 'r') as ymlfile:
+    with open(_djn(_here_, yfn), 'r') as ymlfile:
         gg = yaml.safe_load(ymlfile)
     return gg
 
@@ -983,9 +975,9 @@ def prgd_mm_(src_cube, src_m, target_m,
              region='GLB', target_cube=None, valid_check=True):
     import pickle
     from .rgd import POLYrgd
-    pdir = '{}../regriders/'.format(_here_)
+    pdir = _djn(_here_, '..', 'regriders')
     pn = '_'.join((src_m, target_m, region))
-    pfile = pdir + pn + '.p'
+    pfile = _djn(pdir, pn + '.p')
     #fns = schF_keys_(pdir, pn, ext='.p')
     if os.path.isfile(pfile):
         #if len(fns) > 1:
@@ -1004,7 +996,7 @@ def prgd_mm_(src_cube, src_m, target_m,
 
 def en_prgd_cubeL_(cubeL, mL, tgt='ECMWF-ERAINT', region='EUR'):
     import pickle
-    pdir = '{}../regriders/'.format(_here_)
+    pdir = _djn(_here_, '..', 'regriders')
     cl = []
     tmpD = {}
     for i, (c, m) in enumerate(zip(cubeL, mL)):
