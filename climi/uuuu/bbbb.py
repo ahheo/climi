@@ -89,7 +89,7 @@ def cmip6_dir_finfo(idir, var='*', freq='*', gcm='*', exp='*', rip='*',
             tmp = s.join([var, '*' + freq, gcm, exp, rip, gl]) + '*' + ext
         else:
             tmp = s.join([var, '*' + freq, gcm, exp, rip, gl, p]) + ext
-        files += glob.glob(_djn(i, var, gl, ver, tmp)
+        files += glob.glob(_djn(i, var, gl, ver, tmp))
     files.sort()
     for f in files:
         s_s = pure_fn_(f).split(s)
@@ -166,9 +166,9 @@ def cordex_dir_finfo(idir, var='*', dm='*', gcm='*', exp='*', rip='*',
     files = []
     for i in idir:
         if p is None:
-            tmp = s.join([var, dm, gcm, exp, rip, rcm, ver, freq]) + '*' + ext)
+            tmp = s.join([var, dm, gcm, exp, rip, rcm, ver, freq]) + '*' + ext
         else:
-            tmp = s.join([var, dm, gcm, exp, rip, rcm, ver, freq, p]) + ext)
+            tmp = s.join([var, dm, gcm, exp, rip, rcm, ver, freq, p]) + ext
         files += glob.glob(_djn(i, tmp))
     files.sort()
     for f in files:
