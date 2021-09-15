@@ -36,6 +36,9 @@
 * l2b_endian_           : return big endian copy
 * latex_unit_           : m s-1 -> m s$^{-1}$
 * ll_                   : end logging
+* m2s_                  : season
+* m2sm_                 : season membership
+* m2sya_                : season year adjust
 * mmmN_                 : months in season
 * mnN_                  : month order in the calendar
 * nSlice_               : total number of slices
@@ -112,6 +115,9 @@ __all__ = ['aggr_func_',
            'l2b_endian_',
            'latex_unit_',
            'll_',
+           'm2s_',
+           'm2sm_',
+           'm2sya_',
            'mmmN_',
            'mnN_',
            'nSlice_',
@@ -592,12 +598,6 @@ def valid_seasons_(seasons, ismmm_=True):
 
 
 def _month_season_numbers(seasons):
-    """Compute a mapping between months and season number.
-
-    Returns a list to be indexed by month number, where the value at
-    each index is the number of the season that month belongs to.
-
-    """
     month_season_numbers = [None, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     for season_number, season in enumerate(seasons):
         for month in mmmN_(season):
@@ -605,12 +605,33 @@ def _month_season_numbers(seasons):
     return month_season_numbers
 
 
-def _v2s(month, seasons=('djf', 'mam', 'jja', 'son')):
+def _month_year_adjust(seasons):
+    month_year_adjusts = [None, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    for season in seasons:
+        months_in_season = mmmN_(season)
+        for month in months_in_season:
+            if month > months_in_season[-1]:
+                month_year_adjusts[month] = 1
+    return month_year_adjusts
+
+
+def _m2sm(month, season):
+    return month in mmmN_(season)
+
+
+def _m2sya(month, seasons=('djf', 'mam', 'jja', 'son')):
+    sya = _month_year_adjust(seasons)
+    return sya[month]
+
+
+def _m2s(month, seasons=('djf', 'mam', 'jja', 'son')):
     ssm = _month_season_numbers(seasons)
     return seasons[ssm[month]]
 
 
-v2s_ = np.vectorize(_v2s, excluded=['seasons'])
+m2s_ = np.vectorize(_m2s, excluded=['seasons'])
+m2sm_ = np.vectorize(_m2sm, excluded=['season'])
+m2sya_ = np.vectorize(_m2sya, excluded=['seasons'])
 
 
 def mmmN_(mmm):
