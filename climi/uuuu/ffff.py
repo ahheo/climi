@@ -63,6 +63,7 @@
 * uniqL_                : unique elements of list
 * valid_seasons_        : if provided seasons valid
 * valueEqFront_         : move elements equal specified value to front
+* windds2uv_            : u v from wind speed and direction
 ...
 
 ###############################################################################
@@ -140,7 +141,8 @@ __all__ = ['aggr_func_',
            'ss_fr_sl_',
            'uniqL_',
            'valid_seasons_',
-           'valueEqFront_']
+           'valueEqFront_',
+           'windds2uv_']
 
 
 def cyl_(x, rb=2*np.pi, lb=0):
@@ -467,7 +469,7 @@ def schF_keys_(idir, *keys, ext='*', ordered=False, h_=False):
     for i in pm:
         if h_:
             fn += glob.iglob(os.path.join(idir, '.*' + s.join([i, ext])))
-        fn += glob.glob(os.path.join(idir, s.join([i, ext])))
+        fn += glob.glob(os.path.join(idir, '*' + s.join([i, ext])))
     fn = list(set(fn))
     fn.sort()
     return fn
@@ -997,3 +999,9 @@ def aggr_func_(xnd, *V, axis=None, func_=np.ma.mean, uniqV=False):
 
 def el_join_(caL, jointer='.'):
     return [jointer.join(iter_str_(i)) for i in zip(*caL)]
+
+
+def windds2uv_(winds, windd):
+    tmp = np.deg2rad(windd)
+    return (- np.sin(tmp) * winds,
+            - np.cos(tmp) * winds)

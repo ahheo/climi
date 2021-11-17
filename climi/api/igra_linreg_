@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+
+from climi.uuuu.ffff import prg_
+from scipy.stats import linregress as _lr
+import xarray as xr
+import pandas as pd
+import numpy as np
+import igra
+import argparse
+import os
+
+
+_djn = os.path.join
+
+
+def _f(x, y, nn=16, **kwargs):
+    A = pd.isna(y)
+    if np.sum(~A) < nn:
+        return (np.nan, np.nan)
+    else:
+        tmp = _lr(x[~A], y[~A], **kwargs)
+        return (tmp.slope, tmp.pvalue)
+
+
+def _sds(ds, y0=None, y1=None):
+    year = ds.date.dt.year
+    if y0 and y1:
+        _yy = np.logical_and(year >= y0, year <= y1)
+    elif y0:
+        _yy = year >= y0
+    elif y1:
+        _yy = year <= y1
+    else:
+        return ds
+    if np.sum(_yy):
+        return ds.isel(date=np.arange(year.size)[_yy])
+
+
+def main():
+    parser = argparse.ArgumentParser("Calculate linear trend with igra data")       
+    parser.add_argument("--ys", type=int, help="year start")                                          
+    parser.add_argument("--ye", type=int, help="year end")                                          
+    parser.add_argument("-f", "--freq", type=str, default='annual',                 
+                        help="input data frequency")                    
+    args = parser.parse_args()
+    y0, y1 = args.ys, args.ye
+    nn = .9 * (y1 - y0 + 1)
+    freq = args.freq
+    _fD = dict(monthly='month', seasonal='season', annual='year')
+    dir0 = '/home/clin/Documents/data/igra/v2/metadata'
+    dir1 = '/home/clin/Documents/data/igra/v2/data'
+    dir1_ = _djn(dir1, freq)
+    dir2 = '/home/clin/Documents/res_0/'
+    dir2_ = _djn(dir2, freq)
+    os.makedirs(dir2_, exist_ok=True)
+    stations = igra.read.stationlist(_djn(dir0, 'igra2-station-list.txt'))
+    A = pd.read_csv(_djn(dir0, 'monthly.csv'), index_col=0, squeeze=1)
+    nS = A.count()
+    for i, sid in enumerate(stations[A].index):
+        #if i < 810:
+        #    continue
+        fn = _djn(dir1_, sid + '.nc')
+        if os.path.isfile(fn):
+            print(prg_(i, nS), sid + ': fe')
+            a = xr.load_dataset(fn)
+            a = _sds(a)
+            if a:
+                print(prg_(i, nS), sid + ':: DA')
+                a = a.assign(uwinda=abs(a.uwind),vwinda=abs(a.vwind))
+                year = a.date.dt.year
+                if freq in ('monthly', 'seasonal'):
+                    y = a.groupby('.'.join(('date', _fD[freq])))
+                    x = year.groupby('.'.join(('date', _fD[freq])))
+                else:
+                    y, x = a, year
+                o = xr.apply_ufunc(_f, x, y,
+                        input_core_dims=(['date'],['date']),
+                        output_core_dims=([],[]),dask='parallelized',
+                        exclude_dims=set(('date',)),
+                        vectorize=True,
+                        kwargs=dict(nn=nn))
+                o[0].to_netcdf(_djn(dir2_, '{}_{}-{}_c.nc'.format(sid, y0, y1)))
+                o[1].to_netcdf(_djn(dir2_, '{}_{}-{}_p.nc'.format(sid, y0, y1)))
+
+
+if __name__ == '__main__':
+    main()
