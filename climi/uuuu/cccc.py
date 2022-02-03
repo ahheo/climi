@@ -49,6 +49,7 @@
 * minmax_cube           : minmax of cube(L) data (each)
 * minmax_cube_          : minmax of cube(L) data (all)
 * nTslice_cube          : slices along a no-time axis
+* nearest_point_cube    : extract 1 point cube
 * nine_points_cube      : extract nine points cube centered at a given point
 * pSTAT_cube            : period statistic (month, season, year)
 * pst_                  : post-rename/reunits cube(L)
@@ -142,6 +143,7 @@ __all__ = ['alng_axis_',
            'minmax_cube',
            'minmax_cube_',
            'nTslice_cube',
+           'nearest_point_cube',
            'nine_points_cube',
            'pSTAT_cube',
            'pst_',
@@ -1849,6 +1851,18 @@ def ri_cube(cube, v, nmin=10):
         raise Exception(emsg)
     ax_fn_mp_(cube, ax, _ri1d, c, v)
     return c
+
+
+def nearest_point_cube(cube, longitude, latitude):
+    x, y = get_loa_pts_2d_(cube)
+    d_ = ind_shape_i_(x.shape,
+                      np.argmin(haversine_(longitude, latitude, x, y)),
+                      axis=None)
+    xyd = get_xyd_cube(cube)
+    ind = list(np.s_[:,] * cube.ndim)
+    for i, ii in zip(xyd, d_):
+        ind[i] = ii
+    return cube[tuple(ind)]
 
 
 def nine_points_cube(cube, longitude, latitude):
