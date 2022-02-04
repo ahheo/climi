@@ -1938,13 +1938,16 @@ def doy_f_cube(cube,
         out.replace_coord(dimT)
 
     t0 = l__('0', _p=True)
+
+    data_ = np.ma.filled(cube.data, mF) if mF is not None else cube.data
+
     for i in doy:
         indw = ind_win_(doy_data, i, 15) if ws else np.isin(doy_data, i)
         ind = ind_s_(cube.ndim, ax_t, indw)
-        data_ = cube[ind].data
-        data_ = np.ma.filled(data_, mF) if mF is not None else data_
+        #data_ = cube[ind].data
+        #data_ = np.ma.filled(data_, mF) if mF is not None else data_
         f_kArgs.update(dict(axis=ax_t, keepdims=True)) 
-        tmp = _f(data_, *f_Args, **f_kArgs)       
+        tmp = _f(data_[ind], *f_Args, **f_kArgs)       
         out.data[ind_s_(out.ndim, axT_cube(out), doy == i)] = tmp                     
         ll_('{}'.format(i), t0=t0, _p=True)
 
