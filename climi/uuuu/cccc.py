@@ -87,7 +87,7 @@ Date last modified: 11.11.2020
 import numpy as np
 import iris
 import iris.coord_categorisation as ica
-from iris.experimental.equalise_cubes import equalise_attributes
+from iris.util import equalise_attributes
 
 import cf_units
 import warnings
