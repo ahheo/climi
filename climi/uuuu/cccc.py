@@ -9,6 +9,7 @@
 * concat_cube_          : robust cube concater
 * cubesv_               : save cube to nc with dim_t unlimitted
 * cut_as_cube           : cut into the domain of another cube
+* doy_f_cube            : f for each doy
 * en_iqr_               : ensemble interquartile range
 * en_max_               : ensemble max
 * en_mean_              : ensemble mean
@@ -103,6 +104,7 @@ __all__ = ['alng_axis_',
            'concat_cube_',
            'cubesv_',
            'cut_as_cube',
+           'doy_f_cube',
            'en_iqr_',
            'en_max_',
            'en_mean_',
@@ -1902,3 +1904,46 @@ def replace_coord_(cube, new_coord):
 
     for factory in cube.aux_factories:
         factory.update(old_coord, new_coord)
+
+
+def doy_f_cube(cube,
+               _f, f_Args=(), f_kArgs={},
+               ws=None,
+               mF=None,
+               out=None):                                        
+    """                                                                         
+    ... percentile-based threshold ...                                          
+    Returns:                                                                    
+    t_thr: array of t_max threshold with shape[ax_t] = 366                
+    """                                                                         
+
+    ax_t = axT_cube(cube)
+    yr_doy_cube(cube)
+    doy_data = cube.coord('doy').points
+
+    doy_ = np.unique(doy_data)                                                  
+    if len(doy_) < 360:                                                        
+        raise Exception('doy less than 360!')                                   
+    doy = np.arange(1, 367, dtype='int32')                                        
+
+    if out is None:
+        out = extract_byAxes_(cube, ax_t, doy - 1)                            
+        #select 2000 as it is a leap year...                                        
+        out.coord('time').units = cf_units.Unit('days since 1850-1-1',            
+                                                calendar='gregorian')             
+        d0 = cf_units.date2num(datetime(2000, 1, 1),                                
+                               out.coord('time').units.origin,                    
+                               out.coord('time').units.calendar)                  
+        dimT = out.coord('time').copy(doy - 1 + d0)         
+        out.replace_coord(dimT)
+
+    for i in doy:                                                           
+        indw = ind_win_(doy_data, i, 15) if ws else np.isin(doy_data, i)
+        ind = ind_s_(cube.ndim, ax_t, indw)
+        data_ = cube[ind].data
+        data_ = np.ma.filled(data_, mF) if mF is not None else data_
+        f_kArgs.update(dict(axis=ax_t, keepdims=True)) 
+        tmp = _f(data_, *f_Args, **f_kArgs)       
+        out.data[ind_s_(out.ndim, axT_cube(out), doy == i)] = tmp                     
+
+    return out
