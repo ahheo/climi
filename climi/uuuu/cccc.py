@@ -1940,6 +1940,7 @@ def doy_f_cube(cube,
     t0 = l__('0', _p=True)
 
     data_ = np.ma.filled(cube.data, mF) if mF is not None else cube.data
+    ll_('releazing', t0=t0, _p=True)
 
     for i in doy:
         indw = ind_win_(doy_data, i, 15) if ws else np.isin(doy_data, i)
