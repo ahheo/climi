@@ -693,27 +693,40 @@ def rMEAN1d_(y, n, mode='valid'):
            out
 
 
-def l__(msg, out=True):
+def l__(msg, out=True, _p=False):
     """
     ... starting logging msg giving a time stamp ...
     """
     import time
     import logging
-    logging.info(' ' + msg + ' -->')
+    msg0 = ' {} -->'.format(msg)
+    if _p:
+        print(msg0)
+    else:
+        logging.info(msg0)
     if out:
         return time.time()
 
 
-def ll_(msg, t0=None):
+def ll_(msg, t0=None, _p=False):
     """
     ... ending logging msg giving a time lapse if starting time stamp given
     """
     import time
     import logging
-    logging.info(' {}{}'.format(msg, ' <--' if t0 else ''))
+    msg0 = ' {}{}'.format(msg, ' <--' if t0 else '')
+    if _p:
+        print(msg0)
+    else:
+        logging.info(msg0)
     if t0:
-        logging.info(' ' + rTime_(time.time() - t0))
-        logging.info(' ')
+        msg1 = ' {}'.format(rTime_(time.time() - t0))
+        if _p:
+            print(msg1)
+            print(' ')
+        else:
+            logging.info(msg1)
+            logging.info(' ')
 
 
 def slctStrL_(strl, incl=None, excl=None): #, incl_or=False, excl_and=False):
