@@ -45,12 +45,13 @@ def main():
             a = xr.load_dataset(fn_c)
             b = xr.load_dataset(fn_p)
             for v_ in vs_:
-                d = cc.setdefault(v_, np.full((nS,) + a[v_].shape, np.nan))
-                d[i,:] = a[v_].values
-                e = pp.setdefault(v_, np.full((nS,) + b[v_].shape, np.nan))
-                e[i,:] = a[v_].values
+                cc.setdefault(v_, np.full((nS,) + a[v_].shape, np.nan))
+                cc[v_][i,:] = a[v_].values
+                pp.setdefault(v_, np.full((nS,) + b[v_].shape, np.nan))
+                pp[v_][i,:] = a[v_].values
+    print(cc.keys())
     for v_ in vs_:
-        fn = _djn(dir2_, '{}_{}-{}'.format(sid, y0, y1))
+        fn = _djn(dir2_, '{}-{}'.format(sid, y0, y1))
         np.savez(fn, c=cc[v_], p=pp[v_])
 
 
