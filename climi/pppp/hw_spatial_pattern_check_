@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+
+import os
+import matplotlib as mpl
+mpl.use('pdf', force=True)
+import matplotlib.pyplot as plt
+
+import iris
+from climi.uuuu import *
+from climi.pppp import *
+
+
+_here_ = get_path_(__file__)
+sites = dict(
+    SE_Eur = (19, 45),
+    COAST1 = (7, 51.5),
+    COAST2 = (-1.5, 53),
+    COAST3 = (8, 60)
+    )
+dataroot = '/nobackup/rossby22/sm_chali/DATA/hc/med/'
+outdir = '/nobackup/rossby24/users/sm_chali/DATA/hw2018/fig/'
+ffmt = 'thr_tx_{}_ALL_1989-2008_{}.nc'
+datasets = ['EOBS20', 'ERA-Interim']
+colors = plt.get_cmap('tab10').colors
+
+_djn = os.path.join
+
+
+def main():
+    #data
+    for dataset in datasets:
+        data0 = iris.load_cube(_djn(dataroot, ffmt.format(dataset, '90')))
+        for mm in ('mean', 'median'):
+            fig, ax = plt.subplots(figsize=(7.5, 4), tight_layout=True)
+            #fig = init_fig_(fx=7.5, fy=4, l=.09, r=.98, t=.965, b=.15)
+            #ax = fig.add_subplot(1, 1, 1)
+            data1 = iris.load_cube(_djn(dataroot, ffmt.format(dataset, mm)))
+            data = data0 - data1
+            rm_t_aux_cube(data)
+            iris.coord_categorisation.add_day_of_year(data, 'time', name='doy')
+            doy = data.coord('doy').points
+            for site, c in zip(sites.keys(), colors):
+                y = nearest_point_cube(data, *sites[site])
+                ax.plot(doy, y.data, color=c, label=site)
+            ax.set_xlabel('Day of year')
+            ax.set_ylabel('$T_{90th} - T_{' + mm +'}$ (K)')
+            ax.legend()
+            fn = _djn(outdir, '90-{}_{}_clm.pdf'.format(mm, dataset))
+            plt.savefig(fn, dpi=300)
+            plt.close(fig)
+
+
+if __name__ == '__main__':
+    main()

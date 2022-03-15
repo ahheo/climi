@@ -1,0 +1,86 @@
+#!/usr/bin/env python3
+
+from climi.uuuu import *
+from climi.pppp import *
+
+import os
+import warnings
+
+import matplotlib as mpl
+mpl.use('pdf', force=True)
+import matplotlib.pyplot as plt
+
+import numpy as np
+import iris
+
+
+_here_ = get_path_(__file__)
+sites = dict(
+    SE_EUR = (19, 45),
+    COAST1 = (7, 51.5),
+    COAST2 = (-1.5, 53),
+    COAST3 = (8, 60)
+    )
+dataroot = '/nobackup/rossby22/sm_chali/DATA/hc/med/'
+outdir = '/nobackup/rossby24/users/sm_chali/DATA/hw2018/fig/'
+ffmt = 'thr_tx_{}_ALL_1989-2008_90.nc'
+datasets = ['EOBS20', 'ERA-Interim']
+colors = plt.get_cmap('tab10').colors
+y0y1 = (1989, 2008)
+pp = 95
+_djn = os.path.join
+
+
+def _get_data1(dataset):
+    if dataset == datasets[0]:
+        return extract_period_cube( iris.load_cube(
+                '/home/rossby/imports/obs/EOBS/EOBS20/orig/'
+                'tx_ens_mean_0.1deg_reg_v20.0e.nc'
+                ), *y0y1)
+    elif dataset == datasets[1]:
+        return extract_period_cube( concat_cube_( iris.load(
+                    '/nobackup/rossby22/sm_chali/DATA/'
+                    'hw2018/iii/obs/ERAI/tasmax*'
+                    )), *y0y1)
+
+def main():
+    warnings.filterwarnings('ignore', category=UserWarning)
+    #data
+    for dataset in datasets:
+        data0 = iris.load_cube(_djn(dataroot, ffmt.format(dataset)))
+        data1 = _get_data1(dataset)
+        for site, c in zip(sites.keys(), colors):
+            fig = init_fig_(fx=15, fy=7.5, l=.09, r=.98, t=.965, b=.075)
+            data0_ = nearest_point_cube(data0, *sites[site])
+            data0_.convert_units('celsius')
+            data1_ = nearest_point_cube(data1, *sites[site])
+            data1_.convert_units('celsius')
+            rm_t_aux_cube(data0_)
+            iris.coord_categorisation.add_day_of_year(data0_, 'time', name='doy')
+            doy = data0_.coord('doy').points
+            t25 = data1_.collapsed(
+                'time',
+                iris.analysis.PERCENTILE, percent=25).data
+            for i, yr in enumerate(range(1989, 2009)):
+                ax = fig.add_subplot(5, 4, i+1)
+                ax.set_title('{}'.format(yr))
+                y = extract_period_cube(data1_, yr, yr).data
+                if len(y) < 366:
+                    y = np.append(y, np.nan)
+                ax.fill_between(doy, data0_.data, y,
+                    where=np.logical_and(y > data0_.data, y > t25),
+                    fc='red',
+                    alpha=.4)
+                ax.plot(doy, data0_.data, lw=.5)
+                ax.plot(doy, y, c='gray', lw=.3)
+                ax.axhline(t25, color='black', lw=.7, alpha=0.7)
+                ax.set_ylim(0, 40)
+                ax.grid(axis='x')
+            plt.tight_layout()
+            fn = _djn(outdir, '{}-90_{}_clm.pdf'.format(site, dataset))
+            plt.savefig(fn, dpi=300)
+        plt.close(fig)
+
+
+if __name__ == '__main__':
+    main()

@@ -124,7 +124,7 @@ def _mp0(fn, cgL, crLL, gcms, rcms, pD, rgD, vl, coL=None, obss=None):
     else:
         i_ = 0
     for i, (cg, crL, yi) in enumerate(zip(cgL, crLL, gcms)):
-        for ii, (cube, xi) in enumerate(zip([cg] + crL, ['Driving data'] + rcms)):
+        for ii, (cube, xi) in enumerate(zip([cg] + crL, ['GCM'] + rcms)):
             xi_ = xi if i == 0 else None
             yi_ = yi if ii == 0 else None
             if cube:
@@ -180,9 +180,11 @@ def main():
         #loop 1
         for freq in ff:
             print('  {}'.format(freq))
-            for y0y1 in pp:
+            #for y0y1 in pp:
+            for y0y1 in pp[:1]:
                 print('    {}-{}'.format(*y0y1))
-                for y_ in yy:
+                #for y_ in yy:
+                for y_ in yy[1:2]:
                     vl = _vlabel(var, y_)
                     pD = _pdict(var, y_, y0y1)
                     fn = '{}mp0_{}_p{}-{}_{}.pdf'.format(fdir, y_, *y0y1, var)

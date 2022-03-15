@@ -1,0 +1,84 @@
+#!/usr/bin/env python3
+
+from climi.uuuu import *
+from climi.pppp import *
+
+import os
+import warnings
+
+import matplotlib as mpl
+mpl.use('pdf', force=True)
+import matplotlib.pyplot as plt
+
+import numpy as np
+import iris
+
+
+_here_ = get_path_(__file__)
+sites = dict(
+    SE_EUR = (19, 45),
+    COAST1 = (7, 51.5),
+    COAST2 = (-1.5, 53),
+    COAST3 = (8, 60)
+    )
+dataroot = '/nobackup/rossby22/sm_chali/DATA/hc/med/'
+outdir = '/nobackup/rossby24/users/sm_chali/DATA/hw2018/fig/'
+ffmt = 'thr_tx_{}_ALL_1989-2008_90.nc'
+datasets = ['EOBS20', 'ERA-Interim']
+colors = plt.get_cmap('tab10').colors
+y0y1 = (1989, 2008)
+pp = 95
+_djn = os.path.join
+
+
+def _get_data1(dataset):
+    if dataset == datasets[0]:
+        return extract_period_cube( iris.load_cube(
+                '/home/rossby/imports/obs/EOBS/EOBS20/orig/'
+                'tx_ens_mean_0.1deg_reg_v20.0e.nc'
+                ), *y0y1)
+    elif dataset == datasets[1]:
+        return extract_period_cube( concat_cube_( iris.load(
+                    '/nobackup/rossby22/sm_chali/DATA/'
+                    'hw2018/iii/obs/ERAI/tasmax*'
+                    )), *y0y1)
+
+def main():
+    warnings.filterwarnings('ignore', category=UserWarning)
+    #data
+    for dataset in datasets:
+        fig, ax = plt.subplots(figsize=(7.5, 4), tight_layout=True)
+        #fig = init_fig_(fx=7.5, fy=4, l=.09, r=.98, t=.965, b=.15)
+        #ax = fig.add_subplot(1, 1, 1)
+        data0 = iris.load_cube(_djn(dataroot, ffmt.format(dataset)))
+        data1 = _get_data1(dataset)
+        for site, c in zip(sites.keys(), colors):
+            data0_ = nearest_point_cube(data0, *sites[site])
+            data1_ = nearest_point_cube(data0, *sites[site])
+            data1__ = doy_f_cube(
+                data1_,
+                np.nanpercentile, f_Args=(pp,),
+                ws=15,
+                mF=np.nan)
+            data1___ = np.diff(data1_.collapsed(
+                'time',
+                iris.analysis.PERCENTILE, percent=[25, 75]).data)
+            iqr_ = data1___[0]
+            data = data0_.copy((data1__ - data0_).data/data1___)
+            mjjas = np.sum(data.data[120:272])
+            rm_t_aux_cube(data)
+            iris.coord_categorisation.add_day_of_year(data, 'time', name='doy')
+            doy = data.coord('doy').points
+            ax.plot(doy, data.data,
+                    color=c,
+                    label='{}: iqr: {:.1f} (K); mjjas: {:.1f}'.format(site, iqr_, mjjas))
+        ax.set_xlabel('Day of year')
+        ax.set_ylabel('Normalized $T_{95th} - T_{90th}$')
+        ax.legend()
+        fn = _djn(outdir, '{}-90_{}_clm.pdf'.format(pp, dataset))
+        plt.savefig(fn, dpi=300)
+        plt.close(fig)
+
+
+if __name__ == '__main__':
+    main()

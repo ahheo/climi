@@ -108,7 +108,7 @@ def _mp(fn, clo, clr, obss, rcms, mtd, mD):
     ecs = prgd_mm_(ecs, mD[ens], 'ECMWF-ERAINT', region='EUR',
                    valid_check=False)
     oooo = [prgd_mm_(o, mD[sss], 'ECMWF-ERAINT', region='EUR',
-                     valid_check=False) if sss != 'ERAI' else
+                     valid_check=False) if sss != 'ERA-Interim' else
             rgd_li_opt0_(o, o0) for o, sss in zip(oooo, obss)]
     ss = '{:10s} vs {:10s}: '
     ss1 = '{:8.3f}, {:8.3f}, {:8.3f} ({:5.3f})\n'
@@ -188,7 +188,8 @@ def main():
                 print('    {} map'.format(year))
                 _mp(
                     _djn(tdir, ffmt.format('mp', var, *ref, freq, year),
-                    clo, clr, obss0, rcms0, year, mD
+                         clo, clr, obss0, rcms0, year, mD
+                        )
                     )
 
 

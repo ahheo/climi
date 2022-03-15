@@ -56,7 +56,7 @@ def _clcmp(ddir, gcms, y_, y0y1, freq, var, go_='g'):
     return o
 
 
-def _violin(ax, dataL, p, color, hch=None, p_=0):
+def _violin(ax, dataL, p, hch, p_=0, cm=None):
     pos = np.arange(5) / 5 * .9
     pos += p - max(pos)/2 + p_ * .3 / len(dataL)
     pos = pos[-len(dataL):]
@@ -64,12 +64,16 @@ def _violin(ax, dataL, p, color, hch=None, p_=0):
                           vert=False, widths=.36*.2, positions=pos,
                           showmeans=False,
                           showmedians=False, showextrema=False)
+    if cm is None:
+        cm = ['dimgray']#colors
+        cm += list(plt.get_cmap("tab10").colors)
     for i, pc in enumerate(parts['bodies']):
-        pc.set_facecolor(to_rgb(color) + (.333,))
-        pc.set_edgecolor(to_rgb(color) + (.333,))
+        pc.set_facecolor(to_rgb(cm[i]) + (.333,))
+        pc.set_edgecolor(None)
+        #pc.set_edgecolor(color)
         #pc.set_alpha(.333)
         if hch is not None:
-            pc.set_hatch(hch[i])
+            pc.set_hatch(hch)
 
     boxes = ax.boxplot(dataL,
                        positions=pos,
@@ -77,31 +81,36 @@ def _violin(ax, dataL, p, color, hch=None, p_=0):
                        showmeans=True,
                        meanprops=dict(mec='white', marker='x', ms=3),
                        medianprops=dict(color='white', linewidth=1.5),
-                       flierprops=dict(mfc=color,
-                                       mec=color,
-                                       ms=4,
-                                       marker='+'),
-                       capprops=dict(color=color),
-                       whiskerprops=dict(color=color))
+                       flierprops=dict(
+                           #mfc=color,
+                           #mec=color,
+                           ms=4,
+                           marker='+')#,
+                       #capprops=dict(color=color),
+                       #whiskerprops=dict(color=color))
+                       )
+    for elm in ['caps', 'whiskers']:
+        for i, el in enumerate(boxes[elm]):
+            plt.setp(el, color=cm[int(np.floor(i)/2)])
+    for i, el in enumerate(boxes['fliers']):
+        plt.setp(el, mfc=cm[i], mec=cm[i])
+    for i, pc in enumerate(boxes['boxes']):
+        pc.set_facecolor(cm[i])
+        pc.set_edgecolor(cm[i])
 
-    for pc in boxes['boxes']:
-        pc.set_facecolor(color)
-        pc.set_edgecolor(color)
-
-    return (pos if len(dataL)<5 else p, parts['bodies'])
+    return (pos if len(dataL)<5 else p, parts['bodies'], boxes['boxes'])
 
 
-def _plt_vl(ax, cgL, crLL, color, coL=None, p_=0):
-    vvs = []
+def _plt_vl(ax, cgL, crLL, hch, coL=None, p_=0):
     p = []
     if coL:
-        xp, _ = _violin(ax, coL, 1, color)
+        xp, _, _ = _violin(ax, coL, 1, hch, cm=plt.get_cmap('tab20b').colors)
         p.append(xp)
-    hch = (None, '\\\\\\', 'xxx', '///', '+++')
+    #hch = ('', '\\\\\\\\', 'xxxx', '////', '++++')
     for i, (cg, crL) in enumerate(zip(cgL, crLL)):
-        xp, parts = _violin(ax, [cg] + crL, i + 2, color, hch, p_=p_)
+        xp, parts, boxes = _violin(ax, [cg] + crL, i + 2, hch, p_=p_)
         p.append(xp)
-    return (flt_l(p), parts)
+    return (flt_l(p), parts, boxes)
 
 
 def _lgd(ax, parts, pp, rcms):
@@ -115,13 +124,13 @@ def _lgd(ax, parts, pp, rcms):
                       loc='lower right', borderaxespad=0, frameon=False)
 
 
-def _lgd1(ax, parts, pp, rcms):
+def _lgd1(ax, parts, boxes, pp, rcms):
     pg0 = [i[0] for i in parts]
     pg0_ = ['{}-{}'.format(*i) for i in pp]
     leg0 = ax.legend(pg0, pg0_, fontsize=8, bbox_to_anchor=(.6, .99),
                      loc='upper right', borderaxespad=0, frameon=False)
     ax.add_artist(leg0)
-    pg1 = parts[0]
+    pg1 = boxes
     leg1 = ax.legend(pg1, rcms, fontsize=8, bbox_to_anchor=(.99, .99),
                      loc='upper right', borderaxespad=0, frameon=False)
 
@@ -196,23 +205,25 @@ def main():
                 vl = _vlabel(var, y_)
                 fn = '{}vl0_{}_{}.pdf'.format(fdir, y_, var)
                 fig, (ax0, ax1) = _fa1(vl)#fig, ax
-                cm = ['dimgray']#colors
-                cm += list(plt.get_cmap("magma_r", 5).colors)[2:]
-                bss = []#list of bodies for legend
+                hch = ('', '////', 'xxxx', '\\\\\\\\', '++++')
+                #cm = ['dimgray']#colors
+                #cm += list(plt.get_cmap("magma_r", 5).colors)[2:]
+                vps = []#list of violinplots for legend
                 for i, y0y1 in enumerate(pp):
                     print('    {}-{}'.format(*y0y1))
                     crLL = _clcdx(ddir, gcms, rcms, y_, y0y1, freq, var)
                     cgL = _clcmp(ddir, gcms, y_, y0y1, freq, var)
                     if y0y1[1] < 2021:
                         coL = _clcmp(ddir, obss, y_, y0y1, freq, var, 'o')
-                        xp, bodies = _plt_vl(ax0, cgL, crLL, cm[i], coL, p_=i)
-                        _, _ = _plt_vl(ax1, cgL, crLL, cm[i], coL, p_=i)
+                        xp, parts, boxes = _plt_vl(ax0, cgL, crLL, hch[i], coL,
+                                                   p_=i)
+                        _, _, _ = _plt_vl(ax1, cgL, crLL, hch[i], coL, p_=i)
                     else:
-                        _, bodies = _plt_vl(ax0, cgL, crLL, cm[i], p_=i)
-                        _, _ = _plt_vl(ax1, cgL, crLL, cm[i], p_=i)
-                    bss.append(bodies)
+                        _, parts, _ = _plt_vl(ax0, cgL, crLL, hch[i], p_=i)
+                        _, _, _ = _plt_vl(ax1, cgL, crLL, hch[i], p_=i)
+                    vps.append(parts)
                 _xtl1(ax0, ax1, xp, obss + gcms)
-                _lgd1(ax0, bss, pp, ['GCM'] + rcms)
+                _lgd1(ax0, vps, boxes, pp, ['GCM'] + rcms)
                 ax0.grid(True, 'both', 'x', lw=.5, c='k', alpha=.1)
                 ax1.grid(True, 'both', 'x', lw=.5, c='k', alpha=.1)
                 #fig.tight_layout()

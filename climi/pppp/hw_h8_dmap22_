@@ -31,12 +31,13 @@ def _vlabel(var, mtd=None):
         return '$\Delta${}'.format(yl)
 
 
-def _cmnm(bd):
+def _cmnm(bd, name='magma_r', v0=0, v1=1):
     bd = np.asarray(bd)
-    cm = list(plt.get_cmap("magma_r", len(bd)-1).colors)
-    cmap = mpl.colors.ListedColormap(('white', *cm[:-1])) # "afmhot_r"
-    cmo = cm[-1]
-    cmap.set_over(cmo)
+    N = len(bd) - 1
+    cm_ = plt.get_cmap(name)
+    cm = cm_(np.linspace(v0, v1, N))
+    cmap = mpl.colors.ListedColormap(('white', *cm[:-1]))
+    cmap.set_over(cm[-1])
     norm = mpl.colors.BoundaryNorm(bd, cmap.N)
     return dict(cmap=cmap, norm=norm)
 
@@ -48,7 +49,7 @@ def _pdict(var, mtd):
     else:
         bd = [0, 6, 9, 12, 15, 18, 24, 48, 96]
         bd_ = [0, 3, 4, 5, 6, 9, 12, 24, 48]
-    return (_cmnm(bd), _cmnm(bd_))
+    return (_cmnm(bd), _cmnm(bd_, 'bone_r', v0=.2))
 
 
 def _rf(fn):
@@ -159,7 +160,7 @@ def _mp22(fn, cgL, cgL1, crLL, crLL1, gcms, rcms, prds, pD, dpD, rgD, vl):
     axs, axs_, pchs, pchs_ = [], [], [], []
     for i, (cubeL, yi, dy) in enumerate(zip(cubeLL, prds * 2,
                                             [0, 0, -.02, -.02])):
-        for ii, (cube, xi) in enumerate(zip(cubeL, ['Driving data'] + rcms)):
+        for ii, (cube, xi) in enumerate(zip(cubeL, ['GCM'] + rcms)):
             xi_ = xi if i == 0 else None
             yi_ = yi if ii == 0 else None
             pD_.update(dpD if dy != 0 else pD)
@@ -172,9 +173,9 @@ def _mp22(fn, cgL, cgL1, crLL, crLL1, gcms, rcms, prds, pD, dpD, rgD, vl):
                     axs.append(ax)
                     pchs.append(pch)
                 _tx_rgmean(fig, ax, cube, rgD)
-    axs_abc_(fig, axs, '(a)')                                          
+    axs_abc_(fig, axs, '(a)')
     aligned_tx_(fig, axs, 'mean', rpo='lc', itv=.03, **tiD)
-    axs_abc_(fig, axs_, '(b)')                                          
+    axs_abc_(fig, axs_, '(b)')
     aligned_tx_(fig, axs_, 'spread', rpo='lc', itv=.03, **tiD)
     cbw = wspace_ax_(*axs[-2:])
     cb = aligned_cb_(fig, axs, pchs[-1], [cbw, .02],

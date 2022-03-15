@@ -11,6 +11,7 @@ import warnings
 import datetime
 import iris
 from iris.fileformats.netcdf import UnknownCellMethodWarning
+from scipy.stats import pearsonr
 from climi.pppp import *
 from climi.uuuu import *
 from climi.uuuu.cccc import _get_ind_lolalim as lllim_
@@ -127,12 +128,37 @@ def _xiyi(fig, nrow, ncol, ii, tiD=None, xi=None, yi=None):
                  **tiD)
 
 
-def _tx_rgmean(fig, ax, cube, rgD):
-    s = '{:.1f}'.format(rgMean_cube(cube, rgD=rgD).data)
-    aligned_tx_(fig, ax, s, rpo='tl', itv=-0.005, alpha=.5, fontsize=8)
+def d_m_(cube, rgD=None):
+    if np.ma.is_masked(cube.data):
+        d_, m_ = cube.data.data, cube.data.mask
+    else:
+        d_ = cube.data.data if np.ma.isMaskedArray(cube.data) else cube.data
+        m_ = np.full(d_.shape, False)
+    if rgD:
+        ind = lllim_(cube, **rgD)
+        m_ = np.logical_or(m_, ~ind)
+    return (d_, m_)
 
 
-def _mp0(fn, cgL, cgL1, crLL, crLL1, gcms, rcms, prds, pD, rgD, vl):
+def cc_cube_(y0, y1, rgD=None):
+    d0_, m0_ = d_m_(y0, rgD=rgD)
+    d1_, m1_ = d_m_(y1, rgD=rgD)
+    M_ = np.logical_and(~m0_, ~m1_)
+    print(d0_[M_].size)
+    return pearsonr(d0_[M_], d1_[M_])
+
+
+def _tx_rgmean(fig, ax, cube, cube_, rgD):
+    s_ = '{:.1f}\n{:.2f}{}'
+    s0 = rgMean_cube(cube, rgD=rgD).data
+    s1, s2 = cc_cube_(cube, cube_, rgD=rgD)
+    s = s_.format(s0, s1, '*' * (1 if s2 <= .05 else 0))
+    aligned_tx_(fig, ax, s.replace('-', '$-$'),
+                rpo='tl', itv=-0.005, alpha=.5, fontsize=6)
+
+
+def _mp0(fn, cgL, cgL1, crLL, crLL1, cgL_, cgL1_, crLL_, crLL1_,
+         gcms, rcms, prds, pD, rgD, vl):
     tiD = dict(fontsize=10, fontweight='bold')
     nrow = len(gcms) * 2
     ncol = len(rcms) + 1
@@ -148,8 +174,9 @@ def _mp0(fn, cgL, cgL1, crLL, crLL1, gcms, rcms, prds, pD, rgD, vl):
         return _pch(fig, nrow, ncol, ii, o, rgD, pD_, tiD, xi, yi, dx, dy)
     axs, axr = [], []
     i_ = 0
-    for i, (cg, crL, yi) in enumerate(zip(cgL, crLL, gcms)):
-        for ii, (cube, xi) in enumerate(zip([cg] + crL,
+    for i, (cg, crL, cg_, crL_, yi) in enumerate(zip(cgL, crLL, cgL_, crLL_,
+                                                     gcms)):
+        for ii, (cube, cube_, xi) in enumerate(zip([cg] + crL, [cg_] + crL_,
                                             ['GCM'] + rcms)):
             xi_ = xi if i == 0 else None
             yi_ = yi if ii == 0 else None
@@ -158,7 +185,7 @@ def _mp0(fn, cgL, cgL1, crLL, crLL1, gcms, rcms, prds, pD, rgD, vl):
                 axs.append(ax)
                 if xi in rcms:
                     axr.append(ax)
-                _tx_rgmean(fig, ax, cube, rgD)
+                _tx_rgmean(fig, ax, cube, cube_, rgD)
             else:
                 _xiyi(fig, nrow, ncol, (i + i_) * ncol + ii + 1, tiD, xi_, yi_)
     axs_rct_(fig, axr, color='r')
@@ -166,8 +193,9 @@ def _mp0(fn, cgL, cgL1, crLL, crLL1, gcms, rcms, prds, pD, rgD, vl):
     aligned_tx_(fig, axs, prds[0], rpo='lc', itv=.03, **tiD)
     axs1, axr1 = [], []
     i_ = len(gcms)
-    for i, (cg, crL, yi) in enumerate(zip(cgL1, crLL1, gcms)):
-        for ii, (cube, xi) in enumerate(zip([cg] + crL,
+    for i, (cg, crL, cg_, crL_, yi) in enumerate(zip(cgL1, crLL1, cgL1_,
+                                                     crLL1_, gcms)):
+        for ii, (cube, cube_, xi) in enumerate(zip([cg] + crL, [cg_] + crL_,
                                             ['GCM'] + rcms)):
             xi_ = None
             yi_ = yi if ii == 0 else None
@@ -176,7 +204,7 @@ def _mp0(fn, cgL, cgL1, crLL, crLL1, gcms, rcms, prds, pD, rgD, vl):
                 axs1.append(ax)
                 if xi in rcms:
                     axr1.append(ax)
-                _tx_rgmean(fig, ax, cube, rgD)
+                _tx_rgmean(fig, ax, cube, cube_, rgD)
     axs_rct_(fig, axr1, color='r')
     axs_abc_(fig, axs1, '(b)')
     aligned_tx_(fig, axs1, prds[1], rpo='lc', itv=.03, **tiD)
@@ -211,7 +239,7 @@ def main():
     idir__ = cfg['idir']['rcms']
     rgD_eur = rgDs['eur']
     #loop variables
-    vv = ['EffPR', 'DryDays', 'TX', 'TN']
+    vv = ['EffPR', 'DryDays', 'TX']
     #vv = ['TX', 'TN']
     #vv = ['EffPR']
     ff = ['j-d']
@@ -232,15 +260,25 @@ def main():
                 cgL = _clcmp(ddir, gcms, y_, pp[1], pp[0], freq, var)
                 crLL1 = _clcdx(ddir, gcms, rcms, y_, pp[2], pp[0], freq, var)
                 cgL1 = _clcmp(ddir, gcms, y_, pp[2], pp[0], freq, var)
+                var_ = 'hwmid-tx'
+                crLL_ = _clcdx(ddir, gcms, rcms, y_, pp[1], pp[0], freq, var_)
+                cgL_ = _clcmp(ddir, gcms, y_, pp[1], pp[0], freq, var_)
+                crLL1_ = _clcdx(ddir, gcms, rcms, y_, pp[2], pp[0], freq, var_)
+                cgL1_ = _clcmp(ddir, gcms, y_, pp[2], pp[0], freq, var_)
                 #################
                 A3, TFx, TFy = compressLL_(crLL)
                 A1 = l_ind_(cgL, TFy)
                 A2 = l_ind_(cgL1, TFy)
                 A4 = l_ind_([l_ind_(L, TFx) for L in crLL1], TFy)
+                A1_ = l_ind_(cgL_, TFy)
+                A2_ = l_ind_(cgL1_, TFy)
+                A3_ = l_ind_([l_ind_(L, TFx) for L in crLL_], TFy)
+                A4_ = l_ind_([l_ind_(L, TFx) for L in crLL1_], TFy)
                 A5 = l_ind_(gcms, TFy)
                 A6 = l_ind_(rcms, TFx)
                 #################
-                _mp0(fn, A1, A2, A3, A4, A5, A6, prds, pD,
+                _mp0(fn, A1, A2, A3, A4, A1_, A2_, A3_, A4_,
+                     A5, A6, prds, pD,
                      rgD_eur, vl)
 
 

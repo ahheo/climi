@@ -74,13 +74,14 @@ def _clcmp(ddir, gcms, y_, y0y1, freq, var, go_='g'):
 
 
 def _cc_cL(cL, tiL, f):
-    ss = '{:8.3f} ({:5.3f}); '
+    ss = '{:8.3f} ({:5.3f}) {:8.3f}; '
     ss0 = ' ' * 16 + '; '
     for i in range(1, len(tiL)):
         f.write(tiL[i] + ':\n')
         for ii in range(i):
             if cL[ii] and cL[i]:
-                f.write(ss.format(*cc_cube_(cL[ii], cL[i])))
+                f.write(ss.format(*cc_cube_(cL[ii], cL[i]),
+                                  rmse_cube_(cL[ii], cL[i])))
             else:
                 f.write(ss0)
         f.write('\n')
@@ -132,10 +133,12 @@ def _mp0(fn, cgL, crLL, gcms, rcms, coL=None, obss=None):
 def main():
     warnings.filterwarnings("ignore", category=UserWarning)
     warnings.filterwarnings("ignore", category=UnknownCellMethodWarning)
-    with open(_djn(_here_, 'cfg_plt_hwmid_h8_.yml'), 'r') as ymlfile:
+    with open(_djn(_here_, 'cfg_plt_hwmid_h8.yml'), 'r') as ymlfile:
         cfg = yaml.safe_load(ymlfile)
+    #with open(_djn(_here_, 'cfg_plt_hwmid_h8_.yml'), 'r') as ymlfile:
+    #    cfg = yaml.safe_load(ymlfile)
     #output dirs
-    dap = 'eval/interp/'
+    dap = 'interp/'
     ddir = cfg['ddir'] + dap
     fdir = cfg['fdir']
     tdir = cfg['tdir'] + dap
@@ -145,8 +148,8 @@ def main():
     #constans
     #obss = cfg['obss']
     obss = ['EOBS']
-    #gcms = cfg['gcms_']
-    gcms = ['ERAI'] + cfg['gcms_']
+    gcms = cfg['gcms_']
+    #gcms = ['ERA-Interim'] + cfg['gcms_']
     rcms = cfg['rcms_']
     rcms.sort()
     rcp, ref, rgDs = cfg['rcp'], cfg['ref'], cfg['rgDs']
@@ -158,10 +161,10 @@ def main():
     #vv = ['hwmid-tx', 'hwmid-tn', 'wsdi-tx']
     ff = ['j-d']
     yy = ['mean']
-    pp = [[1989, 2008]]
+    #pp = [[1989, 2008]]
     vv = ['hwmid-tx']
     #yy = ['g15', 'mean', 'p10', 'p50', 'p90']
-    #pp = [[1981, 2020]]
+    pp = [[1981, 2020]]
     #loop 0
     for var in vv:
         print('{}'.format(var))
@@ -174,7 +177,7 @@ def main():
                     fn = '{}mp0_{}_p{}-{}_{}.txt'.format(tdir, y_, *y0y1, var)
                     crLL = _clcdx(ddir, gcms, rcms, y_, y0y1, freq, var)
                     cgL = _clcmp(ddir, gcms, y_, y0y1, freq, var)
-                    if y0y1[1] < 2021:
+                    if y0y1[1] < 2010:
                         coL = _clcmp(ddir, obss, y_, y0y1, freq, var, 'o')
                         _mp0(fn,
                              cgL, crLL, gcms, rcms,

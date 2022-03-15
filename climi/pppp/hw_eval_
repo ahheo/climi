@@ -162,24 +162,43 @@ def _map(fig, cubeLL, tiLL, pD, rgD, vl, cbt=None):
 def _map_stat(ax, dataLL, tiLL, vv):
     cLL = (plt.get_cmap('tab10').colors, plt.get_cmap('Dark2').colors[::-1],
            plt.get_cmap('tab20b').colors)
-    fL = (0, 0, 0)
-    wL = (1, 3, 3,)
-    aL = (.99, .8, .9)
-    zL = (3, 2, 1)
+    #mLL = ((8, 9, 10, 11), ("o",), ("s", "d"))
+    #fL = (0, 0, 0)
+    #wL = (1, 1, 3)
+    #aL = (.7, .8, .9) #(.99, .8, .9)
+    #zL = (3, 2, 1)
+    #N = sum([len(i) for i in tiLL])
+    #dvL = iter(np.linspace(-.25, .25, N))
+    #for dataL, tiL, cL, mL, w_, a_, z_, f_ in \
+    #        zip(dataLL, tiLL, cLL, mLL, wL, aL, zL, fL):
+    #    for data, ti, c_, m_ in zip(dataL, tiL, cL, mL):
+    #        #ax.plot(vv + next(dvL) * len(vv) / 10, data,
+    #        #        drawstyle='steps-mid', label=ti.replace('\n ', ''),
+    #        mkD = dict(marker=m_, mew=0, ms=3) if w_ > 1 \
+    #              else dict(marker=m_, mew=.8, ms=3,
+    #                        mfc='none')
+    #        
+    #        ax.plot(vv, data,
+    #                label=ti.replace('\n ', ''),
+    #                color=c_,
+    #                **mkD,#markers
+    #                linestyle='', alpha=a_, zorder=z_)
+    #    if f_:
+    #        ax.fill_between(vv, dataL.max(axis=0), dataL.min(axis=0),
+    #                        color='gray', alpha=.25, step='mid', zorder=0)
     N = sum([len(i) for i in tiLL])
-    dvL = iter(np.linspace(-.25, .25, N))
-    for dataL, tiL, cL, w_, a_, z_, f_ in zip(dataLL, tiLL, cLL, wL, aL, zL,
-                                              fL):
+    dvL = iter(np.linspace(-.4, .4, N))
+    w_ = .8 / (N - 1)
+    for dataL, tiL, cL in zip(dataLL, tiLL, cLL):
         for data, ti, c_ in zip(dataL, tiL, cL):
-            ax.plot(vv + next(dvL) * len(vv) / 10, data,
-                    drawstyle='steps-mid', label=ti.replace('\n ', ''),
-            #ax.plot(vv, data,
-            #        label=ti.replace('\n ', ''),
-                    color=c_, lw=w_, alpha=a_, zorder=z_)
-        if f_:
-            ax.fill_between(vv, dataL.max(axis=0), dataL.min(axis=0),
-                            color='gray', alpha=.25, step='mid', zorder=0)
+            ax.bar(vv + next(dvL), data,
+                   label=ti.replace('\n ', ''),
+                   color=c_,
+                   width=w_,
+                   alpha=.9,
+                   linewidth=0)
     ax.set_xticks(vv)
+    ax.tick_params(axis='x', length=0)
     ax.grid(True, 'major', 'y', lw=.5, c='k', alpha=.1)
     ax.legend(ncol=2, frameon=False)
 

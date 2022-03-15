@@ -140,13 +140,14 @@ def _tx_rgmean(fig, ax, cube, rgD):
 
 
 def _cc_cL(cL, tiL, f):
-    ss = '{:8.3f} ({:5.3f}); '
+    ss = '{:8.3f} ({:5.3f}) {:8.3f} ; '
     ss0 = ' ' * 16 + '; '
     for i in range(1, len(tiL)):
         f.write(tiL[i] + ':\n')
         for ii in range(i):
             if cL[ii] and cL[i]:
-                f.write(ss.format(*cc_cube_(cL[ii], cL[i])))
+                f.write(ss.format(*cc_cube_(cL[ii], cL[i]),
+                                  rmse_cube_(cL[ii], cL[i])))
             else:
                 f.write(ss0)
         f.write('\n')
@@ -158,6 +159,7 @@ def _mp0(fn, cgL, crLL, gcms, rcms, coL=None, obss=None):
     o10, o10_ = _em(crLL, ax=0), _es(crLL, ax=0)
     crL0, crL1 = [o00] + o10, [o00_] + o10_
     sss, ttt = [gcms[0]] + [MD[i] for i in rcms], 'ECMWF-ERAINT'
+    print(sss)
     crL0 = [prgd_mm_(o, sss_, ttt, region='EUR', valid_check=False)
             for o, sss_ in zip(crL0, sss)]
     crL1 = [prgd_mm_(o, sss_, ttt, region='EUR', valid_check=False)
@@ -169,6 +171,11 @@ def _mp0(fn, cgL, crLL, gcms, rcms, coL=None, obss=None):
         f1.write('ROW: ' + yi + ':\n')
         _cc_cL(cL, ['GCM'] + rcms, f1)
     f1.close()
+    f2 = open(fn.replace(pure_fn_(fn), 'cc1_'+ pure_fn_(fn)), 'w')
+    for cr0, cr1, yi in zip(crL0, crL1, ['GCM'] + rcms):
+        f2.write('COLUMN: ' + yi + ':\n')
+        _cc_cL((cr0, cr1), ('RCM mean', 'RCM spread'), f2)
+    f2.close()
     if coL:
         ss = '{:10s} vs {:10s}: '
         ss1 = '{:8.3f}, {:8.3f}, {:8.3f} ({:5.3f})\n'
@@ -240,7 +247,7 @@ def main():
                     crLL = _clcdx(ddir + dap[:-7], gcms, rcms, y_, y0y1, freq,
                                   var)
                     cgL = _clcmp(ddir + dap[:-7], gcms, y_, y0y1, freq, var)
-                    if y0y1[1] < 2021:
+                    if y0y1[1] < 2010:
                         coL = _clcmp(ddir + dap, obss, y_, y0y1, freq,
                                      var, 'o')
                         _mp0(fn,

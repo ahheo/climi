@@ -30,13 +30,14 @@ def _vlabel(var, mtd=None):
     else:
         return yl
 
-def _cmnm(bd):
-    bd = np.asarray(bd)
-    cm = list(plt.get_cmap("magma_r", len(bd)-1).colors)
-    cmap = mpl.colors.ListedColormap(('white', *cm[:-1])) # "afmhot_r"
-    cmo = cm[-1]
-    cmap.set_over(cmo)
-    norm = mpl.colors.BoundaryNorm(bd, cmap.N)
+
+def _cmnm(bd, name='magma_r'):                                                  
+    bd = np.asarray(bd)                                                         
+    cm_ = plt.get_cmap(name, len(bd)-1)                                         
+    cm = cm_(np.linspace(0, 1, cm_.N))                                          
+    cmap = mpl.colors.ListedColormap(('white', *cm[:-1])) # "afmhot_r"          
+    cmap.set_over(cm[-1])                                                       
+    norm = mpl.colors.BoundaryNorm(bd, cmap.N)                                  
     return dict(cmap=cmap, norm=norm)
 
 

@@ -140,13 +140,14 @@ def _tx_rgmean(fig, ax, cube, rgD):
 
 
 def _cc_cL(cL, tiL, f):
-    ss = '{:8.3f} ({:5.3f}); '
+    ss = '{:8.3f} ({:5.3f}) {:8.3f} ; '
     ss0 = ' ' * 16 + '; '
     for i in range(1, len(tiL)):
         f.write(tiL[i] + ':\n')
         for ii in range(i):
             if cL[ii] and cL[i]:
-                f.write(ss.format(*cc_cube_(cL[ii], cL[i])))
+                f.write(ss.format(*cc_cube_(cL[ii], cL[i]),
+                                  rmse_cube_(cL[ii], cL[i])))
             else:
                 f.write(ss0)
         f.write('\n')
@@ -155,6 +156,7 @@ def _cc_cL(cL, tiL, f):
 def _mp0(fn, cgL, crLL, gcms, rcms, coL=None, obss=None):
     crL0, crL1 = _em(crLL), _es(crLL)
     sss, ttt = MD[rcms[0]], 'ECMWF-ERAINT'
+    print(sss)
     crL0 = [prgd_mm_(o, sss, ttt, region='EUR', valid_check=False)
             for o in crL0]
     crL1 = [prgd_mm_(o, sss, ttt, region='EUR', valid_check=False)
@@ -162,9 +164,9 @@ def _mp0(fn, cgL, crLL, gcms, rcms, coL=None, obss=None):
     print(crL0)
     print(crL1)
     f1 = open(fn.replace(pure_fn_(fn), 'cc0_'+ pure_fn_(fn)), 'w')
-    for cg, cr, yi in zip(cgL, crL0, gcms):
+    for cg, cr, crs, yi in zip(cgL, crL0, crL1, gcms):
         f1.write('ROW: ' + yi + ':\n')
-        _cc_cL([cg, cr], ('GCM', 'RCM mean'), f1)
+        _cc_cL([cg, cr, crs], ('GCM', 'RCM mean', 'RCM spread'), f1)
     f1.close()
     f2 = open(fn.replace(pure_fn_(fn), 'cc1_'+ pure_fn_(fn)), 'w')
     for cL, xi in zip((crL0, crL1), ('RCM mean', 'RCM spread')):
@@ -205,7 +207,8 @@ def main():
     with open(_djn(_here_, 'cfg_plt_hwmid_h8.yml'), 'r') as ymlfile:
         cfg = yaml.safe_load(ymlfile)
     #output dirs
-    dap = 'eval/interp/'
+    #dap = 'eval/interp/'
+    dap = 'interp/'
     ddir = cfg['ddir']
     fdir = cfg['fdir']
     tdir = cfg['tdir'] + dap
@@ -228,8 +231,8 @@ def main():
     vv = ['hwmid-tx']
     ff = ['j-d']
     yy = ['mean']
-    #pp = [[1981, 2020]]
-    pp = [[1989, 2008]]
+    pp = [[1981, 2020]]
+    #pp = [[1989, 2008]]
     #loop 0
     for var in vv:
         print('{}'.format(var))
@@ -243,7 +246,7 @@ def main():
                     crLL = _clcdx(ddir + dap[:-7], gcms, rcms, y_, y0y1, freq,
                                   var)
                     cgL = _clcmp(ddir + dap, gcms, y_, y0y1, freq, var)
-                    if y0y1[1] < 2021:
+                    if y0y1[1] < 2010:
                         coL = _clcmp(ddir + dap, obss, y_, y0y1, freq,
                                      var, 'o')
                         _mp0(fn,

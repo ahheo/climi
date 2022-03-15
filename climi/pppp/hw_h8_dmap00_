@@ -114,7 +114,7 @@ def _mp0(fn, cgL, cgL1, crLL, crLL1, gcms, rcms, prds, pD, rgD, vl):
     i_ = 0
     for i, (cg, crL, yi) in enumerate(zip(cgL, crLL, gcms)):
         for ii, (cube, xi) in enumerate(zip([cg] + crL,
-                                            ['Driving data'] + rcms)):
+                                            ['GCM'] + rcms)):
             xi_ = xi if i == 0 else None
             yi_ = yi if ii == 0 else None
             if cube:
@@ -130,7 +130,7 @@ def _mp0(fn, cgL, cgL1, crLL, crLL1, gcms, rcms, prds, pD, rgD, vl):
     i_ = len(gcms)
     for i, (cg, crL, yi) in enumerate(zip(cgL1, crLL1, gcms)):
         for ii, (cube, xi) in enumerate(zip([cg] + crL,
-                                            ['Driving data'] + rcms)):
+                                            ['GCM'] + rcms)):
             xi_ = None
             yi_ = yi if ii == 0 else None
             if cube:
