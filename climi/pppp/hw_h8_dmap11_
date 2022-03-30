@@ -202,8 +202,8 @@ def _mp41(fn, crLL, crLL1, gcms, rcms, prds, pD, dpD, rgD, vl):
     ncol = 2 * 2
     nrow = len(gcms)
     pD_ = dict(rasterized=True)
-    ifx = 7.5 / ncol
-    fx = 7.5
+    ifx = 6.5 / ncol
+    fx = 6.5
     fy = ifx * nrow * .8
     fig = init_fig_(fx=fx, fy=fy, l=.04, r=.85, t=.91, b=.02)
     def _p(ii, o, pdict, xi=None, yi=None, dx=0, dy=0):
@@ -278,12 +278,12 @@ def main():
     idir__ = cfg['idir']['rcms']
     rgD_eur = rgDs['eur']
     #loop variables
-    vv = ['hwmid-tx', 'hwmid-tn', 'wsdi-tx']
+    #vv = ['hwmid-tx', 'hwmid-tn', 'wsdi-tx']
     ff = ['j-d']
-    yy = ['g15', 'mean', 'p10', 'p50', 'p90']
-    #yy = ['mean']
+    #yy = ['g15', 'mean', 'p10', 'p50', 'p90']
+    yy = ['mean']
     pp = [[1981, 2020], [2021, 2060], [2061, 2100]]
-    #vv = ['hwmid-tn']
+    vv = ['hwmid-tx']
     #loop 0
     for var in vv:
         print('{}'.format(var))

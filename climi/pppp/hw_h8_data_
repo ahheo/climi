@@ -24,8 +24,8 @@ def _msk(cube, dn, fxdir):
 
 
 def _clcdx(idir, gcms, rcms, mD, lD, ddir, yy, tt, rgD, fxdir=None):
-    ffmt0 = '{}mp_r_{}_{}_{}_{}-{}_{}_{}.nc'
-    ffmt1 = '{}ts_r_{}_{}_{}_{}-{}_{}_{}.nc'
+    ffmt0 = 'mp_r_{}_{}_{}_{}-{}_{}_{}.nc'
+    ffmt1 = 'ts_r_{}_{}_{}_{}-{}_{}_{}.nc'
     for gcm in gcms:
         for rcm in rcms:
             tmp = load_h248_(idir, m=(mD[gcm], mD[rcm]), **lD)
@@ -35,15 +35,15 @@ def _clcdx(idir, gcms, rcms, mD, lD, ddir, yy, tt, rgD, fxdir=None):
                 for y_ in yy:
                     o = _t1cube(tmp[0][0], y_)
                     _msk(o, mD[rcm], fxdir)
-                    fn_ = ffmt0.format(ddir, y_, gcm, rcm,
-                                       *lD['y0y1'], lD['freq'],
-                                       lD['var'])
+                    fn_ = _djn(ddir, ffmt0.format(y_, gcm, rcm,
+                                                  *lD['y0y1'], lD['freq'],
+                                                  lD['var']))
                     print('save to {}'.format(fn_))
                     iris.save(o, fn_)
                 for t_ in tt:
-                    fn_ = ffmt1.format(ddir, t_, gcm, rcm,
-                                       *lD['y0y1'], lD['freq'],
-                                       lD['var'])
+                    fn_ = _djn(ddir, ffmt1.format(t_, gcm, rcm,
+                                                  *lD['y0y1'], lD['freq'],
+                                                  lD['var']))
                     print('save to {}'.format(fn_))
                     iris.save(_m1cube(tmp[0][0], rgD, t_), fn_)
             else:
@@ -51,8 +51,8 @@ def _clcdx(idir, gcms, rcms, mD, lD, ddir, yy, tt, rgD, fxdir=None):
 
 
 def _clcmp(idir, gcms, mD, lD, ddir, yy, tt, rgD, go_='g', fxdir=None):
-    ffmt0 = '{}mp_{}_{}_{}_{}-{}_{}_{}.nc'
-    ffmt1 = '{}ts_{}_{}_{}_{}-{}_{}_{}.nc'
+    ffmt0 = 'mp_{}_{}_{}_{}-{}_{}_{}.nc'
+    ffmt1 = 'ts_{}_{}_{}_{}-{}_{}_{}.nc'
     for gcm in gcms:
         tmp = load_h248_(idir, m=gcm if go_=='g' else mD[gcm], **lD)
         if tmp:
@@ -61,15 +61,15 @@ def _clcmp(idir, gcms, mD, lD, ddir, yy, tt, rgD, go_='g', fxdir=None):
             for y_ in yy:
                 o = _t1cube(tmp[0][0], y_)
                 _msk(o, gcm, fxdir)
-                fn_ = ffmt0.format(ddir, go_, y_, gcm,
-                                   *lD['y0y1'], lD['freq'],
-                                   lD['var'])
+                fn_ = _djn(ddir, ffmt0.format(go_, y_, gcm,
+                                              *lD['y0y1'], lD['freq'],
+                                              lD['var']))
                 print('save to {}'.format(fn_))
                 iris.save(o, fn_)
             for t_ in tt:
-                fn_ = ffmt1.format(ddir, go_, t_, gcm,
-                                   *lD['y0y1'], lD['freq'],
-                                   lD['var'])
+                fn_ = _djn(ddir, ffmt1.format(go_, t_, gcm,
+                                              *lD['y0y1'], lD['freq'],
+                                              lD['var']))
                 print('save to {}'.format(fn_))
                 iris.save(_m1cube(tmp[0][0], rgD, t_), fn_)
         else:
@@ -115,7 +115,7 @@ def main():
     #constans
     obss = cfg['obss']
     #gcms = cfg['gcms']
-    gcms = ['NorESM1-M']
+    gcms = ['EC-EARTH', 'HadGEM2-ES']
     rcms = cfg['rcms']
     #rcms = ['CCLM4-8-17']
     rcms.sort()
@@ -128,14 +128,15 @@ def main():
     fxdir = '/nobackup/rossby22/sm_chali/DATA/fx/'
     #loop variables
     #vv = ['hwmid-tx', 'hwmid-tn', 'wsdi-tx']
-    ff = ['j-d']
+    ff = ['mjjas', 'jja']
     #yy = ['g15', 'mean', 'std', 'p10', 'p50', 'p90']
     #tt = ['mean', 'g15']
     pp = [[1981, 2020], [2021, 2060], [2061, 2100]]
     #pp = [[2061, 2100]]
     #vv = ['hwmid-tn']
     #vv = ['EffPR', 'DryDays', 'TX', 'TN']
-    vv = ['EffPR']
+    vv = ['EffPR', 'DryDays']
+    #vv = ['EffPR']
     yy = ['mean']
     tt = ['mean']
     #loop 0

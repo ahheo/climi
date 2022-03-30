@@ -55,13 +55,13 @@ def _rf(fn):
 
 
 def _clcdx(ddir, gcms, rcms, y_, y0y1, y0y1_, freq, var):
-    ffmt = '{}mp_r_{}_{}_{}_{}-{}_{}_{}.nc'
+    ffmt = 'mp_r_{}_{}_{}_{}-{}_{}_{}.nc'
     o = []
     for gcm in gcms:
         oo = []
         for rcm in rcms:
-            o0 = _rf(ffmt.format(ddir, y_, gcm, rcm, *y0y1_, freq, var))
-            o1 = _rf(ffmt.format(ddir, y_, gcm, rcm, *y0y1, freq, var))
+            o0 = _rf(_djn(ddir, ffmt.format(y_, gcm, rcm, *y0y1_, freq, var)))
+            o1 = _rf(_djn(ddir, ffmt.format(y_, gcm, rcm, *y0y1, freq, var)))
             if o0 and o1:
                 oo.append(o1.copy(o1.data - o0.data))
             else:
@@ -71,11 +71,11 @@ def _clcdx(ddir, gcms, rcms, y_, y0y1, y0y1_, freq, var):
 
 
 def _clcmp(ddir, gcms, y_, y0y1, y0y1_, freq, var, go_='g'):
-    ffmt = '{}mp_{}_{}_{}_{}-{}_{}_{}.nc'
+    ffmt = 'mp_{}_{}_{}_{}-{}_{}_{}.nc'
     o = []
     for gcm in gcms:
-        o0 = _rf(ffmt.format(ddir, go_, y_, gcm, *y0y1_, freq, var))
-        o1 = _rf(ffmt.format(ddir, go_, y_, gcm, *y0y1, freq, var))
+        o0 = _rf(_djn(ddir, ffmt.format(go_, y_, gcm, *y0y1_, freq, var)))
+        o1 = _rf(_djn(ddir, ffmt.format(go_, y_, gcm, *y0y1, freq, var)))
         if o0 and o1:
             o.append(o1.copy(o1.data - o0.data))
         else:
@@ -84,8 +84,8 @@ def _clcmp(ddir, gcms, y_, y0y1, y0y1_, freq, var, go_='g'):
 
 
 def _cc_cL(cL, tiL, f):
-    ss = '{:8.3f} ({:5.3f}) {:8.3f} ; '
-    ss0 = ' ' * 16 + '; '
+    ss = '{:8.3f} ({:5.3f}) {:8.3f}; '
+    ss0 = ' ' * 25 + '; '
     for i in range(1, len(tiL)):
         f.write(tiL[i] + ':\n')
         for ii in range(i):
@@ -119,9 +119,9 @@ def main():
         cfg = yaml.safe_load(ymlfile)
     #output dirs
     dap = 'interp/'
-    ddir = cfg['ddir'] + dap
+    ddir = _djn(cfg['ddir'], dap)
     fdir = cfg['fdir']
-    tdir = cfg['tdir'] + dap
+    tdir = _djn(cfg['tdir'], dap)
     os.makedirs(ddir, exist_ok=True)
     os.makedirs(fdir, exist_ok=True)
     os.makedirs(tdir, exist_ok=True)
@@ -136,7 +136,7 @@ def main():
     idir__ = cfg['idir']['rcms']
     rgD_eur = rgDs['eur']
     #loop variables
-    vv = ['hwmid-tx']
+    vv = ['TX', 'DryDays', 'EffPR']
     ff = ['j-d']
     yy = ['mean']
     pp = [[1981, 2020], [2021, 2060], [2061, 2100]]
@@ -149,7 +149,8 @@ def main():
             for y0y1 in pp[1:]:
                 print('    {}-{}'.format(*y0y1))
                 for y_ in yy:
-                    fn = '{}dmp0_{}_p{}-{}_{}.txt'.format(tdir, y_, *y0y1, var)
+                    fn = _djn(tdir, 'dmp0_{}_p{}-{}_{}.txt'.format(
+                            y_, *y0y1, var))
                     crLL = _clcdx(ddir, gcms, rcms, y_, y0y1, pp[0], freq, var)
                     cgL = _clcmp(ddir, gcms, y_, y0y1, pp[0], freq, var)
                     _mp0(fn, cgL, crLL, gcms, rcms)

@@ -75,6 +75,8 @@ def plt_af_(ax, cgL, crLL, gcms, rcms, y0y1, rgD,
                 l_, = ax.plot(vv, af, color=cm[i], lw=2, alpha=.9, zorder=1)
                 lgo.append(l_)
                 lgo_.append(xi)
+                if xi == 'E-OBS':
+                    ax.fill_betweenx(af, .9*vv, 1.1*vv, color=cm[i], alpha=.1)
     lss = (':', '--', '-.')
     css = ['darkgray'] + list(plt.get_cmap('tab10').colors)
     lgg, lgg_, lgr, lgr_ = [[] for _ in range(4)]
@@ -126,8 +128,13 @@ def plt_af__(axs, cgL, crLL, gcms, rcms, y0y1, rgD,
             if cube:
                 vv, af = _af(cube, rgD)
                 for ii, ax in enumerate(axs):
+                    if xi == 'E-OBS':
+                        ax.fill_betweenx(af, .85*vv, 1.15*vv,
+                                         lw=0, color=cm[i], alpha=.1)
+                        ax.fill_betweenx(af, .9*vv, 1.1*vv,
+                                         lw=0, color=cm[i], alpha=.1)
                     l_, = ax.plot(vv, af, ls=ls,
-                                  color=cm[i], lw=2, alpha=.9, zorder=1)
+                                  color=cm[i], lw=2, alpha=.9, zorder=2)
                     if ii == 0:
                         lgo.append(l_)
                         lgo_.append(xi)
@@ -205,9 +212,11 @@ def main():
     idir__ = cfg['idir']['rcms']
     rgD_eur = rgDs['eur']
     #loop variables
-    vv = ['hwmid-tx', 'hwmid-tn', 'wsdi-tx']
+    vv = ['hwmid-tx']
+    #vv = ['hwmid-tx', 'hwmid-tn', 'wsdi-tx']
     ff = ['j-d']
-    yy = ['g15', 'mean']
+    yy = ['mean']
+    #yy = ['g15', 'mean']
     #yy = ['p10', 'p50', 'p90']
     pp = [[1981, 2020], [2021, 2060], [2061, 2100]]
     #loop 0
@@ -219,7 +228,7 @@ def main():
             for y_ in yy:
                 print('  {}'.format(y_))
                 vl = _vlabel(var, y_)
-                fn = '{}md0_{}_{}.pdf'.format(fdir, y_, var)
+                fn = _djn(fdir, 'md0_{}_{}.pdf'.format(y_, var))
                 #fig, ax = _fa(vl)
                 fig, axs = _fas(vl)
                 lgo, lgo_, lgr, lgr_, lgy, lgy_ = [[] for _ in range(6)]

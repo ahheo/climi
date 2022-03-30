@@ -161,6 +161,11 @@ def _mp0(fn, cgL, crLL, gcms, rcms):
         f1.write('ROW: ' + yi + ':\n')
         _cc_cL(cL, ['GCM'] + rcms, f1)
     f1.close()
+    f2 = open(fn.replace(pure_fn_(fn), 'cc1_'+ pure_fn_(fn)), 'w')
+    for cm, cs, yi in zip(crL0, crL1, ['GCM'] + rcms):
+        f2.write('COLUMN: ' + yi + ':\n')
+        _cc_cL([cm, cs], ['RCM mean', 'RCM spread'], f2)
+    f2.close()
 
 
 def main():
@@ -172,7 +177,7 @@ def main():
     dap = 'interp/'
     ddir = cfg['ddir']
     fdir = cfg['fdir']
-    tdir = cfg['tdir'] + dap
+    tdir = _djn(cfg['tdir'], dap)
     os.makedirs(ddir, exist_ok=True)
     os.makedirs(fdir, exist_ok=True)
     os.makedirs(tdir, exist_ok=True)
@@ -200,7 +205,8 @@ def main():
             for y0y1 in pp[1:]:
                 print('    {}-{}'.format(*y0y1))
                 for y_ in yy:
-                    fn = '{}dmp2_{}_p{}-{}_{}.txt'.format(tdir, y_, *y0y1, var)
+                    fn = _djn(tdir,
+                              'dmp2_{}_p{}-{}_{}.txt'.format(y_, *y0y1, var))
                     crLL = _clcdx(ddir, gcms, rcms, y_, y0y1, pp[0], freq, var)
                     cgL = _clcmp(ddir, gcms, y_, y0y1, pp[0], freq, var)
                     _mp0(fn, cgL, crLL, gcms, rcms)

@@ -1826,7 +1826,7 @@ def eur11_smhi_rcp_(il_, reg_d, reg_n, po_,
     pp_ = l_ind_(pp['h248'], [int(i) for i in idx.split(',')]) if idx else\
           pp['h248'][sss:eee]
     for ppi in pp_:
-        pi_ = _djn(pp['root'], ppi, 'netcdf')
+        pi_ = _djn(pp['root'], '{}'.format(ppi), 'netcdf')
         dn = _dn(pp[ppi]['gcm'], pp[ppi]['rcp'], pp[ppi]['rip'],
                  pp[ppi]['rcm'], pp[ppi]['ver'], reg_n)
         t0 = l__('>>>>>>>' + dn)
@@ -1846,8 +1846,8 @@ def eur11_smhi_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
           pp['rcps'][sss:eee]
     for p0p1 in pp_:
         pi0, pi1 = p0p1[0], p0p1[1]
-        pi0_, pi1_ = (_djn(pp['root'], pi0, 'netcdf'),
-                      _djn(pp['root'], pi1, 'netcdf'))
+        pi0_, pi1_ = (_djn(pp['root'], '{}'.format(pi0), 'netcdf'),
+                      _djn(pp['root'], '{}'.format(pi1), 'netcdf'))
         dn = _dn(pp[pi1]['gcm'], pp[pi1]['rcp'], pp[pi1]['rip'],
                  pp[pi1]['rcm'], pp[pi1]['ver'], reg_n)
         y0y1, dn = _yy_dn(pp[pi1], dn, gwl, gg, curr)
@@ -1874,7 +1874,7 @@ def eobs20_(il_, reg_d, reg_n, po_, y0y1=None, user_cfg=None):
 
     def _eobs_load(var):
         o = iris.load_cube(_djn(idir,
-            '{}_ens_mean_0.1deg_reg_v20.0e.nc'.format(vo[var][0]))
+            '{}_ens_mean_0.1deg_reg_v20.0e.nc'.format(vo[var][0])))
         if reg_d is not None:
             o = intersection_(o, **reg_d)
         if vo[var][1] is None and vo[var][2]:

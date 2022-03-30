@@ -192,7 +192,7 @@ def _mp11(fn, crLL, gcms, rcms, pD, dpD, rgD, vl):
     ncol = 2
     nrow = len(gcms)
     pD_ = dict(rasterized=True)
-    ifx = 1.85
+    ifx = 1.75
     fx = ifx * ncol
     fy = ifx * nrow * .7
     fig = init_fig_(fx=fx, fy=fy, l=.025, r=.995, t=.945, b=.02, w=.4)
@@ -254,11 +254,13 @@ def main():
     idir__ = cfg['idir']['rcms']
     rgD_eur = rgDs['eur']
     #loop variables
-    vv = ['hwmid-tx', 'hwmid-tn', 'wsdi-tx']
+    vv = ['hwmid-tx']
+    #vv = ['hwmid-tx', 'hwmid-tn', 'wsdi-tx']
     ff = ['j-d']
-    #yy = ['g15', 'mean']
-    yy = ['g15', 'mean', 'p10', 'p50', 'p90']
-    pp = [[1981, 2020], [2021, 2060], [2061, 2100]]
+    yy = ['mean']
+    #yy = ['g15', 'mean', 'p10', 'p50', 'p90']
+    pp = [[1981, 2020]]
+    #pp = [[1981, 2020], [2021, 2060], [2061, 2100]]
     #loop 0
     for var in vv:
         print('{}'.format(var))
@@ -270,7 +272,8 @@ def main():
                 for y_ in yy:
                     vl = _vlabel(var, y_)
                     pD, dpD = _pdict(var, y_, y0y1)
-                    fn = '{}mp11_{}_p{}-{}_{}.pdf'.format(fdir, y_, *y0y1, var)
+                    fn = _djn(fdir,
+                              'mp11_{}_p{}-{}_{}.pdf'.format(y_, *y0y1, var))
                     #fn = '{}mp1_{}_p{}-{}_{}.pdf'.format(fdir, y_, *y0y1, var)
                     crLL = _clcdx(ddir, gcms, rcms, y_, y0y1, freq, var)
                     #cgL = _clcmp(ddir, gcms, y_, y0y1, freq, var)

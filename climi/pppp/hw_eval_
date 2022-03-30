@@ -15,6 +15,7 @@ from scipy.stats import pearsonr, linregress, t
 from climi.pppp import *
 from climi.uuuu import *
 from climi.uuuu.cccc import _get_ind_lolalim as lllim_
+from matplotlib.path import Path
 from skextremes.models.classic import GEV
 from sklearn.metrics import mean_squared_error as mse_, r2_score as r2_
 
@@ -117,7 +118,7 @@ def _map_data(clo, clr, obss, rcms, mtd, rgD, vv, slct=None):
 
 
 def _mp(fn, cubeLL, tiLL, dataLL, tiLL_, vv, pD, rgD, vl, cbt=None):
-    fig = init_fig_(fx=7.5, fy=6, l=.09, r=.98, t=.965, b=.45, h=.15)
+    fig = init_fig_(fx=6.5, fy=5, l=.09, r=.98, t=.96, b=.45, h=.2)
     _map(fig, cubeLL, tiLL, pD, rgD, vl, cbt=cbt)
     yl = 'Land area (%)'
     ax = fig.add_axes([.09, .075, .89, .32],
@@ -130,7 +131,11 @@ def _mp(fn, cubeLL, tiLL, dataLL, tiLL_, vv, pD, rgD, vl, cbt=None):
 
 
 def _tx_rgmean(fig, ax, cube, rgD):
-    s = '{:.1f}'.format(rgMean_cube(cube, rgD=rgD).data)
+    coord0 = ((-10, 35), (-5, 35), (25, 70), (-10, 70), (-10, 35))
+    coord1 = ((-5, 35), (30, 35), (30, 70), (25, 70), (-5, 35))
+    s = '{:.1f}\n{:.1f}'.format(rgMean_cube(cube, rgD=rgD).data,
+            rgMean_poly_cube(cube, Path(coord0)).data -
+            rgMean_poly_cube(cube, Path(coord1)).data)
     aligned_tx_(fig, ax, s, rpo='tl', itv=-0.005, alpha=.5, fontsize=8)
 
 
@@ -150,6 +155,7 @@ def _map(fig, cubeLL, tiLL, pD, rgD, vl, cbt=None):
         for ii, (cube, ti) in enumerate(zip(cubeL, tiL)):
             ax, pch = _pch(i*ncol + ii + 1, cube, ti)
             _tx_rgmean(fig, ax, cube, rgD)
+            ax.plot([-5, 25], [35, 70], c='w', lw=1)
             axs.append(ax)
     cbw = wspace_ax_(*axs[-2:])
     cb = aligned_cb_(fig, ax, pch, [cbw, cbw*1.5],

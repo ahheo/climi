@@ -8,6 +8,9 @@ import os
 from shutil import copy as cp
 
 
+_djn = os.path.join
+
+
 MD = dict(RCA4='SMHI-RCA4',
           HIRHAM5='DMI-HIRHAM5',
           RACMO22E='KNMI-RACMO22E',
@@ -19,27 +22,26 @@ def main():
     from iris.fileformats.netcdf import UnknownCellMethodWarning
     warnings.filterwarnings("ignore", category=UnknownCellMethodWarning)
     ldir = '/nobackup/rossby22/sm_chali/DATA/fx/'
-    ddir = '/nobackup/rossby24/users/sm_chali/DATA/hw2018/data/h8/'
-    ddir_ = '/nobackup/rossby24/users/sm_chali/DATA/hw2018/data/h8/'
-    odir = '{}interp__/'.format(ddir_)
+    ddir = '/nobackup/rossby26/users/sm_chali/DATA/hw2018/data/h8/'
+    ddir_ = '/nobackup/rossby26/users/sm_chali/DATA/hw2018/data/h8/'
+    odir = _djn(ddir_, 'interp_')
     fns = u.schF_keys_(ddir, 'mp')#[225:]
-    fns = u.slctStrL_(fns, incl=['_g_', 'HadGEM2-ES',
-                                 ['DryDays','TX','TN','EffPR']])
+    fns = u.slctStrL_(fns, incl=[ ['DryDays','EffPR'],
+                                 ['_jja_', 'mjjas']])
     print(*fns, 'n={}'.format(len(fns)), sep='\n')
     OK = input('Is it OK with the file list?: ')
     if OK not in ('yes', 'y', 'YES', 'Yes'):
         return
     skip = input('Skip existing files?: ') in ('yes', 'y', 'YES', 'Yes')
-    #rd = {'longitude': [-10., 30.], 'latitude': [35., 70.]}
-    #ttt = 'ECMWF-ERAINT'
-    #fn0 = ddir + 'mp_r_mean_EC-EARTH_HIRHAM5_1981-2020_j-d_hwmid-tx.nc'
-    #fn0 = ddir + 'mp_r_mean_EC-EARTH_CCLM4-8-17_1989-2008_j-d_hwmid-tx.nc'
-    fn0 = ddir + 'mp_r_mean_EC-EARTH_CCLM4-8-17_1981-2020_j-d_hwmid-tx.nc'
+    rd = {'longitude': [-10., 30.], 'latitude': [35., 70.]}
+    fn0 = _djn(ddir, 'mp_r_mean_EC-EARTH_HIRHAM5_1981-2020_j-d_hwmid-tx.nc')
+    #fn0 = _djn(ddir, 'mp_r_mean_EC-EARTH_CCLM4-8-17_1989-2008_j-d_hwmid-tx.nc')
+    #fn0 = _djn(ddir, 'mp_r_mean_EC-EARTH_CCLM4-8-17_1981-2020_j-d_hwmid-tx.nc')
     o0 = iris.load_cube(fn0)
     for i, fn in enumerate(fns):
         print(u.prg_(i, len(fns)), fn)
         pfn = u.pure_fn_(fn)
-        fn_ = '{}{}.nc'.format(odir, pfn)
+        fn_ = _djn(odir, '{}.nc'.format(pfn))
         if os.path.isfile(fn_):
             if skip:
                 continue
@@ -47,6 +49,7 @@ def main():
                 os.remove(fn_)
         fff = pfn.split('_')
         if 'CCLM4-8-17' in fff:
+        if 'HIRHAM5' in fff:
             print('copy to', fn_)
             cp(fn, odir)
         else:

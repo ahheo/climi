@@ -66,14 +66,14 @@ def _rf(fn):
 
 
 def _clcdx(ddir, gcms, rcms, y_, y0y1, y0y1_, freq, var):
-    ffmt = '{}mp_r_{}_{}_{}_{}-{}_{}_{}.nc'
+    ffmt = 'mp_r_{}_{}_{}_{}-{}_{}_{}.nc'
     sc = 3600*24*365 if 'PR' in var else 1
     o = []
     for gcm in gcms:
         oo = []
         for rcm in rcms:
-            o0 = _rf(ffmt.format(ddir, y_, gcm, rcm, *y0y1_, freq, var))
-            o1 = _rf(ffmt.format(ddir, y_, gcm, rcm, *y0y1, freq, var))
+            o0 = _rf(_djn(ddir, ffmt.format(y_, gcm, rcm, *y0y1_, freq, var)))
+            o1 = _rf(_djn(ddir, ffmt.format(y_, gcm, rcm, *y0y1, freq, var)))
             if o0 and o1:
                 oo.append(o1.copy((o1.data - o0.data) * sc))
             else:
@@ -83,12 +83,12 @@ def _clcdx(ddir, gcms, rcms, y_, y0y1, y0y1_, freq, var):
 
 
 def _clcmp(ddir, gcms, y_, y0y1, y0y1_, freq, var, go_='g'):
-    ffmt = '{}mp_{}_{}_{}_{}-{}_{}_{}.nc'
+    ffmt = 'mp_{}_{}_{}_{}-{}_{}_{}.nc'
     sc = 3600*24*365 if 'PR' in var else 1
     o = []
     for gcm in gcms:
-        o0 = _rf(ffmt.format(ddir, go_, y_, gcm, *y0y1_, freq, var))
-        o1 = _rf(ffmt.format(ddir, go_, y_, gcm, *y0y1, freq, var))
+        o0 = _rf(_djn(ddir, ffmt.format(go_, y_, gcm, *y0y1_, freq, var)))
+        o1 = _rf(_djn(ddir, ffmt.format(go_, y_, gcm, *y0y1, freq, var)))
         if o0 and o1:
             o.append(o1.copy((o1.data - o0.data) * sc))
         else:
@@ -239,12 +239,12 @@ def main():
     idir__ = cfg['idir']['rcms']
     rgD_eur = rgDs['eur']
     #loop variables
-    vv = ['EffPR', 'DryDays', 'TX']
-    #vv = ['TX', 'TN']
-    #vv = ['EffPR']
-    ff = ['j-d']
+    #vv = ['EffPR', 'DryDays', 'TX']
+    vv = ['EffPR', 'DryDays']
+    ff = ['jja', 'mjjas']
     yy = ['mean']
     pp = [[1981, 2020], [2021, 2060], [2061, 2100]]
+    freq_ = 'j-d'
     #loop 0
     for var in vv:
         print('{}'.format(var))
@@ -254,17 +254,17 @@ def main():
             for y_ in yy:
                 vl = _vlabel(var)
                 pD = _pdict(var)
-                fn = '{}dmp00_{}_{}.pdf'.format(fdir, y_, var)
+                fn = _djn(fdir, 'dmp00_{}_{}_{}.pdf'.format(y_, freq, var))
                 prds = ['{}-{}'.format(*i) for i in pp[1:]]
                 crLL = _clcdx(ddir, gcms, rcms, y_, pp[1], pp[0], freq, var)
                 cgL = _clcmp(ddir, gcms, y_, pp[1], pp[0], freq, var)
                 crLL1 = _clcdx(ddir, gcms, rcms, y_, pp[2], pp[0], freq, var)
                 cgL1 = _clcmp(ddir, gcms, y_, pp[2], pp[0], freq, var)
                 var_ = 'hwmid-tx'
-                crLL_ = _clcdx(ddir, gcms, rcms, y_, pp[1], pp[0], freq, var_)
-                cgL_ = _clcmp(ddir, gcms, y_, pp[1], pp[0], freq, var_)
-                crLL1_ = _clcdx(ddir, gcms, rcms, y_, pp[2], pp[0], freq, var_)
-                cgL1_ = _clcmp(ddir, gcms, y_, pp[2], pp[0], freq, var_)
+                crLL_ = _clcdx(ddir, gcms, rcms, y_, pp[1], pp[0], freq_, var_)
+                cgL_ = _clcmp(ddir, gcms, y_, pp[1], pp[0], freq_, var_)
+                crLL1_ = _clcdx(ddir, gcms, rcms, y_, pp[2], pp[0], freq_, var_)
+                cgL1_ = _clcmp(ddir, gcms, y_, pp[2], pp[0], freq_, var_)
                 #################
                 A3, TFx, TFy = compressLL_(crLL)
                 A1 = l_ind_(cgL, TFy)

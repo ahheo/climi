@@ -1,0 +1,24 @@
+#!/usr/bin/env python3
+
+
+import climi.uuuu as u
+import numpy as np
+import iris
+
+import os
+
+
+y0, y1 = 1979, 2008
+
+def main():
+    c = u.concat_cube_(iris.load(
+            '/nobackup/rossby22/sm_chali/DATA/hw2018/iii/obs/ERAI/tasmax*'))
+    c = u.extract_period_cube(c, y0, y1)
+    cc = u.doy_f_cube(c, np.nanpercentile, f_Args=(90,), ws=15, mF=np.nan)
+    iris.save(cc,
+              '/nobackup/rossby22/sm_chali/DATA/hc/med/'
+              'thr_tx_ERA-Interim_ALL_{}-{}_90.nc'.format(y0, y1))
+
+
+if __name__ == '__main__':
+    main()

@@ -13,6 +13,7 @@ import iris
 from iris.fileformats.netcdf import UnknownCellMethodWarning
 from climi.pppp import *
 from climi.uuuu import *
+from scipy.stats import pearsonr
 from climi.uuuu.cccc import _get_ind_lolalim as lllim_
 
 
@@ -98,6 +99,35 @@ def _tx_rgmean(fig, ax, cube, rgD):
     aligned_tx_(fig, ax, s, rpo='tl', itv=-0.005, alpha=.5, fontsize=8)
 
 
+def d_m_(cube, rgD=None):
+    if np.ma.is_masked(cube.data):
+        d_, m_ = cube.data.data, cube.data.mask
+    else:
+        d_ = cube.data.data if np.ma.isMaskedArray(cube.data) else cube.data
+        m_ = np.full(d_.shape, False)
+    if rgD:
+        ind = lllim_(cube, **rgD)
+        m_ = np.logical_or(m_, ~ind)
+    return (d_, m_)
+
+
+def cc_cube_(y0, y1, rgD=None):
+    d0_, m0_ = d_m_(y0, rgD=rgD)
+    d1_, m1_ = d_m_(y1, rgD=rgD)
+    M_ = np.logical_and(~m0_, ~m1_)
+    print(d0_[M_].size)
+    return pearsonr(d0_[M_], d1_[M_])
+
+
+def _tx_rgmean_(fig, ax, cube, cube_, rgD):
+    s_ = '{:.1f}\n{:.2f}{}'
+    s0 = rgMean_cube(cube, rgD=rgD).data
+    s1, s2 = cc_cube_(cube, cube_, rgD=rgD)
+    s = s_.format(s0, s1, '*' * (1 if s2 <= .05 else 0))
+    aligned_tx_(fig, ax, s.replace('-', '$-$'),
+                rpo='tl', itv=-0.005, alpha=.5, fontsize=6)
+
+
 def _mp0(fn, cgL, cgL1, crLL, crLL1, gcms, rcms, prds, pD, rgD, vl):
     tiD = dict(fontsize=10, fontweight='bold')
     nrow = len(gcms) * 2
@@ -128,9 +158,10 @@ def _mp0(fn, cgL, cgL1, crLL, crLL1, gcms, rcms, prds, pD, rgD, vl):
     aligned_tx_(fig, axs, prds[0], rpo='lc', itv=.03, **tiD)
     axs1, axr1 = [], []
     i_ = len(gcms)
-    for i, (cg, crL, yi) in enumerate(zip(cgL1, crLL1, gcms)):
-        for ii, (cube, xi) in enumerate(zip([cg] + crL,
-                                            ['GCM'] + rcms)):
+    for i, (cg, crL, yi, cg_, crL_) in enumerate(zip(cgL1, crLL1, gcms,
+                                                     cgL, crLL)):
+        for ii, (cube, cube_, xi) in enumerate(zip([cg] + crL, [cg_] + crL_,
+                                                   ['GCM'] + rcms)):
             xi_ = None
             yi_ = yi if ii == 0 else None
             if cube:
@@ -138,7 +169,7 @@ def _mp0(fn, cgL, cgL1, crLL, crLL1, gcms, rcms, prds, pD, rgD, vl):
                 axs1.append(ax)
                 if xi in rcms:
                     axr1.append(ax)
-                _tx_rgmean(fig, ax, cube, rgD)
+                _tx_rgmean_(fig, ax, cube, cube_, rgD)
     axs_rct_(fig, axr1, color='r')
     axs_abc_(fig, axs1, '(b)')
     aligned_tx_(fig, axs1, prds[1], rpo='lc', itv=.03, **tiD)
@@ -176,9 +207,11 @@ def main():
     #loop variables
     #vv = ['hwmid-tn']
     ff = ['j-d']
-    yy = ['g15', 'mean', 'p10', 'p50', 'p90']
+    #yy = ['g15', 'mean', 'p10', 'p50', 'p90']
+    yy = ['mean']
     pp = [[1981, 2020], [2021, 2060], [2061, 2100]]
-    vv = ['hwmid-tx', 'hwmid-tn', 'wsdi-tx']
+    #vv = ['hwmid-tx', 'hwmid-tn', 'wsdi-tx']
+    vv = ['hwmid-tx']
     #loop 0
     for var in vv:
         print('{}'.format(var))

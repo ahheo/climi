@@ -10,6 +10,7 @@ import os
 import warnings
 import datetime
 import iris
+from matplotlib.path import Path
 from iris.fileformats.netcdf import UnknownCellMethodWarning
 from climi.pppp import *
 from climi.uuuu import *
@@ -94,8 +95,12 @@ def _pch(fig, nrow, ncol, ii, o, rgD, pD, tiD=None, xi=None, yi=None):
     return (ax, pch)
 
 
-def _tx_rgmean(fig, ax, cube, rgD):
-    s = '{:.1f}'.format(rgMean_cube(cube, rgD=rgD).data)
+def _tx_rgmean(fig, ax, cube, rgD):                                             
+    coord0 = ((-10, 35), (-5, 35), (25, 70), (-10, 70), (-10, 35))              
+    coord1 = ((-5, 35), (30, 35), (30, 70), (25, 70), (-5, 35))                 
+    s = '{:.1f}\n{:.1f}'.format(rgMean_cube(cube, rgD=rgD).data,                
+            rgMean_poly_cube(cube, Path(coord0)).data -                         
+            rgMean_poly_cube(cube, Path(coord1)).data)                          
     aligned_tx_(fig, ax, s, rpo='tl', itv=-0.005, alpha=.5, fontsize=8)
 
 
@@ -121,6 +126,7 @@ def _mp0(fn, cgL, crLL, gcms, rcms, pD, rgD, vl, coL=None, obss=None):
                 ax_move_(ax, dy=.04)
                 axo.append(ax)
                 _tx_rgmean(fig, ax, cube, rgD)
+                ax.plot([-5, 25], [35, 70], c='w', lw=1)
     else:
         i_ = 0
     for i, (cg, crL, yi) in enumerate(zip(cgL, crLL, gcms)):
@@ -133,6 +139,7 @@ def _mp0(fn, cgL, crLL, gcms, rcms, pD, rgD, vl, coL=None, obss=None):
                 if xi in rcms:
                     axr.append(ax)
                 _tx_rgmean(fig, ax, cube, rgD)
+                ax.plot([-5, 25], [35, 70], c='w', lw=1)
     axs_rct_(fig, axr, color='r')
     cbw = wspace_ax_(*axs[-2:])
     if i_:
@@ -168,12 +175,13 @@ def main():
     idir__ = cfg['idir']['rcms']
     rgD_eur = rgDs['eur']
     #loop variables
-    vv = ['hwmid-tx', 'hwmid-tn', 'wsdi-tx']
+    #vv = ['hwmid-tx', 'hwmid-tn', 'wsdi-tx']
     ff = ['j-d']
-    yy = ['g15', 'mean', 'p10', 'p50', 'p90']
-    pp = [[1981, 2020], [2021, 2060], [2061, 2100]]
-    #vv = ['hwmid-tn']
-    #yy = ['g15', 'mean']
+    #yy = ['g15', 'mean', 'p10', 'p50', 'p90']
+    #pp = [[1981, 2020], [2021, 2060], [2061, 2100]]
+    pp = [[1981, 2020]]
+    vv = ['hwmid-tx']
+    yy = ['mean']
     #loop 0
     for var in vv:
         print('{}'.format(var))
@@ -184,10 +192,11 @@ def main():
             for y0y1 in pp[:1]:
                 print('    {}-{}'.format(*y0y1))
                 #for y_ in yy:
-                for y_ in yy[1:2]:
+                for y_ in yy:
                     vl = _vlabel(var, y_)
                     pD = _pdict(var, y_, y0y1)
-                    fn = '{}mp0_{}_p{}-{}_{}.pdf'.format(fdir, y_, *y0y1, var)
+                    fn = _djn(fdir, 'mp0_{}_p{}-{}_{}.pdf'.format(y_, *y0y1,
+                            var))
                     crLL = _clcdx(ddir, gcms, rcms, y_, y0y1, freq, var)
                     cgL = _clcmp(ddir, gcms, y_, y0y1, freq, var)
                     if y0y1[1] < 2021:

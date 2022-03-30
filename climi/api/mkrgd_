@@ -8,7 +8,7 @@ import pickle
 def main():
     ldir = '/nobackup/rossby22/sm_chali/DATA/fx/'
     odir = '/home/sm_chali/wks/heat-wave-2018/climi/regriders/'
-    fns = u.schF_keys_(ldir, 'ECMWF-ERAINT_evaluation')[:8]
+    fns = u.slctStrL_(u.schF_keys_(ldir, 'ECMWF-ERAINT_evaluation'),[['KNMI','GERICS']])
     fn0 = '/nobackup/rossby22/sm_chali/DATA/fx/' \
           'sftlf_fx_ECMWF-ERAINT_rean_r0i0p0.nc'
     rd = {'longitude': [-10., 30.], 'latitude': [35., 70.]}
@@ -21,7 +21,7 @@ def main():
         o = iris.load_cube(fn)
         regrider = u.POLYrgd(o, o0)
         regrider._info()
-        fn_ = '{}{}-{}_EUR.p'.format(odir, mdl, mdl0)
+        fn_ = '{}{}_{}_EUR.p'.format(odir, mdl, mdl0)
         print('save to', fn_)
         with open(fn_, 'wb') as f:
             pickle.dump(regrider, f, protocol=pickle.HIGHEST_PROTOCOL)

@@ -154,9 +154,9 @@ def _mp0(fn, cgL, crLL, gcms, rcms):
     print(crL0)
     print(crL1)
     f1 = open(fn.replace(pure_fn_(fn), 'cc0_'+ pure_fn_(fn)), 'w')
-    for cg, cr, yi in zip(cgL, crL0, gcms):
+    for cg, cr0, cr1, yi in zip(cgL, crL0, crL1, gcms):
         f1.write('ROW: ' + yi + ':\n')
-        _cc_cL([cg, cr], ('GCM', 'RCM mean'), f1)
+        _cc_cL([cg, cr0, cr1], ('GCM', 'RCM mean', 'RCM spread'), f1)
     f1.close()
     f2 = open(fn.replace(pure_fn_(fn), 'cc1_'+ pure_fn_(fn)), 'w')
     for cL, xi in zip((crL0, crL1), ('RCM mean', 'RCM spread')):
@@ -174,7 +174,7 @@ def main():
     dap = 'interp/'
     ddir = cfg['ddir']
     fdir = cfg['fdir']
-    tdir = cfg['tdir'] + dap
+    tdir = _djn(cfg['tdir'], dap)
     os.makedirs(ddir, exist_ok=True)
     os.makedirs(fdir, exist_ok=True)
     os.makedirs(tdir, exist_ok=True)

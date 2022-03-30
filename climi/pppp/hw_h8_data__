@@ -6,6 +6,9 @@ import warnings
 import os
 
 
+_djn = os.path.join
+
+
 MD = {'RCA4': 'SMHI-RCA4',
       'HIRHAM5': 'DMI-HIRHAM5',
       'RACMO22E': 'KNMI-RACMO22E',
@@ -19,10 +22,11 @@ def main():
     from iris.fileformats.netcdf import UnknownCellMethodWarning
     warnings.filterwarnings("ignore", category=UnknownCellMethodWarning)
     ldir = '/nobackup/rossby22/sm_chali/DATA/fx/'
-    ddir = '/nobackup/rossby24/users/sm_chali/DATA/hw2018/data/h8/eval/'
-    odir = '{}interp/'.format(ddir)
+    #ddir = '/nobackup/rossby24/users/sm_chali/DATA/hw2018/data/h8/eval/'
+    ddir = '/nobackup/rossby26/users/sm_chali/DATA/hw2018/data/h8/'
+    odir = _djn(ddir, 'interp')
     fns = u.schF_keys_(ddir, 'mp')
-    fns = u.slctStrL_(fns, incl=['_g_', 'ERAI', ['tx', 'tn']])
+    fns = u.slctStrL_(fns, incl=[['EffPR', 'DryDays'], ['_jja_', 'mjjas']])
     print(*fns,'n={}'.format(len(fns)), sep='\n')
     OK = input('Is it OK with the file list?: ')
     if OK not in ('yes', 'y', 'YES', 'Yes'):
@@ -36,7 +40,7 @@ def main():
     for i, fn in enumerate(fns):
         print(u.prg_(i, len(fns)), fn)
         pfn = u.pure_fn_(fn)
-        fn_ = '{}{}.nc'.format(odir, pfn)
+        fn_ = _djn(odir, '{}.nc'.format(pfn))
         if os.path.isfile(fn_) and skip:
             continue
         fff = pfn.split('_')

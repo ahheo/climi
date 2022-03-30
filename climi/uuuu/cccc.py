@@ -1910,46 +1910,48 @@ def doy_f_cube(cube,
                _f, f_Args=(), f_kArgs={},
                ws=None,
                mF=None,
-               out=None):                                        
-    """                                                                         
-    ... percentile-based threshold ...                                          
-    Returns:                                                                    
-    t_thr: array of t_max threshold with shape[ax_t] = 366                
-    """                                                                         
+               out=None,
+               pp=False):
+    """
+    ... percentile-based threshold ...
+    """
 
     ax_t = axT_cube(cube)
     yr_doy_cube(cube)
     doy_data = cube.coord('doy').points
 
-    doy_ = np.unique(doy_data)                                                  
-    if len(doy_) < 360:                                                        
-        raise Exception('doy less than 360!')                                   
-    doy = np.arange(1, 367, dtype='int32')                                        
+    doy_ = np.unique(doy_data)
+    if len(doy_) < 360:
+        raise Exception('doy less than 360!')
+    doy = np.arange(1, 367, dtype='int32')
 
     if out is None:
-        out = extract_byAxes_(cube, ax_t, doy - 1)                            
-        #select 2000 as it is a leap year...                                        
-        out.coord('time').units = cf_units.Unit('days since 1850-1-1',            
-                                                calendar='gregorian')             
-        d0 = cf_units.date2num(datetime(2000, 1, 1),                                
-                               out.coord('time').units.origin,                    
-                               out.coord('time').units.calendar)                  
-        dimT = out.coord('time').copy(doy - 1 + d0)         
+        out = extract_byAxes_(cube, ax_t, doy - 1)
+        #select 2000 as it is a leap year...
+        out.coord('time').units = cf_units.Unit('days since 1850-1-1',
+                                                calendar='gregorian')
+        d0 = cf_units.date2num(datetime(2000, 1, 1),
+                               out.coord('time').units.origin,
+                               out.coord('time').units.calendar)
+        dimT = out.coord('time').copy(doy - 1 + d0)
         out.replace_coord(dimT)
 
-    t0 = l__('0', _p=True)
+    if pp:
+        t0 = l__('0', _p=True)
 
     data_ = np.ma.filled(cube.data, mF) if mF is not None else cube.data
-    ll_('releazing', t0=t0, _p=True)
+    if pp:
+        ll_('releazing', t0=t0, _p=True)
 
     for i in doy:
         indw = ind_win_(doy_data, i, 15) if ws else np.isin(doy_data, i)
         ind = ind_s_(cube.ndim, ax_t, indw)
         #data_ = cube[ind].data
         #data_ = np.ma.filled(data_, mF) if mF is not None else data_
-        f_kArgs.update(dict(axis=ax_t, keepdims=True)) 
-        tmp = _f(data_[ind], *f_Args, **f_kArgs)       
-        out.data[ind_s_(out.ndim, axT_cube(out), doy == i)] = tmp                     
-        ll_('{}'.format(i), t0=t0, _p=True)
+        f_kArgs.update(dict(axis=ax_t, keepdims=True))
+        tmp = _f(data_[ind], *f_Args, **f_kArgs)
+        out.data[ind_s_(out.ndim, axT_cube(out), doy == i)] = tmp
+        if pp:
+            ll_('{}'.format(i), t0=t0, _p=True)
 
     return out
