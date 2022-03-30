@@ -1,0 +1,46 @@
+#!/usr/bin/env python3
+
+from climi.uuuu.ffff import prg_, windds2uv_
+from climi.uuuu.xxxx import *
+import pandas as pd
+import numpy as np
+import igra
+import os
+
+
+_djn = os.path.join
+
+variables = ['temp', 'dewp', 'slp', 'stp', 'visib', 'wdsp', 'mxspd', 'gust',
+        'max', 'min', 'prcp']
+
+def main():
+    dir0 = '/home/clin/Documents/data/isd_gsod'
+    dir1 = '/home/clin/Documents/data/gsod'
+    dir1_ = _djn(dir1, 'monthly')
+    dir1__ = _djn(dir1, 'seasonal')
+    dir1___ = _djn(dir1, 'annual')
+    for i in (dir1_, dir1__, dir1___):
+        os.makedirs(i, exist_ok=True)
+    stations = pd.read_csv(_djn(dir0, 'selected.csv'))
+    nS = stations.USAF.count()
+    for i, row in stations.iterrows():
+        #if i < 190:
+        #    continue
+        usaf, wban = row.USAF, row.WBAN
+        sid = '{:0>6}{:0>5}'.format(usaf, wban)
+        print(prg_(i, nS), sid)
+        try:
+            o = gsod_(root=dir0, usaf=usaf, wban=wban, ys=1975, ye=2020,
+                    variables=variables, _attrs=True)
+            o = xr_monthly_mean_(o, 10)
+            o0 = xr_seasonal_mean_(o, 2)
+            o1 = xr_annual_mean_(o, 9)
+            o.to_netcdf(path=_djn(dir1_, sid + '.nc'))
+            o0.to_netcdf(path=_djn(dir1__, sid + '.nc'))
+            o1.to_netcdf(path=_djn(dir1___, sid + '.nc'))
+        except:
+            pass
+
+
+if __name__ == '__main__':
+    main()

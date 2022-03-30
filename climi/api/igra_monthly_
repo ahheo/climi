@@ -3,6 +3,7 @@
 from climi.uuuu.ffff import prg_, windds2uv_
 from climi.uuuu.xxxx import *
 import pandas as pd
+import numpy as np
 import igra
 import os
 
@@ -19,12 +20,16 @@ def main():
     for i in (dir1_, dir1__, dir1___):
         os.makedirs(i, exist_ok=True)
     stations = igra.read.stationlist(_djn(dir0, 'igra2-station-list.txt'))
-    A = (~pd.isna(stations.wmo)) & (~pd.isna(stations.lat)) & (~pd.isna(stations.lon))
-    A.to_csv(_djn(dir0, 'monthly.csv'))
-    nS = A.count()
+    _f = np.vectorize(lambda x, y: min(y, 2020) - max(x, 1975))
+    A = (~pd.isna(stations.wmo)) \
+            & (~pd.isna(stations.lat)) \
+            & (~pd.isna(stations.lon)) \
+            & (_f(stations.start, stations.end) > 40)
+    stations[A].to_csv(_djn(dir0, 'monthly.csv'))
+    nS = A[A].count()
     for i, sid in enumerate(stations[A].index):
-        #if i < 810:
-        #    continue
+        if i < 678:
+            continue
         print(prg_(i, nS), sid)
         try:
             o, _ = igra.read.igra(sid, _djn(dir1, sid + '-data.txt.zip'))

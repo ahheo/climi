@@ -51,7 +51,7 @@ def main():
                 pp[v_][i,:] = a[v_].values
     print(cc.keys())
     for v_ in vs_:
-        fn = _djn(dir2_, '{}-{}'.format(sid, y0, y1))
+        fn = _djn(dir2_, 'igra_tr_{}-{}'.format(y0, y1))
         np.savez(fn, c=cc[v_], p=pp[v_])
 
 

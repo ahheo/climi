@@ -37,7 +37,7 @@ def _sds(ds, y0=None, y1=None):
 
 
 def main():
-    parser = argparse.ArgumentParser("Calculate linear trend with igra data")       
+    parser = argparse.ArgumentParser("Calculate linear trend with gsod data")       
     parser.add_argument("--ys", type=int, help="year start")                                          
     parser.add_argument("--ye", type=int, help="year end")                                          
     parser.add_argument("-f", "--freq", type=str, default='annual',                 
@@ -47,17 +47,19 @@ def main():
     nn = .9 * (y1 - y0 + 1)
     freq = args.freq
     _fD = dict(monthly='month', seasonal='season', annual='year')
-    dir0 = '/home/clin/Documents/data/igra/v2/metadata'
-    dir1 = '/home/clin/Documents/data/igra/v2/data'
+    dir0 = '/home/clin/Documents/data/isd_gsod'
+    dir1 = '/home/clin/Documents/data/gsod'
     dir1_ = _djn(dir1, freq)
-    dir2 = '/home/clin/Documents/res_0/'
+    dir2 = '/home/clin/Documents/res_3/'
     dir2_ = _djn(dir2, freq)
     os.makedirs(dir2_, exist_ok=True)
-    stations = pd.read_csv(_djn(dir0, 'monthly.csv'))
-    nS = stations.id.count()
-    for i, sid in enumerate(stations.id):
+    stations = pd.read_csv(_djn(dir0, 'selected.csv'))                          
+    nS = stations.USAF.count()                                                  
+    for i, row in stations.iterrows():
         #if i < 810:
         #    continue
+        usaf, wban = row.USAF, row.WBAN                                         
+        sid = '{:0>6}{:0>5}'.format(usaf, wban)  
         fn = _djn(dir1_, sid + '.nc')
         if os.path.isfile(fn):
             print(prg_(i, nS), sid + ': fe')
@@ -65,7 +67,6 @@ def main():
             a = _sds(a)
             if a:
                 print(prg_(i, nS), sid + ':: DA')
-                a = a.assign(uwinda=abs(a.uwind),vwinda=abs(a.vwind))
                 year = a.date.dt.year
                 if freq in ('monthly', 'seasonal'):
                     y = a.groupby('.'.join(('date', _fD[freq])))
