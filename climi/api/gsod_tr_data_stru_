@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from climi.uuuu.ffff import prg_
+from climi.uuuu.ffff import prg_, ind_s_
 from scipy.stats import linregress as _lr
 import xarray as xr
 import pandas as pd
@@ -14,29 +14,31 @@ _djn = os.path.join
 
 
 def main():
-    parser = argparse.ArgumentParser("Restructure igra trend data")       
-    parser.add_argument("--ys", type=int, help="year start")                                          
-    parser.add_argument("--ye", type=int, help="year end")                                          
-    parser.add_argument("-f", "--freq", type=str, default='annual',                 
-                        help="input data frequency")                    
+    parser = argparse.ArgumentParser("Restructure igra trend data")
+    parser.add_argument("--ys", type=int, help="year start")
+    parser.add_argument("--ye", type=int, help="year end")
+    parser.add_argument("-f", "--freq", type=str, default='annual',
+                        help="input data frequency")
     args = parser.parse_args()
     y0, y1 = args.ys, args.ye
     freq = args.freq
     _fD = dict(monthly='month', seasonal='season', annual='year')
-    dir0 = '/home/clin/Documents/data/igra/v2/metadata'
-    dir1 = '/home/clin/Documents/res_0/'
+    dir0 = '/home/clin/Documents/data/isd_gsod'
+    dir1 = '/home/clin/Documents/res_3/'
     dir1_ = _djn(dir1, freq)
-    dir2 = '/home/clin/Documents/res_1/'
+    dir2 = '/home/clin/Documents/res_2/'
     dir2_ = _djn(dir2, freq)
-    vs_ = ('gph', 'temp', 'rhumi', 'dpd',
-           'winds', 'uwind', 'vwind', 'uwinda', 'vwinda')
+    vs_ = ('temp', 'dewp', 'slp', 'stp', 'visib', 'wdsp', 'mxspd', 'gust',
+            'max', 'min', 'prcp')
     cc, pp = {}, {}
     os.makedirs(dir2_, exist_ok=True)
-    stations = pd.read_csv(_djn(dir0, 'monthly.csv'))                           
-    nS = stations.id.count()
-    for i, sid in enumerate(stations.id):
+    stations = pd.read_csv(_djn(dir0, 'selected.csv'))
+    nS = stations.USAF.count()
+    for i, row in stations.iterrows():
         #if i < 810:
         #    continue
+        usaf, wban = row.USAF, row.WBAN
+        sid = '{:0>6}{:0>5}'.format(usaf, wban)
         fn_c = _djn(dir1_, '{}_{}-{}_c.nc'.format(sid, y0, y1))
         fn_p = _djn(dir1_, '{}_{}-{}_p.nc'.format(sid, y0, y1))
         if os.path.isfile(fn_c):
@@ -45,11 +47,12 @@ def main():
             b = xr.load_dataset(fn_p)
             for v_ in vs_:
                 cc.setdefault(v_, np.full((nS,) + a[v_].shape, np.nan))
-                cc[v_][i,:] = a[v_].values
+                ind = ind_s_(cc[v_].ndim, 0, i)
+                cc[v_][ind] = a[v_].values
                 pp.setdefault(v_, np.full((nS,) + b[v_].shape, np.nan))
-                pp[v_][i,:] = a[v_].values
+                pp[v_][ind] = a[v_].values
     for v_ in vs_:
-        fn = _djn(dir2_, 'igra_tr_{}-{}'.format(y0, y1))
+        fn = _djn(dir2_, 'gsod_tr_{}-{}'.format(y0, y1))
         if cc and pp:
             np.savez(fn, c=cc[v_], p=pp[v_])
 

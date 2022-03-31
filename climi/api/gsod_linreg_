@@ -47,6 +47,9 @@ def main():
     nn = .9 * (y1 - y0 + 1)
     freq = args.freq
     _fD = dict(monthly='month', seasonal='season', annual='year')
+    _fD2 = dict(
+            monthly=list(range(1,13)),
+            seasonal=np.asarray(['DJF', 'JJA', 'MAM', 'SON']))
     dir0 = '/home/clin/Documents/data/isd_gsod'
     dir1 = '/home/clin/Documents/data/gsod'
     dir1_ = _djn(dir1, freq)
@@ -79,8 +82,15 @@ def main():
                         exclude_dims=set(('date',)),
                         vectorize=True,
                         kwargs=dict(nn=nn))
-                o[0].to_netcdf(_djn(dir2_, '{}_{}-{}_c.nc'.format(sid, y0, y1)))
-                o[1].to_netcdf(_djn(dir2_, '{}_{}-{}_p.nc'.format(sid, y0, y1)))
+                for oo, fmt in zip(o, ('{}_{}-{}_c.nc','{}_{}-{}_p.nc')):
+                    if (freq in ('monthly', 'seasonal') and
+                            oo[_fD[freq]].size < len(_fD2[freq])):
+                        oo.reindex({_fD[freq]: _fD2[freq]}).to_netcdf(
+                                _djn(dir2_, fmt.format(sid, y0, y1)))
+                    else:
+                        oo.to_netcdf(_djn(dir2_, fmt.format(sid, y0, y1)))
+                #o[0].to_netcdf(_djn(dir2_, '{}_{}-{}_c.nc'.format(sid, y0, y1)))
+                #o[1].to_netcdf(_djn(dir2_, '{}_{}-{}_p.nc'.format(sid, y0, y1)))
 
 
 if __name__ == '__main__':
