@@ -37,6 +37,20 @@ _djn = os.path.join
 
 
 def dds_(ds, ff='D', nn=None):
+    '''
+    ... resample xarray dataset (temporally) ...
+    inputs:
+        ds: xarray.Dataset with a 'date' dim
+        ff: target frequency
+            'D': daily, equal to xr_daily_mean_
+            'M': monthly, equal to xr_monthly_mean_
+            'QS-DEC':, seasonal, equal to xr_seasonal_mean_
+            'A': annual, equal to xr_annual_mean_
+            and others 
+        nn: min number of samples for output valid values
+    output:
+        same type as ds
+    '''
     dsr = ds.resample(date=ff)
     o = dsr.mean()
     if nn:

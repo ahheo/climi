@@ -33,7 +33,7 @@ def _sds(ds, y0=None, y1=None):
     else:
         return ds
     if np.sum(_yy):
-        return ds.isel(date=np.arange(year.size)[_yy])
+        return ds.sel(date=_yy)
 
 
 def main():
@@ -67,7 +67,7 @@ def main():
         if os.path.isfile(fn):
             print(prg_(i, nS), sid + ': fe')
             a = xr.load_dataset(fn)
-            a = _sds(a)
+            a = _sds(a, y0=y0, y1=y1)
             if a:
                 print(prg_(i, nS), sid + ':: DA')
                 year = a.date.dt.year
@@ -83,11 +83,14 @@ def main():
                         vectorize=True,
                         kwargs=dict(nn=nn))
                 for oo, fmt in zip(o, ('{}_{}-{}_c.nc','{}_{}-{}_p.nc')):
+                    nfn = _djn(dir2_, fmt.format(sid, y0, y1))
                     if (freq in ('monthly', 'seasonal') and
                             oo[_fD[freq]].size < len(_fD2[freq])):
+                        #print('>>>> reindexed')
                         oo.reindex({_fD[freq]: _fD2[freq]}).to_netcdf(
                                 _djn(dir2_, fmt.format(sid, y0, y1)))
                     else:
+                        #print('<<<< directly')
                         oo.to_netcdf(_djn(dir2_, fmt.format(sid, y0, y1)))
                 #o[0].to_netcdf(_djn(dir2_, '{}_{}-{}_c.nc'.format(sid, y0, y1)))
                 #o[1].to_netcdf(_djn(dir2_, '{}_{}-{}_p.nc'.format(sid, y0, y1)))

@@ -16,6 +16,7 @@
 * flt_l                 : flatten (out: list)               --> (o)uniqL_
 * get_path_             : get path from filename str
 * haversine_            : distance between geo points in radians
+* iind_                 : rebuild extraction indices (n axes)
 * indFront_             : move element with specified index to front
 * ind_inRange_          : indices of values in a range
 * ind_s_                : extraction indices (1 axis)       --> inds_ss_
@@ -96,6 +97,7 @@ __all__ = ['aggr_func_',
            'flt_l',
            'get_path_',
            'haversine_',
+           'iind_',
            'indFront_',
            'ind_inRange_',
            'ind_s_',
@@ -341,7 +343,7 @@ def ind_s_(ndim, axis, sl_i):
     return np.s_[:,] * axis + (sl_i,) + np.s_[:,] * (ndim - axis - 1)
 
 
-def inds_ss_(ndim, axis, sl_i, *vArg):
+def inds_ss_(ndim, axis, sl_i, *vArg, _safely=True):
     """
     ... creat indices for extraction, similar to ind_s_(...) but works for
         multiple axes ...
@@ -368,7 +370,20 @@ def inds_ss_(ndim, axis, sl_i, *vArg):
             for ii, ss in zip(ax, sl):
                 inds[cyl_(ii, ndim)] = ss
 
-    return tuple(inds)
+    return iind_(tuple(inds)) if _safely else tuple(inds)
+
+
+def iind_(inds):
+    x = [ii for ii, i in enumerate(inds) if isIter_(i)]
+    if len(x) < 2:
+        return inds
+    else:
+        inds_ = list(inds)
+        y = [i for ii, i in enumerate(inds) if isIter_(i)]
+        z = np.ix_(*y)
+        for ii, i in zip(x, z):
+            inds_[ii] = i
+        return tuple(inds_)
 
 
 def ind_inRange_(y, y0, y1, side='both', i_=False, r_=None):
@@ -452,7 +467,7 @@ def ouniqL_(l):
     return list(dict.fromkeys(flt_l(l)).keys())
 
 
-def schF_keys_(idir, *keys, ext='*', ordered=False, h_=False):
+def schF_keys_(idir, *keys, s_='*',  ext='*', ordered=False, h_=False):
     """
     ... find files that contain specified keyword(s) in the directory ...
     """
@@ -468,8 +483,8 @@ def schF_keys_(idir, *keys, ext='*', ordered=False, h_=False):
     fn = []
     for i in pm:
         if h_:
-            fn += glob.iglob(os.path.join(idir, '.*' + s.join([i, ext])))
-        fn += glob.glob(os.path.join(idir, '*' + s.join([i, ext])))
+            fn += glob.iglob(os.path.join(idir, '.' + s_ + s.join([i, ext])))
+        fn += glob.glob(os.path.join(idir, s_ + s.join([i, ext])))
     fn = list(set(fn))
     fn.sort()
     return fn
