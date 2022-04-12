@@ -37,7 +37,7 @@ while test $# -gt 0; do
 done
 
 if [ "${STR_}" ]; then
- for i in [^\.]*${STR_}*.sh
+ for i in *${STR_}*.sh
  do
   if [ -f "$i" ]; then
    if [ "${v_}" ]; then
@@ -49,7 +49,7 @@ if [ "${STR_}" ]; then
     sleep "${SLP_}"s
    fi
   else
-   "not a file; SKIP!"
+   echo "not a file; SKIP!"
   fi
  done
 else
