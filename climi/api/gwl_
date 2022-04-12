@@ -5,19 +5,44 @@ from climi.uuuu.cccc import concat_cube_, cubesv_, extract_period_cube
 from climi.uuuu.bbbb import gwl_p_
 import iris
 import re
+import argparse
 import os
 
 
+_djn = os.path.join
+
 def main():
+    parser = argparse.ArgumentParser('extract data from h248 to gwls')
+    parser.add_argument("-v", "--var",
+                        type=str, help="for these variables")
+    parser.add_argument("-s", "--season",
+                        type=str, help="for these seasons")
+    parser.add_argument("-i", "--dir0",
+                        type=str, help="directory for gwls")
+    parser.add_argument("-o", "--dir1",
+                        type=str, help="directory for h248")
+    parser.add_argument("-j", "--adj",
+                        type=str, help="directory for h248")
+    parser.add_argument("-k", "--skip",
+                        type=int, help="SKIP for # less than K")
+    args = parser.parse_args()
     gwls = ('gwl15', 'gwl2', 'gwl25', 'gwl3', 'gwl35', 'gwl4')
-    dir0 = '/nobackup/rossby26/users/sm_chali/DATA/energi/res/gwls/cordex/EUR11/ALL/'
-    dir1 = '/nobackup/rossby26/users/sm_chali/DATA/energi/res/h248/cordex/EUR11/ALL/'
-    os.makedirs(dir1 + 'dddd', exist_ok=True)
+    dir0 = args.dir0 if args.dir0 else \
+        '/nobackup/rossby26/users/sm_chali/DATA/energi/res/gwls/cordex/EUR11/'
+    if args.adj:
+        dir0 = _djn(dir0, args.adj)
+        os.makedirs(dir0, exist_ok=True)
+    dir1 = args.dir1 if args.dir1 else \
+        '/nobackup/rossby26/users/sm_chali/DATA/energi/res/h248/cordex/EUR11/'
     fns = slctStrL_(schF_keys_(dir1), excl='historical')
+    if args.var:
+        fns = slctStrL_(fns, [args.var.split(',')])
+    if args.season:
+        fns = slctStrL_(fns, [args.season.split(',')])
     print(len(fns))
     n = 0
     for i, fn in enumerate(fns):
-        if i < 810:
+        if args.skip and i < args.skip:
             continue
         print(prg_(i, len(fns)), fn)
         fn_ = re.sub('rcp\d+', 'historical', fn)
@@ -28,13 +53,15 @@ def main():
             n += 1
             print('CCE:' + '>'*n)
             continue
-        gcm, rcp, rip, _, _, _, freq = pure_fn_(fn).split('_')[1:8]
+        temp = pure_fn_(fn).split('_')
+        gcm, rcp, rip = temp[1:4]
+        freq = temp[-1]
         eD = dict(ccsn='seasonyr', mmm=freq) if isSeason_(freq) else {}
         for gwl in gwls:
             y0y1 = gwl_p_(gwl, rcp, gcm, rip)
             if y0y1 is not None:
                 o_ = extract_period_cube(o, *y0y1, **eD)
-                fn_ = '{}{}_{}.nc'.format(dir0, pure_fn_(fn), gwl)
+                fn_ = _djn(dir0, '{}_{}.nc'.format(pure_fn_(fn), gwl))
                 print('save to', fn_)
                 cubesv_(o_, fn_)
 

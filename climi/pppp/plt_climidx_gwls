@@ -376,9 +376,11 @@ def main():
     if os.path.isfile(args.config):
         yf = args.config
     elif args.config == '2':
-        yf = _djn(_here_, 'cfg_plt_climidx_gwls.yml')
+        yf = _djn(_here_, 'cfg_plt_climidx_gwls2.yml')
+    elif args.config == '3':
+        yf = _djn(_here_, 'cfg_plt_climidx_gwls3.yml')
     elif args.config == '4':
-        yf = _djn(_here_, 'cfg_plt_climidx_gwls_.yml')
+        yf = _djn(_here_, 'cfg_plt_climidx_gwls4.yml')
     else:
         raise ValueError("unknown configuration!")
     with open(yf, 'r') as ymlfile:

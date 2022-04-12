@@ -209,7 +209,7 @@ def main():
     os.makedirs(odir, exist_ok=True)
     ddir = '/nobackup/rossby26/users/sm_chali/DATA/energi/res/gwls/cordex/EUR11/'
     ffmt1 = '{}{}_{}_CC_{}.pdf'
-    ffmt = '{}{}_{}_{}.pdf'
+    ffmt = '{}_{}_{}.pdf'
     def _get_freq(var):                                                         
         def _sm(x):                                                             
             if x == 'season':                                                   
@@ -262,7 +262,7 @@ def main():
             if args.single:
                 ncol, x_ = (2, 1) if len(sites) < 11 else (3, 1.25)
                 nrow = int(np.ceil(len(sites) / ncol))
-                fn0 = ffmt.format(odir, var, freq, si_)
+                fn0 = _djn(odir, ffmt.format(var, freq, si_))
                 fig0 = init_fig_(fx=3.75*ncol, fy=2*nrow,
                                  r=.91, t=.96, l=.075*x_, b=.13,
                                  w=.28*x_, h=.35)
@@ -295,7 +295,7 @@ def main():
                     yl = ['MIN', 'MEAN', 'MAX']
                     xl = gwls
                     vl = '{} ({})'.format(var, unit)
-                    fn = ffmt.format(odir, var, freq, site)
+                    fn = _djn(odir, ffmt.format(var, freq, site))
                     _hm(fn, mm*sc, ss*sc, dm*sc, ds, xl, yl, vl)
             if args.single:
                 plt.savefig(fn0, dpi=300)

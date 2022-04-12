@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from climi.uuuu import *
 from climi.climidx import *
 
@@ -349,37 +351,37 @@ i__ = {
         dColdPRRNdays_, ['year'],
         dict(name='days with cold rain', units='days',
              attrU={'CLIMI': 'total days with daily prrn > 0 mm and '
-                             '0.58 degree C < tas < 2 degree C'}),
+                             'tas < 2 degree C'}),
         'p'),
     'ColdPRRNgt10Days': (65, 'day', ['pr', 'tas', 'prsn'],
         dColdPRRNdays_, ['year'],
         dict(name='days with cold rain', units='days',
              attrU={'CLIMI': 'total days with daily prrn > 10 mm and '
-                             '0.58 degree C < tas < 2 degree C'}),
+                             'tas < 2 degree C'}),
         'p'),
     'ColdPRRNgt20Days': (66, 'day', ['pr', 'tas', 'prsn'],
         dColdPRRNdays_, ['year'],
         dict(name='days with cold rain', units='days',
              attrU={'CLIMI': 'total days with daily prrn > 20 mm and '
-                             '0.58 degree C < tas < 2 degree C'}),
+                             'tas < 2 degree C'}),
         'p'),
     'WarmPRSNdays': (67, 'day', ['tas', 'prsn'],
         dWarmPRSNdays_, ['year'],
         dict(name='days with warm snow', units='days',
              attrU={'CLIMI': 'total days with daily prsn > 0 mm and '
-                             '-2 degree C < tas < 0.58 degree C'}),
+                             'tas > -2 degree C'}),
         'p'),
     'WarmPRSNgt10Days': (68, 'day', ['tas', 'prsn'],
         dWarmPRSNdays_, ['year'],
         dict(name='days with warm snow', units='days',
              attrU={'CLIMI': 'total days with daily prsn > 10 mm and '
-                             '-2 degree C < tas < 0.58 degree C'}),
+                             'tas > -2 degree C'}),
         'p'),
     'WarmPRSNgt20Days': (69, 'day', ['tas', 'prsn'],
         dWarmPRSNdays_, ['year'],
         dict(name='days with warm snow', units='days',
              attrU={'CLIMI': 'total days with daily prsn > 20 mm and '
-                             '-2 degree C < tas < 0.58 degree C'}),
+                             'tas > -2 degree C'}),
         'p'),
     'SST': (70, 'mon', ['tos'],
         None, ['season', 'year'], None, 't'),
@@ -1824,7 +1826,7 @@ def eur11_smhi_rcp_(il_, reg_d, reg_n, po_,
     pp_ = l_ind_(pp['h248'], [int(i) for i in idx.split(',')]) if idx else\
           pp['h248'][sss:eee]
     for ppi in pp_:
-        pi_ = _djn(pp['root'], ppi, 'netcdf')
+        pi_ = _djn(pp['root'], '{}'.format(ppi), 'netcdf')
         dn = _dn(pp[ppi]['gcm'], pp[ppi]['rcp'], pp[ppi]['rip'],
                  pp[ppi]['rcm'], pp[ppi]['ver'], reg_n)
         t0 = l__('>>>>>>>' + dn)
@@ -1844,8 +1846,8 @@ def eur11_smhi_rcp(il_, reg_d, reg_n, po_, gwl='gwl15', curr=[1971, 2000],
           pp['rcps'][sss:eee]
     for p0p1 in pp_:
         pi0, pi1 = p0p1[0], p0p1[1]
-        pi0_, pi1_ = (_djn(pp['root'], pi0, 'netcdf'),
-                      _djn(pp['root'], pi1, 'netcdf'))
+        pi0_, pi1_ = (_djn(pp['root'], '{}'.format(pi0), 'netcdf'),
+                      _djn(pp['root'], '{}'.format(pi1), 'netcdf'))
         dn = _dn(pp[pi1]['gcm'], pp[pi1]['rcp'], pp[pi1]['rip'],
                  pp[pi1]['rcm'], pp[pi1]['ver'], reg_n)
         y0y1, dn = _yy_dn(pp[pi1], dn, gwl, gg, curr)
@@ -1872,7 +1874,7 @@ def eobs20_(il_, reg_d, reg_n, po_, y0y1=None, user_cfg=None):
 
     def _eobs_load(var):
         o = iris.load_cube(_djn(idir,
-            '{}_ens_mean_0.1deg_reg_v20.0e.nc'.format(vo[var][0]))
+            '{}_ens_mean_0.1deg_reg_v20.0e.nc'.format(vo[var][0])))
         if reg_d is not None:
             o = intersection_(o, **reg_d)
         if vo[var][1] is None and vo[var][2]:
@@ -1923,192 +1925,230 @@ def erai_(il_, reg_d, reg_n, po_, y0y1=None, tii=None, subg=None, xvn=9,
 
 
 def main():
-    parser = argparse.ArgumentParser('RUN CLIMIDX')
-    parser.add_argument("opt",
-                        type=str,
-                        help="options for dataset on BI: "
-                             "0->eobs | "
-                             "1->erai | "
-                             "2->cdx_eval; 21->cdx_eval_dmi; "
-                             "22->cdx_eval_smhi | "
-                             "3->cdx; 30->cdx_smhi; 31->cdx_gwl; "
-                             "32->cdx_gwl_smhi; 33->cdx_0130; "
-                             "34->cdx_0130_smhi | "
-                             "4->norcp | "
-                             "5->cmp5; 51->cmp5_gwl; 54->cmp5_xxx | "
-                             "6->cmp6")
-    parser.add_argument("-x", "--indices",
-                        type=str,
-                        help="indices to be calculated. Formats: "
-                             "file name (yaml): read list from yaml file | "
-                             "indexA,indexB,indexC (no space after comma) | "
-                             "grp_a[bc]: indices belong to a [and b and c] "
-                             "currently available group labels: "
-                             "w | t | p | r | c")
-    parser.add_argument("-X", "--indices_excl",
-                        type=str,
-                        help="indices to not be calculated. Format: "
-                             "indexA,indexB,indexC (no space after comma)")
-    parser.add_argument("-w", "--gwl",
-                        type=str,
-                        help="warming levels: "
-                             "current | gwl15 | gwl2 | gwl25 | gwl3 | gwl35 | "
-                             "gwl4 | xx-xx | xxxx-xxxx")
-    parser.add_argument("-s", "--start",
-                        type=int,
-                        help="simulation-loop start.")
-    parser.add_argument("-e", "--end",
-                        type=int,
-                        help="simulation-loop end")
-    parser.add_argument("-i", "--idx",
-                        type=str,
-                        help="simulation-loop index. exp: 0,1,3 "
-                             "meaning simulation #1,2,4 in the lists "
-                             "(specified in a yaml file) to be calculated")
-    parser.add_argument("-c", "--cfg",
-                        type=str,
-                        help="yaml file that stores user configuration")
-    parser.add_argument("-y", "--yml",
-                        type=str,
-                        help="yaml file that stores paths (simulations)")
-    parser.add_argument("-t", "--tint",
-                        type=str,
-                        help="temporal resolution(s) of input data: mon,day")
-    parser.add_argument("--lll",
-                        type=str,
-                        help="longitude/latitude limits: lo0,lo1,la0,la1")
-    parser.add_argument("-d", "--domain",
-                        type=str,
-                        help="name of domain")
-    parser.add_argument("--rdir",
-                        type=str,
-                        help="directory where the results to be stored!")
-    parser.add_argument("-g", "--subg",
-                        type=str,
-                        help="method for grouping indices for a single call: "
-                              "None (default) | 'v' | 'i'")
-    parser.add_argument("-n", "--xvn",
-                        type=int,
-                        default=9,
-                        help="maximum number of variables: "
-                             "maximum input variables for a single call")
-    parser.add_argument("-l", "--log",
-                        type=str,
-                        help="exclusive log identifier")
-    args = parser.parse_args()
-
-    xi_ = args.indices
-    if xi_:
-        if os.path.isfile(xi_):
-            with open(xi_, 'r') as yf:
-                il_ = yaml.safe_load(yf)
-        elif xi_[:4] == 'grp_':
-            il_ = [i for i in i__.keys()
-                   if all(ii in i__[i][6] for ii in xi_[4:])]
+    def prnt(args):
+        if args.opt:
+            if args.opt in i__.keys():
+                tags = ("#",
+                        "TR_i",
+                        "VARIABLES",
+                        "FUNCTION",
+                        "TR_o",
+                        "METADATA",
+                        "GROUPS")
+                for a, b in zip(tags, i__[args.opt]):
+                    print('{}:'.format(a), b)
+            elif args.opt[:4] == 'grp_':
+                il_ = [i for i in i__.keys()
+                       if all(ii in i__[i][6] for ii in args.opt[4:])]
+                print(', '.join(il_))
         else:
-            il_ = xi_.split(',')
-    else:
-        il_ = list(i__.keys())
-    if args.indices_excl:
-        el_ = args.indices_excl.split(',')
-        for i in el_:
-            il_.remove(i)
-    user_cfg=None
-    if args.cfg:
-        if os.path.isfile(args.cfg):
-            with open(args.cfg, 'r') as yf:
-                user_cfg = yaml.safe_load(yf)
-        elif os.path.isfile(_djn(_here_, args.cfg)):
-            with open(_djn(_here_, args.cfg), 'r') as yf:
-                user_cfg = yaml.safe_load(yf)
-    if args.lll:
-        lo0, lo1, la0, la1 = [float(i) for i in args.lll.split(',')]
-        reg_d = {'longitude': [lo0, lo1], 'latitude': [la0, la1]}
-    else:
-        reg_d = None
-    #reg_d = {'longitude': [10.0, 23.0], 'latitude': [55.0, 69.0]}
-    #reg_n = 'SWE'
-    #reg_d = {'longitude': [-25.0, 45.0], 'latitude': [25.0, 75.0]}
-    reg_n = args.domain if args.domain else \
-            ('LLL' if reg_d is not None else '')
-    if args.rdir:
-        rdir = args.rdir
-    else:
-        rxx = os.environ.get('r26')
-        rdir = '{}DATA/energi/res/'.format(rxx)
-    pf_ = lambda x: os.path.join(*(i for i in (rdir, x, reg_n) if i))
-    poe_ = pf_('eval')
-    poo_ = pf_('obs')
-    pcdx = pf_('h248/cordex/EUR11')
-    pcmp5 = pf_('h248/cmip5')
-    pcmp6 = pf_('h248/cmip6')
-    pnorcp = pf_('h248/norcp')
-    pcdx_ = pf_('gwls/cordex/EUR11')
-    pcmp5_ = pf_('gwls/cmip5')
-    pcmp6_ = pf_('gwls/cmip6')
+            print(', '.join(i__.keys()))
 
-    warnings.filterwarnings("ignore", category=UserWarning)
-    logn = [args.opt]
-    if args.gwl:
-        logn.append(args.gwl)
-    if args.log:
-        logn.append(args.log)
-    logn = '-'.join(logn)
-    nlog = len(find_patt_(r'^{}_*'.format(logn),
-                          pure_fn_(schF_keys_('', logn, ext='.log'))))
-    logging.basicConfig(filename=logn + '_'*nlog + '.log',
-                        filemode='w',
-                        level=logging.INFO)
-    logging.info(' {:_^42}'.format('start of program'))
-    logging.info(strftime(" %a, %d %b %Y %H:%M:%S +0000", localtime()))
-    logging.info(' ')
+    def calc(args):
+        xi_ = args.indices
+        if xi_:
+            if os.path.isfile(xi_):
+                with open(xi_, 'r') as yf:
+                    il_ = yaml.safe_load(yf)
+            elif xi_[:4] == 'grp_':
+                il_ = [i for i in i__.keys()
+                       if all(ii in i__[i][6] for ii in xi_[4:])]
+            else:
+                il_ = xi_.split(',')
+        else:
+            il_ = list(i__.keys())
+        if args.indices_excl:
+            el_ = args.indices_excl.split(',')
+            for i in el_:
+                il_.remove(i)
+        user_cfg=None
+        if args.cfg:
+            if os.path.isfile(args.cfg):
+                with open(args.cfg, 'r') as yf:
+                    user_cfg = yaml.safe_load(yf)
+            elif os.path.isfile(_djn(_here_, args.cfg)):
+                with open(_djn(_here_, args.cfg), 'r') as yf:
+                    user_cfg = yaml.safe_load(yf)
+        if args.lll:
+            lo0, lo1, la0, la1 = [float(i) for i in args.lll.split(',')]
+            reg_d = {'longitude': [lo0, lo1], 'latitude': [la0, la1]}
+        else:
+            reg_d = None
+        #reg_d = {'longitude': [10.0, 23.0], 'latitude': [55.0, 69.0]}
+        #reg_n = 'SWE'
+        #reg_d = {'longitude': [-25.0, 45.0], 'latitude': [25.0, 75.0]}
+        reg_n = args.domain if args.domain else \
+                ('LLL' if reg_d is not None else '')
+        if args.rdir:
+            rdir = args.rdir
+        else:
+            rxx = os.environ.get('r26')
+            rdir = '{}DATA/energi/res/'.format(rxx)
+        pf_ = lambda x: os.path.join(*(i for i in (rdir, x, reg_n) if i))
+        poe_ = pf_('eval')
+        poo_ = pf_('obs')
+        pcdx = pf_('h248/cordex/EUR11')
+        pcmp5 = pf_('h248/cmip5')
+        pcmp6 = pf_('h248/cmip6')
+        pnorcp = pf_('h248/norcp')
+        pcdx_ = pf_('gwls/cordex/EUR11')
+        pcmp5_ = pf_('gwls/cmip5')
+        pcmp6_ = pf_('gwls/cmip6')
 
-    seiyt = dict(sss=args.start, eee=args.end, idx=args.idx,
-                 yml=args.yml, tii=args.tint, subg=args.subg, xvn=args.xvn,
-                 user_cfg=user_cfg)
+        warnings.filterwarnings("ignore", category=UserWarning)
+        logn = [args.opt]
+        if args.gwl:
+            logn.append(args.gwl)
+        if args.log:
+            logn.append(args.log)
+        logn = '-'.join(logn)
+        nlog = len(find_patt_(r'^{}_*'.format(logn),
+                              pure_fn_(schF_keys_('', logn, ext='.log'))))
+        logging.basicConfig(filename=logn + '_'*nlog + '.log',
+                            filemode='w',
+                            level=logging.INFO)
+        logging.info(' {:_^42}'.format('start of program'))
+        logging.info(strftime(" %a, %d %b %Y %H:%M:%S +0000", localtime()))
+        logging.info(' ')
 
-    if args.opt in ('0', 'eobs20'):
-        eobs20_(il_, reg_d, reg_n, poo_, user_cfg=user_cfg)
-    elif args.opt in ('1', 'erai'):
-        erai_(il_, reg_d, reg_n, poo_,
-              tii=args.tint, subg=args.subg, xvn=args.xvn, user_cfg=user_cfg)
-    elif args.opt in ('2', 'cdx_eval'):
-        eur11_imp_eval(il_, reg_d, reg_n, poe_, **seiyt)
-    elif args.opt in ('21', 'cdx_eval_dmi'):
-        eur11_imp_eval_dmi(il_, reg_d, reg_n, poe_,
-                           tii=args.tint, subg=args.subg, xvn=args.xvn,
-                           user_cfg=user_cfg)
-    elif args.opt in ('22', 'cdx_eval_smhi'):
-        eur11_smhi_eval(il_, reg_d, reg_n, poe_, yml=args.yml,
-                        tii=args.tint, subg=args.subg, xvn=args.xvn,
-                        user_cfg=user_cfg)
-    elif args.opt in ('3', 'cdx'):
-        eur11_imp_rcp_(il_, reg_d, reg_n, pcdx, **seiyt)
-    elif args.opt in ('30', 'cdx_smhi'):
-        eur11_smhi_rcp_(il_, reg_d, reg_n, pcdx, **seiyt)
-    elif args.opt in ('31', 'cdx_gwl'):
-        eur11_imp_rcp(il_, reg_d, reg_n, pcdx_, gwl=args.gwl, **seiyt)
-    elif args.opt in ('32', 'cdx_gwl_smhi'):
-        eur11_smhi_rcp(il_, reg_d, reg_n, pcdx_, gwl=args.gwl, **seiyt)
-    elif args.opt in ('33', 'cdx_0130'):
-        eur11_imp_rcp(il_, reg_d, reg_n, pcdx_, curr=[2001, 2030],
-                      gwl='curr0130', **seiyt)
-    elif args.opt in ('34', 'cdx_0130_smhi'):
-        eur11_smhi_rcp(il_, reg_d, reg_n, pcdx_, curr=[2001, 2030],
-                       gwl='curr0130', **seiyt)
-    elif args.opt in ('4', 'norcp'):
-        norcp_rcp_(il_, reg_d, reg_n, pnorcp, **seiyt)
-    elif args.opt in ('5', 'cmp5'):
-        cmip5_imp_rcp_(il_, reg_d, reg_n, pcmp5, **seiyt)
-    elif args.opt in ('51', 'cmp5_gwl'):
-        cmip5_imp_rcp(il_, reg_d, reg_n, pcmp5_, gwl=args.gwl, **seiyt)
-    elif args.opt in ('54', 'cmp5_xxx'):
-        cmip5_imp_rcp(il_, reg_d, reg_n, pcmp5_, curr=[1981, 2100],
-                      gwl='xxx', **seiyt)
-    elif args.opt in ('6', 'cmp6'):
-        cmip6_rcp_(il_, reg_d, reg_n, pcmp6, **seiyt)
-    else:
-        pass
+        seiyt = dict(sss=args.start, eee=args.end, idx=args.idx,
+                     yml=args.yml, tii=args.tint, subg=args.subg, xvn=args.xvn,
+                     user_cfg=user_cfg)
+
+        if args.opt in ('0', 'eobs20'):
+            eobs20_(il_, reg_d, reg_n, poo_, user_cfg=user_cfg)
+        elif args.opt in ('1', 'erai'):
+            erai_(il_, reg_d, reg_n, poo_,
+                  tii=args.tint, subg=args.subg, xvn=args.xvn, user_cfg=user_cfg)
+        elif args.opt in ('2', 'cdx_eval'):
+            eur11_imp_eval(il_, reg_d, reg_n, poe_, **seiyt)
+        elif args.opt in ('21', 'cdx_eval_dmi'):
+            eur11_imp_eval_dmi(il_, reg_d, reg_n, poe_,
+                               tii=args.tint, subg=args.subg, xvn=args.xvn,
+                               user_cfg=user_cfg)
+        elif args.opt in ('22', 'cdx_eval_smhi'):
+            eur11_smhi_eval(il_, reg_d, reg_n, poe_, yml=args.yml,
+                            tii=args.tint, subg=args.subg, xvn=args.xvn,
+                            user_cfg=user_cfg)
+        elif args.opt in ('3', 'cdx'):
+            eur11_imp_rcp_(il_, reg_d, reg_n, pcdx, **seiyt)
+        elif args.opt in ('30', 'cdx_smhi'):
+            eur11_smhi_rcp_(il_, reg_d, reg_n, pcdx, **seiyt)
+        elif args.opt in ('31', 'cdx_gwl'):
+            eur11_imp_rcp(il_, reg_d, reg_n, pcdx_, gwl=args.gwl, **seiyt)
+        elif args.opt in ('32', 'cdx_gwl_smhi'):
+            eur11_smhi_rcp(il_, reg_d, reg_n, pcdx_, gwl=args.gwl, **seiyt)
+        elif args.opt in ('33', 'cdx_0130'):
+            eur11_imp_rcp(il_, reg_d, reg_n, pcdx_, curr=[2001, 2030],
+                          gwl='curr0130', **seiyt)
+        elif args.opt in ('34', 'cdx_0130_smhi'):
+            eur11_smhi_rcp(il_, reg_d, reg_n, pcdx_, curr=[2001, 2030],
+                           gwl='curr0130', **seiyt)
+        elif args.opt in ('4', 'norcp'):
+            norcp_rcp_(il_, reg_d, reg_n, pnorcp, **seiyt)
+        elif args.opt in ('5', 'cmp5'):
+            cmip5_imp_rcp_(il_, reg_d, reg_n, pcmp5, **seiyt)
+        elif args.opt in ('51', 'cmp5_gwl'):
+            cmip5_imp_rcp(il_, reg_d, reg_n, pcmp5_, gwl=args.gwl, **seiyt)
+        elif args.opt in ('54', 'cmp5_xxx'):
+            cmip5_imp_rcp(il_, reg_d, reg_n, pcmp5_, curr=[1981, 2100],
+                          gwl='xxx', **seiyt)
+        elif args.opt in ('6', 'cmp6'):
+            cmip6_rcp_(il_, reg_d, reg_n, pcmp6, **seiyt)
+        else:
+            pass
+
+    parser = argparse.ArgumentParser('CLIMIDX')
+    subparsers = parser.add_subparsers(
+            title='subcommands',
+            description='valid subcommands',
+            help='additional help')
+    parser_calc = subparsers.add_parser('calc')
+    parser_prnt = subparsers.add_parser('prnt')
+
+    parser_prnt.add_argument("opt",
+            type=str,
+            nargs='?',
+            help="options for print content: "
+                 "None->list all available Indices | "
+                 "INDEX->definition of INDEX | "
+                 "grp_X[Y...]->list Indices in group X[Y...]")
+    parser_prnt.set_defaults(func=prnt)
+
+    parser_calc.add_argument("opt",
+            type=str,
+            help="options for dataset on BI: "
+                 "0->eobs | "
+                 "1->erai | "
+                 "2->cdx_eval; 21->cdx_eval_dmi; "
+                 "22->cdx_eval_smhi | "
+                 "3->cdx; 30->cdx_smhi; 31->cdx_gwl; "
+                 "32->cdx_gwl_smhi; 33->cdx_0130; "
+                 "34->cdx_0130_smhi | "
+                 "4->norcp | "
+                 "5->cmp5; 51->cmp5_gwl; 54->cmp5_xxx | "
+                 "6->cmp6")
+    parser_calc.add_argument("-x", "--indices",
+            type=str,
+            help="indices to be calculated. Formats: "
+                 "file name (yaml): read list from yaml file | "
+                 "indexA,indexB,indexC (no space after comma) | "
+                 "grp_a[bc]: indices belong to a [and b and c] "
+                 "currently available group labels: "
+                 "w | t | p | r | c")
+    parser_calc.add_argument("-X", "--indices_excl",
+            type=str,
+            help="indices to not be calculated. Format: "
+                 "indexA,indexB,indexC (no space after comma)")
+    parser_calc.add_argument("-w", "--gwl",
+            type=str,
+            help="warming levels: "
+                 "current | gwl15 | gwl2 | gwl25 | gwl3 | gwl35 | "
+                 "gwl4 | xx-xx | xxxx-xxxx")
+    parser_calc.add_argument("-s", "--start",
+            type=int,
+            help="simulation-loop start.")
+    parser_calc.add_argument("-e", "--end",
+            type=int,
+            help="simulation-loop end")
+    parser_calc.add_argument("-i", "--idx",
+            type=str,
+            help="simulation-loop index. exp: 0,1,3 "
+                 "meaning simulation #1,2,4 in the lists "
+                 "(specified in a yaml file) to be calculated")
+    parser_calc.add_argument("-c", "--cfg",
+            type=str,
+            help="yaml file that stores user configuration")
+    parser_calc.add_argument("-y", "--yml",
+            type=str,
+            help="yaml file that stores paths (simulations)")
+    parser_calc.add_argument("-t", "--tint",
+            type=str,
+            help="temporal resolution(s) of input data: mon,day")
+    parser_calc.add_argument("--lll",
+            type=str,
+            help="longitude/latitude limits: lo0,lo1,la0,la1")
+    parser_calc.add_argument("-d", "--domain",
+            type=str,
+            help="name of domain")
+    parser_calc.add_argument("--rdir",
+            type=str,
+            help="directory where the results to be stored!")
+    parser_calc.add_argument("-g", "--subg",
+            type=str,
+            help="method for grouping indices for a single call: "
+                 "None (default) | 'v' | 'i'")
+    parser_calc.add_argument("-n", "--xvn",
+            type=int,
+            default=9,
+            help="maximum number of variables: "
+                 "maximum input variables for a single call")
+    parser_calc.add_argument("-l", "--log",
+            type=str,
+            help="exclusive log identifier")
+    parser_calc.set_defaults(func=calc)
+    args = parser.parse_args()
+    args.func(args)
 
 
 if __name__ == '__main__':

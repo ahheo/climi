@@ -1,0 +1,8 @@
+version: 2
+
+gg: ['curr0130', 'gwl15', 'gwl2']
+gwls: ['Historical', 'Current', '1.5 K warming', '2 K warming']
+
+ddir: '/nobackup/rossby26/users/sm_chali/DATA/energi/res/gwls/'
+fxdir: '/nobackup/rossby22/sm_chali/DATA/fx/'
+root: '/nobackup/rossby26/users/sm_chali/'
