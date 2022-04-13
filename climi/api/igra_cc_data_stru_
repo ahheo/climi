@@ -41,9 +41,9 @@ def main():
                 rr.setdefault(v_, np.full((nS,) + a[v_].shape, np.nan))
                 rr[v_][i,:] = a[v_].values
                 pp.setdefault(v_, np.full((nS,) + b[v_].shape, np.nan))
-                pp[v_][i,:] = a[v_].values
+                pp[v_][i,:] = b[v_].values
     for v_ in vs_:
-        fn = _djn(dir2, 'igra_tr_{}-{}'.format(y0, y1))
+        fn = _djn(dir2, 'igra_cc_{}_{}-{}'.format(v_, y0, y1))
         if rr and pp:
             np.savez(fn, r=rr[v_], p=pp[v_])
 

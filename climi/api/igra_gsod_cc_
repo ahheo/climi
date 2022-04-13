@@ -45,7 +45,7 @@ def main():
     parser.add_argument("--ye", type=int, help="year end")                                          
     args = parser.parse_args()
     y0, y1 = args.ys, args.ye
-    nn = .9 * (y1 - y0 + 1)
+    nn = .5 * (y1 - y0 + 1)
     dir0 = '/home/clin/Documents/data/igra/v2/metadata'
     dir1 = '/home/clin/Documents/data/igra/v2/data/annual'
     dir1_ = '/home/clin/Documents/data/gsod/annual'
@@ -53,6 +53,7 @@ def main():
     os.makedirs(dir2_, exist_ok=True)
     stations = pd.read_csv(_djn(dir0, 'monthly.csv'))
     nS = stations.id.count()
+    oo = np.full((nS,), np.nan)
     for i, sid in enumerate(stations.id):
         #if i < 810:
         #    continue
@@ -65,10 +66,12 @@ def main():
             yeara, yearb = a.date.dt.year, b.date.dt.year
             if a and b:
                 print(prg_(i, nS), sid + ':: DA')
-                a = a.assign(uwinda=abs(a.uwind),vwinda=abs(a.vwind))
-                a = a[['winds', 'uwinda', 'vwinda']]
-                b = b['wdsp']
-                o = xr.apply_ufunc(_f, a, b, yeara, yearb,
+                x = a.assign(uwinda=abs(a.uwind),vwinda=abs(a.vwind))
+                x = x[['winds', 'uwinda', 'vwinda']]
+                y = b['wdsp']
+                z = b['stp']
+                oo[i] = z.mean().values
+                o = xr.apply_ufunc(_f, x, y, yeara, yearb,
                         input_core_dims=(['date'],['date'],['date'],['date']),
                         output_core_dims=([],[]),dask='parallelized',
                         exclude_dims=set(('date',)),
@@ -76,6 +79,7 @@ def main():
                         kwargs=dict(nn=nn))
                 o[0].to_netcdf(_djn(dir2_, '{}_{}-{}_r.nc'.format(sid, y0, y1)))
                 o[1].to_netcdf(_djn(dir2_, '{}_{}-{}_p.nc'.format(sid, y0, y1)))
+    np.savez(_djn(dir2_, 'stp_mean_{}-{}'.format(y0,y1)), oo)
 
 
 if __name__ == '__main__':

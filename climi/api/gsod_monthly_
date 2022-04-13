@@ -5,6 +5,7 @@ from climi.uuuu.xxxx import *
 import pandas as pd
 import numpy as np
 import igra
+import argparse
 import os
 
 
@@ -14,6 +15,13 @@ variables = ['temp', 'dewp', 'slp', 'stp', 'visib', 'wdsp', 'mxspd', 'gust',
         'max', 'min', 'prcp']
 
 def main():
+    parser = argparse.ArgumentParser("Prepare gsod data")
+    parser.add_argument("-s", "--start", type=int, default=0,
+            help="index start")
+    parser.add_argument("-e", "--end", type=int, help="year end")
+    args = parser.parse_args()
+    ss, ee = args.start, args.end
+    ee = ee if ee else ss + 100
     dir0 = '/home/clin/Documents/data/isd_gsod'
     dir1 = '/home/clin/Documents/data/gsod'
     dir1_ = _djn(dir1, 'monthly')
@@ -24,8 +32,8 @@ def main():
     stations = pd.read_csv(_djn(dir0, 'selected.csv'))
     nS = stations.USAF.count()
     for i, row in stations.iterrows():
-        #if i < 190:
-        #    continue
+        if i not in range(ss, ee):
+            continue
         usaf, wban = row.USAF, row.WBAN
         sid = '{:0>6}{:0>5}'.format(usaf, wban)
         print(prg_(i, nS), sid)

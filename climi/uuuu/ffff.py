@@ -21,6 +21,7 @@
 * ind_inRange_          : indices of values in a range
 * ind_s_                : extraction indices (1 axis)       --> inds_ss_
 * ind_shape_i_          : slice indices                     --> slice_back_
+* ind_sm_               : if ind leading to sharing memory
 * ind_win_              : indices of a window in cylinder axis
 * inds_ss_              : extraction indices (n axes)
 * intsect_              : intersection of lists
@@ -68,10 +69,11 @@
 ...
 
 ###############################################################################
-            Author: Changgui Lin
-            E-mail: changgui.lin@smhi.se
+            Author: ahheo (Changgui Lin)
+            github: https://github.com/ahheo
+            E-mail: mapulynn@gmail.com
       Date created: 02.09.2019
-Date last modified: 24.09.2020
+Date last modified: 01.04.2022
           comments: add func dgt_, prg_;
                     fix rMEAN1d_ issue with mode 'full' and 'same'
 """
@@ -102,6 +104,7 @@ __all__ = ['aggr_func_',
            'ind_inRange_',
            'ind_s_',
            'ind_shape_i_',
+           'ind_sm_',
            'ind_win_',
            'inds_ss_',
            'intsect_',
@@ -325,6 +328,13 @@ def ind_shape_i_(shape, i, axis=-1, sl_=np.s_[:]):
         iikk = np.unravel_index(i, shp)
         return tuple(iikk[shpa[i]] if i in tmp else sl_
                      for i in range(len(shape)))
+
+
+def ind_sm_(ind):
+    """
+    ... if x[ind] shares memonry of x where x is of type numpy array ... 
+    """
+    return all(not isIter_(i) for i in ind)
 
 
 def ind_s_(ndim, axis, sl_i):
@@ -744,7 +754,7 @@ def ll_(msg, t0=None, _p=False):
             logging.info(' ')
 
 
-def slctStrL_(strl, incl=None, excl=None): #, incl_or=False, excl_and=False):
+def slctStrL_(strl, incl=None, excl=None):
     """
     ... select items including/excluding sts(s) for a list of str ...
     """
@@ -772,18 +782,6 @@ def slctStrL_(strl, incl=None, excl=None): #, incl_or=False, excl_and=False):
         strl = [i for i in strl if _in(i, incl)]
     if excl:
         strl = [i for i in strl if _ex(i, excl)]
-    #if incl:
-    #    incl = [incl] if isinstance(incl, str) else incl
-    #    if incl_or:
-    #        strl = [i for i in strl if any([ii in i for ii in incl])]
-    #    else:
-    #        strl = [i for i in strl if all([ii in i for ii in incl])]
-    #if excl:
-    #    excl = [excl] if isinstance(excl, str) else excl
-    #    if excl_and:
-    #        strl = [i for i in strl if not all([ii in i for ii in excl])]
-    #    else:
-    #        strl = [i for i in strl if not any([ii in i for ii in excl])]
     return strl
 
 
@@ -811,11 +809,6 @@ def p_least_(pl, y0, y1):
     c = lambda x, y: _cmp(x, y0_) and _cmp(y1_, y)
     return [i for i in pl if b(i.split('-')[0], i.split('-')[-1])
             or c(i.split('-')[0], i.split('-')[-1])]
-    #a = lambda x: y0 <= int(x) <= y1
-    #b = lambda x, y: a(x) or a(y)
-    #c = lambda x, y: int(x) <= y0 and int(y) >= y1
-    #return [i for i in pl if b(i.split('-')[0][:4], i.split('-')[-1][:4])
-    #        or c(i.split('-')[0][:4], i.split('-')[-1][:4])]
 
 
 def p_deoverlap_(pl):
@@ -1002,7 +995,7 @@ def aggr_func_(xnd, *V, axis=None, func_=np.ma.mean, uniqV=False):
         raise Exception("at least one label array is required, "
                         "but none is provided!")
     arr, axis = (arr.ravel(), -1) if axis is None else (arr, axis)
-    print(lbl)
+    #print(lbl)
     if lbl.size != _sz(arr, axis=axis):
         raise Exception("input arguments not matching!")
     uV = pd.unique(lbl)

@@ -50,9 +50,9 @@ def main():
                 ind = ind_s_(cc[v_].ndim, 0, i)
                 cc[v_][ind] = a[v_].values
                 pp.setdefault(v_, np.full((nS,) + b[v_].shape, np.nan))
-                pp[v_][ind] = a[v_].values
+                pp[v_][ind] = b[v_].values
     for v_ in vs_:
-        fn = _djn(dir2_, 'gsod_tr_{}-{}'.format(y0, y1))
+        fn = _djn(dir2_, 'gsod_tr_{}_{}-{}'.format(v_, y0, y1))
         if cc and pp:
             np.savez(fn, c=cc[v_], p=pp[v_])
 

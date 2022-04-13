@@ -110,12 +110,17 @@ GSOD_VAR = [
         'wdsp', 'wdsp_attributes',
         'mxspd',
         'gust',
-        'max',
-        'max_attributes',
+        'max', 'max_attributes',
         'min', 'min_attributes',
         'prcp', 'prcp_attributes',
         'sndp',
         'frshtt']
+
+def _stp(x, y):
+    z = x.copy()
+    z.loc[x<100] += 1000
+    z.loc[y==0] = np.nan
+    return z
 
 def _f2k(x):
     return (x - 32) * 5 / 9 + 273.15
@@ -165,7 +170,6 @@ def gsod_single_(csvfile, variables=None, _attrs=False):
         variables = set(o.columns)
     else:
         assert set(variables).issubset(o.columns)
-        o = o.loc[:, variables]
     for cc in variables:
         if cc in GSOD_MV.keys():
             _missing_to_nan_column(o, cc, GSOD_MV[cc][0])
@@ -177,9 +181,12 @@ def gsod_single_(csvfile, variables=None, _attrs=False):
             o[cc] = _knot2ms(o[cc])
     if 'visib' in o.columns:
         o['visib'] = _mi2km(o['visib'])
+    if 'stp' in o.columns:
+        o['stp'] = _stp(o['stp'], o['stp_attributes'])
     for cc in ['prcp', 'sndp']:
         if cc in o.columns:
             o[cc] = _in2mm(o[cc])
+    o = o[variables]
     return (o, attrs) if _attrs else o
 
 
