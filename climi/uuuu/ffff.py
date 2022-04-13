@@ -343,7 +343,7 @@ def ind_s_(ndim, axis, sl_i):
     return np.s_[:,] * axis + (sl_i,) + np.s_[:,] * (ndim - axis - 1)
 
 
-def inds_ss_(ndim, axis, sl_i, *vArg, _safely=True):
+def inds_ss_(ndim, axis, sl_i, *vArg, fancy=True):
     """
     ... creat indices for extraction, similar to ind_s_(...) but works for
         multiple axes ...
@@ -370,7 +370,7 @@ def inds_ss_(ndim, axis, sl_i, *vArg, _safely=True):
             for ii, ss in zip(ax, sl):
                 inds[cyl_(ii, ndim)] = ss
 
-    return iind_(tuple(inds)) if _safely else tuple(inds)
+    return iind_(tuple(inds)) if fancy else tuple(inds)
 
 
 def iind_(inds):
@@ -791,6 +791,7 @@ def latex_unit_(unit):
     """
     ... turn unit str into latex style ...
     """
+    import re
     def r__(m):
         return '$^{' + m.group(0) + '}$'
     return re.sub(r'(?<=[a-zA-Z])-?\d+', r__, unit)

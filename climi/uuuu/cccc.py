@@ -240,7 +240,11 @@ def extract_byAxes_(cnd, axis, sl_i, *vArg):
 
     nArg = [(i, j) for i, j in zip(ax, sl)]
     nArg = tuple(j for i in nArg for j in i)
-    inds = inds_ss_(cnd.ndim, *nArg)
+    if (hasattr(cnd, '__orthogonal_indexing__') and
+        cnd.__orthogonal_indexing__):
+        inds = inds_ss_(cnd.ndim, *nArg, fancy=False)
+    else:
+        inds = inds_ss_(cnd.ndim, *nArg, fancy=True)
 
     return cnd[inds]
 
