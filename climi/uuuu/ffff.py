@@ -334,7 +334,8 @@ def ind_sm_(ind):
     """
     ... if x[ind] shares memonry of x where x is of type numpy array ... 
     """
-    return all(not isIter_(i) for i in ind)
+    return all(not isIter_(i) for i in ind) and \
+            any(isinstance(i, slice) for i in ind)
 
 
 def ind_s_(ndim, axis, sl_i):
