@@ -5,7 +5,8 @@
 * aggr_func_            : aggregate function over ndarray
 * b2l_endian_           : return little endian copy
 * compressLL_           : compress 2D list
-* consecutive_          : consecutive numbers
+* consecutive_          : consecutive functions
+* consecutiveN_         : consecutive numbers
 * cyl_                  : values in cylinder axis           --> extract_win_
 * dgt_                  : digits of the int part of a number
 * el_join_              : element-wise join
@@ -89,6 +90,7 @@ __all__ = ['aggr_func_',
            'b2l_endian_',
            'compressLL_',
            'consecutive_',
+           'consecutiveN_',
            'cyl_',
            'dgt_',
            'el_join_',
@@ -951,6 +953,17 @@ def consecutive_(x1d, func_,
                   np.concatenate(([1], np.where(func_(x1d))[0] + 1)))
     ts = [efunc_(its) for its in ts if len(its) > nn_]
     return ffunc_(ts) if ts else 0.
+
+
+def consecutiveN_(x1d, func_, args=(), kargs={}):
+    def _f(x):
+        m = np.sum(x)
+        xx = np.empty(x.size, dtype=np.int)
+        xx[x] = m
+        xx[~x] = 0
+        return xx
+    ts = func_(x1d, *args, **kargs)
+    return np.hstack(list(map(_f, np.split(ts, np.where(~ts)[0]))))
 
 
 def _sz(xnd, axis=None):
