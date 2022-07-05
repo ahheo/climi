@@ -16,10 +16,10 @@ import iris
 
 _here_ = get_path_(__file__)
 sites = dict(
-    SE_EUR = (19, 45),
-    COAST1 = (7, 51.5),
-    COAST2 = (-1.5, 53),
-    COAST3 = (8, 60)
+    SE = (19, 45),
+    W1 = (7, 51.5),
+    W2 = (-1.5, 53),
+    W3 = (8, 60)
     )
 dataroot = '/nobackup/rossby22/sm_chali/DATA/hc/med/'
 outdir = '/nobackup/rossby24/users/sm_chali/DATA/hw2018/fig/'
@@ -71,10 +71,14 @@ def main():
             doy = data.coord('doy').points
             ax.plot(doy, data.data,
                     color=c,
-                    label='{}: iqr: {:.1f} (K); mjjas: {:.1f}'.format(site, iqr_, mjjas))
+                    lw=1.5 if site == list(sites.keys())[0] else .75,
+                    label='{} ({:.1f})'.format(site, mjjas))
+        ax.axvspan(120, 272, fc='0.8', alpha=.5, zorder=-1)
         ax.set_xlabel('Day of year')
         ax.set_ylabel('Normalized $T_{95th} - T_{90th}$')
-        ax.legend()
+        ax.set_xlim([min(doy), max(doy)])
+        ax.set_ylim([0,.4])
+        ax.legend(frameon=False)
         fn = _djn(outdir, '{}-90_{}_clm.pdf'.format(pp, dataset))
         plt.savefig(fn, dpi=300)
         plt.close(fig)

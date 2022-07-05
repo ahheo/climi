@@ -22,7 +22,8 @@ _here_ = get_path_(__file__)
 _djn = os.path.join
 
 
-_vD = dict(EffPR='$\Delta$ Effective Precipitation (mm)',
+_vD = dict(#EffPR='$\Delta$ Effective Precipitation (mm)',
+           EffPR='$\Delta P-E$ (mm)',
            DryDays='$\Delta$ Dry Days',
            TX='$\Delta T_{max}$ ($^{\circ}$C)',
            TN='$\Delta T_{min}$ ($^{\circ}$C)')
@@ -161,7 +162,7 @@ def _mp0(fn, cgL, cgL1, crLL, crLL1, gcms, rcms, prds, pD, rgD, vl):
                 _tx_rgmean(fig, ax, cube, rgD)
             else:
                 _xiyi(fig, nrow, ncol, (i + i_) * ncol + ii + 1, tiD, xi_, yi_)
-    axs_rct_(fig, axr, color='r')
+    axs_rct_(fig, axr, color='b', lw=2)
     axs_abc_(fig, axs, '(a)')
     aligned_tx_(fig, axs, prds[0], rpo='lc', itv=.03, **tiD)
     axs1, axr1 = [], []
@@ -177,7 +178,7 @@ def _mp0(fn, cgL, cgL1, crLL, crLL1, gcms, rcms, prds, pD, rgD, vl):
                 if xi in rcms:
                     axr1.append(ax)
                 _tx_rgmean(fig, ax, cube, rgD)
-    axs_rct_(fig, axr1, color='r')
+    axs_rct_(fig, axr1, color='b', lw=2)
     axs_abc_(fig, axs1, '(b)')
     aligned_tx_(fig, axs1, prds[1], rpo='lc', itv=.03, **tiD)
     cbw = wspace_ax_(*axs[:2])
@@ -211,9 +212,8 @@ def main():
     idir__ = cfg['idir']['rcms']
     rgD_eur = rgDs['eur']
     #loop variables
-    vv = ['EffPR', 'DryDays', 'TX', 'TN']
-    #vv = ['TX', 'TN']
-    #vv = ['EffPR']
+    #vv = ['EffPR', 'DryDays', 'TX', 'TN']
+    vv = ['EffPR', 'DryDays', 'TX']
     ff = ['j-d']
     yy = ['mean']
     pp = [[1981, 2020], [2021, 2060], [2061, 2100]]

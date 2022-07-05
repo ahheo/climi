@@ -140,7 +140,7 @@ def _mp0(fn, cgL, crLL, gcms, rcms, pD, rgD, vl, coL=None, obss=None):
                     axr.append(ax)
                 _tx_rgmean(fig, ax, cube, rgD)
                 ax.plot([-5, 25], [35, 70], c='w', lw=1)
-    axs_rct_(fig, axr, color='r')
+    axs_rct_(fig, axr, color='b', lw=2)
     cbw = wspace_ax_(*axs[-2:])
     if i_:
         axs += axo

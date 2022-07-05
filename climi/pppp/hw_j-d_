@@ -1,0 +1,274 @@
+#!/usr/bin/env python3
+
+import matplotlib as mpl
+mpl.use('pdf', force=True)
+import matplotlib.pyplot as plt
+import numpy as np
+import pickle
+import argparse
+import yaml
+import os
+import warnings
+import datetime
+import iris
+from scipy.stats import pearsonr, linregress, t
+from climi.pppp import *
+from climi.uuuu import *
+from climi.uuuu.cccc import _get_ind_lolalim as lllim_
+from matplotlib.path import Path
+from skextremes.models.classic import GEV
+from sklearn.metrics import mean_squared_error as mse_, r2_score as r2_
+
+
+_here_ = get_path_(__file__)
+_djn = os.path.join
+
+
+def _get_data1(year):
+    return extract_period_cube( iris.load_cube(
+            '/home/rossby/imports/obs/EOBS/EOBS20/orig/'
+            'tx_ens_mean_0.1deg_reg_v20.0e.nc'
+            ), year, year)
+
+
+def _vlabel(var, year=None, ts=None):
+    v = var.split('-')[0]
+    yl = v[:4].upper() + v[4:]
+    if isinstance(year, str) and year[0] == 'g':
+        return 'Number of years with {}$\geq${}'.format(yl, year[1:])
+    if isinstance(ts, str) and ts[0] == 'g':
+        return '% land area \n with {}$\geq${}'.format(yl, ts[1:])
+    else:
+        return yl
+
+
+def mbe_(y0, y1):
+    return np.mean(np.asarray(y1) - np.asarray(y0))
+
+
+def _cmnm(bd):
+    bd = np.asarray(bd)
+    cm = list(plt.get_cmap("magma_r", len(bd)-1).colors)
+    cmap = mpl.colors.ListedColormap(('white', *cm[:-1])) # "afmhot_r"
+    cmo = cm[-1]
+    cmap.set_over(cmo)
+    norm = mpl.colors.BoundaryNorm(bd, cmap.N)
+    return dict(cmap=cmap, norm=norm)
+
+
+def _pdict(var, year):
+    if isinstance(year, str) and year[0] == 'g':
+        bd = np.arange(7)
+    else:
+        if year == 'mean':
+            bd = [0, 6, 7, 8, 9, 10, 11, 12, 15]
+        else:
+            bd = [0, 6, 9, 12, 15, 18, 24, 48, 96] if 'hwmid' in var else \
+                 [0, 6, 9, 12, 15, 18, 24, 48, 96]
+    return _cmnm(bd)
+
+
+def _ec(cl, cref=None):
+    return en_mm_cubeL_(cl, cref=cref)
+
+
+def _cl(idir, dn, mD, **lD):
+    return load_h248_(idir, m=mD[dn], **lD)[0]
+
+
+def _t_collapsed(cl, mtd):
+    if isinstance(mtd, str) and mtd[0] == 'g':
+        return [i.collapsed('time', iris.analysis.COUNT,
+                            function=lambda x: x >= int(mtd[1:]))
+                if i else None for i in cl]
+    elif mtd == 'mean':
+        return [i.collapsed('time', iris.analysis.MEAN) if i else None
+                for i in cl]
+    elif isinstance(mtd, int):
+        return [extract_period_cube(i, mtd, mtd) if i else None for i in cl]
+
+
+def _2d_af(cl, rgD, vv):
+    tmp = [[ii.data if ii else np.nan
+            for ii in get_tsf_h248_(cl, function=lambda x: x >= i, rgD=rgD)]
+           for i in vv]
+    return np.asarray(tmp).T
+
+
+def _map_data(clo, clr, obss, rcms, mtd, rgD, vv, slct=None):
+    def _em(cl):
+        tmp = en_mean_(_ec(cl))
+        rm_sc_cube(tmp)
+        return tmp
+    oo = _t_collapsed(clr, mtd)
+    ooo = []
+    if isIter_(slct):
+        for o, dn in zip(oo, rcms):
+            if isIter_(slct) and dn in slct:
+                ooo.append(o)
+    ecs = [_em(i) for i in (oo, ooo) if i]
+    ens = ['RCM mean \n (all)', 'RCM mean \n (selected)'] if ooo \
+          else ['RCM mean']
+    oooo = _t_collapsed(clo, mtd)
+    af = [_2d_af(i, rgD, vv) for i in (oo, ecs, oooo)]
+    return ((oo, ecs, oooo), (rcms, ens, obss), af)
+
+
+def _tx_rgmean(fig, ax, cube, rgD):
+    s = '{:.1f}'.format(rgMean_cube(cube, rgD=rgD).data)
+    aligned_tx_(fig, ax, s, rpo='tl', itv=-0.005, alpha=.5, fontsize=10)
+
+
+def _map(fig, cube, ti, pD, rgD, vl, cbt=None, sites=None):
+    tiD = dict(fontsize=10, fontweight='bold')
+    pD_ = dict(rasterized=True)
+    pD_.update(pD)
+    ax, pch = pch_ll_(fig, 1, 1, 1, cube,
+                      rg=rgD, pcho=pD_, fr_on=True)
+    ax.set_title(ti, tiD)
+    #axs_abc_(fig, ax, '(a)')
+    _tx_rgmean(fig, ax, cube, rgD)
+    if sites is not None:
+        for stn in sites.keys():
+            x, y = sites[stn]
+            ax.scatter(x, y, s=5, color='b')
+            ax.text(x, y+1, stn, color='b', ha='center')#,
+            #backgroundcolor=[.8,.8,.8,.2])
+    cbw = .02
+    cb = aligned_cb_(fig, ax, pch, [cbw, cbw*1.5],
+                     orientation='vertical', extend='max')
+    cb.set_label(vl)
+    if cbt is not None:
+        cb.set_ticks(cbt)
+
+
+def main():
+    warnings.filterwarnings("ignore", category=UserWarning)
+    with open(_djn(_here_, 'cfg_plt_hwmid_eval.yml'), 'r') as ymlfile:
+        cfg = yaml.safe_load(ymlfile)
+    fdir = cfg['fdir']
+    os.makedirs(fdir, exist_ok=True)
+    #constans
+    mD = cfg['m']
+    ref, rgDs = cfg['ref'], cfg['rgDs']
+    idir = cfg['idir']['obss']
+    rgD_eur = rgDs['eur']
+    var = 'hwmid-tx'
+    freq = 'j-d'
+    year = 2007
+    sites = dict(
+        SE = (19, 45),
+        W1 = (7, 51.5),
+        W2 = (-1.5, 53),
+        W3 = (8, 60)
+        )
+    dataroot = '/nobackup/rossby22/sm_chali/DATA/hc/med/'
+    outdir = '/nobackup/rossby24/users/sm_chali/DATA/hw2018/fig/'
+    dataset = mD['E-OBS']
+    fthr = 'thr_tx_{}_ALL_1989-2008_90.nc'.format(dataset)
+    colors = plt.get_cmap('tab10').colors
+    pp = 95
+
+    lD = dict(var=var, ref=ref, freq=freq, y0y1=[year, year])
+    clo = _cl(idir, 'E-OBS', mD, **lD)[0]
+    vl = _vlabel(var, year)
+    pD = _pdict(var, year)
+    fig = init_fig_(fx=6, fy=8, l=.02, r=.85, t=.96, b=.6)
+    _map(fig, clo, 'Year {}'.format(year), pD, rgD_eur, vl, sites=sites)
+
+    axs = fig.subplots(len(sites), 1, sharex=True, gridspec_kw=dict(
+            left=.1, right=.98, top=.55, bottom=.06, hspace=.2))
+    data0 = iris.load_cube(_djn(dataroot, fthr))
+    data1 = _get_data1(year)
+    for site, c, ax in zip(sites.keys(), colors, axs):
+        data0_ = nearest_point_cube(data0, *sites[site])
+        data0_.convert_units('celsius')
+        data1_ = nearest_point_cube(data1, *sites[site])
+        data1_.convert_units('celsius')
+        rm_t_aux_cube(data0_)
+        iris.coord_categorisation.add_day_of_year(data0_, 'time', name='doy')
+        doy = data0_.coord('doy').points
+        t25 = data1_.collapsed(
+                               'time',
+                               iris.analysis.PERCENTILE, percent=25).data
+        #ax.set_title('{}'.format(site))
+        axs_abc_(fig, ax, '{}'.format(site), dx=-.005, dy=-.005,
+                 fontdict=dict(fontweight='normal'), va='top')
+        y = data1_.data
+        if len(y) < 366:
+            y = np.append(y, np.nan)
+        h0 = ax.fill_between(doy, t25, y,
+            where=consecutiveN_(
+                                y,
+                                lambda x, a, b: np.logical_and(x > a, x > b),
+                                (data0_.data, t25)
+                                ) > 2,
+            fc='r',
+            alpha=.4,
+            label='heat wave')
+        h1 = ax.plot(doy, data0_.data, lw=.5, label='threshold')
+        h2 = ax.plot(doy, y, c='0.2', lw=.5, label='$T_{max}$')
+        h3 = ax.axhline(t25, color='k', lw=.7, ls='--', alpha=.7,
+                        label='25th percentile')
+        #ax.axvspan(120, 272, fc='0.8', alpha=.5, zorder=-1)
+        ax.set_ylim(-10, 40)
+        ax.set_xlim(1, 366)
+        if site[:2] == 'SE':
+            ax.legend(#[h0, h1, h2, h3],
+                      ncol=4,
+                      loc=8,
+                      bbox_to_anchor=(.5, .96),
+                      frameon=False)
+        #ax.grid(axis='x')
+
+    ax.set_xlabel('Day of year')
+    fig.text(.03, .315, 'Temperature (\u00B0C)',
+             va='center', ha='center', rotation='vertical')
+    #fig.supylabel('$T_{max}$ (\u00B0C)')
+    fig.text(.05, .975, '(a)', ha='right', fontsize=10, fontweight='bold')      
+    fig.text(.05, .565, '(b)', ha='right', fontsize=10, fontweight='bold')
+    fn = _djn(outdir, '{}-{}.pdf'.format(year, dataset))
+    plt.savefig(fn, dpi=300)
+
+
+if __name__ == '__main__':
+    main()
+
+
+def main_():
+    warnings.filterwarnings('ignore', category=UserWarning)
+    #data
+    for dataset in datasets:
+        data0 = iris.load_cube(_djn(dataroot, fthr))
+        data1 = _get_data1(dataset)
+        for site, c in zip(sites.keys(), colors):
+            fig = init_fig_(fx=15, fy=7.5, l=.09, r=.98, t=.965, b=.075)
+            data0_ = nearest_point_cube(data0, *sites[site])
+            data0_.convert_units('celsius')
+            data1_ = nearest_point_cube(data1, *sites[site])
+            data1_.convert_units('celsius')
+            rm_t_aux_cube(data0_)
+            iris.coord_categorisation.add_day_of_year(data0_, 'time', name='doy')
+            doy = data0_.coord('doy').points
+            t25 = data1_.collapsed(
+                'time',
+                iris.analysis.PERCENTILE, percent=25).data
+            for i, yr in enumerate(range(1989, 2009)):
+                ax = fig.add_subplot(5, 4, i+1)
+                ax.set_title('{}'.format(yr))
+                y = extract_period_cube(data1_, yr, yr).data
+                if len(y) < 366:
+                    y = np.append(y, np.nan)
+                ax.fill_between(doy, t25, y,
+                    where=consecutiveN_(y, lambda x, a, b: np.logical_and(x > a, x > b), (data0_.data, t25)) > 2,
+                    fc='red',
+                    alpha=.4)
+                ax.plot(doy, data0_.data, lw=.5)
+                ax.plot(doy, y, c='gray', lw=.3)
+                ax.axhline(t25, color='black', lw=.7, alpha=0.7)
+                ax.set_ylim(0, 40)
+                ax.grid(axis='x')
+            plt.tight_layout()
+            fn = _djn(outdir, '{}-90_{}_clm.pdf'.format(site, dataset))
+            plt.savefig(fn, dpi=300)
+        plt.close(fig)

@@ -51,6 +51,8 @@
 * ouniqL_               : ordered unique elements of list
 * p_deoverlap_          : remove overlaping period from a list of periods
 * p_least_              : extract aimed period from a list of periods
+* pcorr_                : partial correlation (matrix)
+* pcorr_xyz             : partial correlation (x, y, z)
 * prg_                  : string indicating progress status (e.g., '#002/999')
 * pure_fn_              : filename excluding path (& also extension by default)
 * rMEAN1d_              : rolling window mean
@@ -134,6 +136,8 @@ __all__ = ['aggr_func_',
            'ouniqL_',
            'p_deoverlap_',
            'p_least_',
+           'pcorr_',
+           'pcorr_xyz',
            'prg_',
            'pure_fn_',
            'rMEAN1d_',
@@ -1041,3 +1045,34 @@ def windds2uv_(winds, windd):
     tmp = np.deg2rad(windd)
     return (- np.sin(tmp) * winds,
             - np.cos(tmp) * winds)
+
+
+def pcorr_(data, rowvar=True):
+    data = np.asarray(data)
+    assert data.ndim == 2
+    p = data.shape[0] if rowvar else data.shape[1]
+    P_corr = np.zeros((p, p), dtype=np.float)
+    # sample linear partial correlation coefficients
+
+    corr = np.corrcoef(data, rowvar=rowvar)
+    # Pearson product-moment correlation coefficients.
+    corr_inv = np.linalg.inv(corr)
+    # the (multiplicative) inverse of a matrix.
+
+    for i in range(p):
+        P_corr[i, i] = 1
+        for j in range(i+1, p):
+            pcorr_ij = -corr_inv[i,j] / (np.sqrt(corr_inv[i,i] * corr_inv[j,j]))
+            P_corr[i,j] = pcorr_ij
+            P_corr[j,i] = pcorr_ij
+
+    return P_corr
+
+
+def pcorr_xyz(x, y, z):
+    assert x.shape == y.shape == z.shape
+    _corr = lambda a, b: np.corrcoef(a, b)[0,1]
+    rxy = _corr(x, y)
+    rxz = _corr(x, z)
+    ryz = _corr(y, z)
+    return (rxy - rxz * ryz) / (np.sqrt((1 - rxz**2) * (1 - ryz**2)))

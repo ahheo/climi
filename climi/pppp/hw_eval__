@@ -187,9 +187,8 @@ def main():
                 ffmt = '{}_{}_ref{}-{}_{}_{}.txt'
                 print('    {} map'.format(year))
                 _mp(
-                    _djn(tdir, ffmt.format('mp', var, *ref, freq, year),
-                         clo, clr, obss0, rcms0, year, mD
-                        )
+                    _djn(tdir, ffmt.format('mp', var, *ref, freq, year)),
+                    clo, clr, obss0, rcms0, year, mD
                     )
 
 

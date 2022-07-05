@@ -1,0 +1,412 @@
+#!/usr/bin/env python3
+
+import matplotlib as mpl
+mpl.use('pdf', force=True)
+import matplotlib.pyplot as plt
+import numpy as np
+import pickle
+import argparse
+import yaml
+import os
+import warnings
+import datetime
+import iris
+from scipy.stats import pearsonr, linregress, t
+from climi.pppp import *
+from climi.uuuu import *
+from climi.uuuu.cccc import _get_ind_lolalim as lllim_
+from matplotlib.path import Path
+from skextremes.models.classic import GEV
+from sklearn.metrics import mean_squared_error as mse_, r2_score as r2_
+
+
+_here_ = get_path_(__file__)
+
+
+_djn = os.path.join
+
+
+def _vlabel(var, year=None, ts=None):
+    v = var.split('-')[0]
+    yl = v[:4].upper() + v[4:]
+    if isinstance(year, str) and year[0] == 'g':
+        return 'Number of years with {}$\geq${}'.format(yl, year[1:])
+    if isinstance(ts, str) and ts[0] == 'g':
+        return '% land area \n with {}$\geq${}'.format(yl, ts[1:])
+    else:
+        return yl
+
+
+def mbe_(y0, y1):
+    return np.mean(np.asarray(y1) - np.asarray(y0))
+
+
+def _cmnm(bd):
+    bd = np.asarray(bd)
+    cm = list(plt.get_cmap("magma_r", len(bd)-1).colors)
+    cmap = mpl.colors.ListedColormap(('white', *cm[:-1])) # "afmhot_r"
+    cmo = cm[-1]
+    cmap.set_over(cmo)
+    norm = mpl.colors.BoundaryNorm(bd, cmap.N)
+    return dict(cmap=cmap, norm=norm)
+
+
+def _pdict(var, year):
+    if isinstance(year, str) and year[0] == 'g':
+        bd = np.arange(7)
+    else:
+        if year == 'mean':
+            bd = [0, 6, 7, 8, 9, 10, 11, 12, 15]
+        else:
+            bd = [0, 6, 9, 12, 15, 18, 24, 48, 96] if 'hwmid' in var else \
+                 [0, 6, 9, 12, 15, 18, 24, 48, 96]
+    return _cmnm(bd)
+
+
+def _ec(cl, cref=None):
+    return en_mm_cubeL_(cl, cref=cref)
+
+
+def _cl(idir, dns, mD, **lD):
+    o, dns_ = [], []
+    for dn in dns:
+        tmp = load_h248_(idir, m=mD[dn], **lD)
+        if tmp:
+            if len(tmp) > 1:
+                warnings.warn("multiple files found; first one selected!")
+            o.append(tmp[0][0])
+            dns_.append(dn)
+    return (o, dns_)
+
+
+def _t_collapsed(cl, mtd):
+    if isinstance(mtd, str) and mtd[0] == 'g':
+        return [i.collapsed('time', iris.analysis.COUNT,
+                            function=lambda x: x >= int(mtd[1:]))
+                if i else None for i in cl]
+    elif mtd == 'mean':
+        return [i.collapsed('time', iris.analysis.MEAN) if i else None
+                for i in cl]
+    elif isinstance(mtd, int):
+        return [extract_period_cube(i, mtd, mtd) if i else None for i in cl]
+
+
+def _2d_af(cl, rgD, vv):
+    tmp = [[ii.data if ii else np.nan
+            for ii in get_tsf_h248_(cl, function=lambda x: x >= i, rgD=rgD)]
+           for i in vv]
+    return np.asarray(tmp).T
+
+
+def _map_data(clo, clr, obss, rcms, mtd, rgD, vv, slct=None):
+    def _em(cl):
+        tmp = en_mean_(_ec(cl))
+        rm_sc_cube(tmp)
+        return tmp
+    oo = _t_collapsed(clr, mtd)
+    ooo = []
+    if isIter_(slct):
+        for o, dn in zip(oo, rcms):
+            if isIter_(slct) and dn in slct:
+                ooo.append(o)
+    ecs = [_em(i) for i in (oo, ooo) if i]
+    ens = ['RCM mean \n (all)', 'RCM mean \n (selected)'] if ooo \
+          else ['RCM mean']
+    oooo = _t_collapsed(clo, mtd)
+    af = [_2d_af(i, rgD, vv) for i in (oo, ecs, oooo)]
+    return ((oo, ecs, oooo), (rcms, ens, obss), af)
+
+
+def _mp(fn, cubeLL, tiLL, dataLL, tiLL_, vv, pD, rgD, vl, cbt=None):
+    fig = init_fig_(fx=6.5, fy=5, l=.09, r=.98, t=.96, b=.45, h=.2)
+    _map(fig, cubeLL, tiLL, pD, rgD, vl, cbt=cbt)
+    yl = 'Land area (%)'
+    ax = fig.add_axes([.09, .075, .89, .32],
+                      ylabel=yl, xlabel=vl, ylim=(0, 100))
+    _map_stat(ax, dataLL, tiLL_, vv)
+    fig.text(.09, .975, '(a)', ha='right', fontsize=10, fontweight='bold')
+    fig.text(.09, .41, '(b)', ha='right', fontsize=10, fontweight='bold')
+    plt.savefig(fn, dpi=300)
+    plt.close()
+
+
+def _tx_rgmean(fig, ax, cube, rgD):
+    coord0 = ((-10, 35), (-5, 35), (25, 70), (-10, 70), (-10, 35))
+    coord1 = ((-5, 35), (30, 35), (30, 70), (25, 70), (-5, 35))
+    s = '{:.1f}\n{:.1f}'.format(rgMean_cube(cube, rgD=rgD).data,
+            rgMean_poly_cube(cube, Path(coord0)).data -
+            rgMean_poly_cube(cube, Path(coord1)).data)
+    aligned_tx_(fig, ax, s, rpo='tl', itv=-0.005, alpha=.5, fontsize=8)
+
+
+def _map(fig, cubeLL, tiLL, pD, rgD, vl, cbt=None):
+    tiD = dict(fontsize=10, fontweight='bold')
+    nrow = len(cubeLL)
+    ncol = max((len(i) for i in cubeLL))
+    pD_ = dict(rasterized=True)
+    pD_.update(pD)
+    def _pch(ii, o, ti):
+        ax, pch = pch_ll_(fig, nrow, ncol, ii, o,
+                           rg=rgD, pcho=pD_, fr_on=True)
+        ax.set_title(ti, tiD)
+        return (ax, pch)
+    axs = []
+    for i, (cubeL, tiL) in enumerate(zip(cubeLL, tiLL)):
+        for ii, (cube, ti) in enumerate(zip(cubeL, tiL)):
+            ax, pch = _pch(i*ncol + ii + 1, cube, ti)
+            _tx_rgmean(fig, ax, cube, rgD)
+            ax.plot([-5, 25], [35, 70], c='w', lw=1)
+            axs.append(ax)
+    cbw = wspace_ax_(*axs[-2:])
+    cb = aligned_cb_(fig, ax, pch, [cbw, cbw*1.5],
+                     orientation='vertical', extend='max')
+    cb.set_label(vl)
+    if cbt is not None:
+        cb.set_ticks(cbt)
+
+
+def _map_stat(ax, dataLL, tiLL, vv):
+    cLL = (plt.get_cmap('tab10').colors, plt.get_cmap('Dark2').colors[::-1],
+           plt.get_cmap('tab20b').colors)
+    #mLL = ((8, 9, 10, 11), ("o",), ("s", "d"))
+    #fL = (0, 0, 0)
+    #wL = (1, 1, 3)
+    #aL = (.7, .8, .9) #(.99, .8, .9)
+    #zL = (3, 2, 1)
+    #N = sum([len(i) for i in tiLL])
+    #dvL = iter(np.linspace(-.25, .25, N))
+    #for dataL, tiL, cL, mL, w_, a_, z_, f_ in \
+    #        zip(dataLL, tiLL, cLL, mLL, wL, aL, zL, fL):
+    #    for data, ti, c_, m_ in zip(dataL, tiL, cL, mL):
+    #        #ax.plot(vv + next(dvL) * len(vv) / 10, data,
+    #        #        drawstyle='steps-mid', label=ti.replace('\n ', ''),
+    #        mkD = dict(marker=m_, mew=0, ms=3) if w_ > 1 \
+    #              else dict(marker=m_, mew=.8, ms=3,
+    #                        mfc='none')
+    #        
+    #        ax.plot(vv, data,
+    #                label=ti.replace('\n ', ''),
+    #                color=c_,
+    #                **mkD,#markers
+    #                linestyle='', alpha=a_, zorder=z_)
+    #    if f_:
+    #        ax.fill_between(vv, dataL.max(axis=0), dataL.min(axis=0),
+    #                        color='gray', alpha=.25, step='mid', zorder=0)
+    N = sum([len(i) for i in tiLL])
+    dvL = iter(np.linspace(-.4, .4, N))
+    w_ = .8 / (N - 1)
+    for dataL, tiL, cL in zip(dataLL, tiLL, cLL):
+        for data, ti, c_ in zip(dataL, tiL, cL):
+            ax.bar(vv + next(dvL), data,
+                   label=ti.replace('\n ', ''),
+                   color=c_,
+                   width=w_,
+                   alpha=.9,
+                   linewidth=0)
+    ax.set_xticks(vv)
+    ax.tick_params(axis='x', length=0)
+    ax.grid(True, 'major', 'y', lw=.5, c='k', alpha=.1)
+    ax.legend(ncol=2, frameon=False)
+
+
+def _t(cl, rgD, mtd):
+    if mtd == 'mean':
+        return get_ts_h248_(cl, rgD=rgD)
+    elif mtd[0] == 'p':
+        return get_tsa_h248_(cl, iris.analysis.PERCENTILE,
+                             percent=int(mtd[1:]), rgD=rgD)
+    elif mtd[0] == 'g':
+        return get_tsf_h248_(cl, function=lambda x: x >= int(mtd[1:]), rgD=rgD)
+
+
+def _ts_data(clo, clr, obss, rcms, mtd, rgD, slct=None):
+    oo = [i.data for i in _t(clr, rgD, mtd)]
+    ooo = []
+    if isIter_(slct):
+        for o, dn in zip(oo, rcms):
+            if isIter_(slct) and dn in slct:
+                ooo.append(o)
+    ecs = [np.ma.mean(np.asarray(i), axis=0) for i in (oo, ooo) if i]
+    ens = ['RCM mean (all)', 'RCM mean (selected)'] if ooo else\
+          ['RCM mean']
+    oooo = [i.data for i in _t(clo, rgD, mtd)]
+    return ((oo, ecs, oooo), (rcms, ens, obss))
+
+
+def _ts(fn, dataL, tiL, xtkL, vl):
+    fig = plt.figure(figsize=(7.5, 3.5))
+    ax0 = fig.add_axes([.13, .175, .62, .77])
+    _hm(fig, ax0, dataL, tiL, xtkL, vl)
+    ax1 = fig.add_axes([.85, .175, .12, .77])
+    _violin(ax1, dataL, tiL, vl)
+    fig.text(.13, .95, '(a)', ha='right', fontsize=10, fontweight='bold')
+    fig.text(.85, .95, '(b)', ha='right', fontsize=10, fontweight='bold')
+    plt.savefig(fn, dpi=300)
+    plt.close(fig)
+
+
+def _hm(fig, ax, dataL, tiL, xtkL, vl):
+    data = np.asarray(dataL)
+    im = heatmap(data, tiL, iter_str_(xtkL),
+                 ax=ax, cmap="magma_r", aspect='auto')
+    texts = annotate_heatmap(im, valfmt="{:.1f}", fontsize=8, rotation=90)
+    cb = aligned_cb_(fig, ax, im, [.01, .01], orientation='vertical')
+    cb.set_label(vl.replace('\n ', ''))
+
+
+def _violin(ax, dataL, tiL, vl=None):
+    ax.invert_yaxis()
+    parts = ax.violinplot(dataL,
+                          vert=False, widths=.9, showmeans=False,
+                          showmedians=False, showextrema=False)
+    for pc in parts['bodies']:
+        pc.set_facecolor('gray')
+
+    boxes = ax.boxplot(dataL,
+                       vert=False, widths=.2, sym='r+', patch_artist=True,
+                       showmeans=True,
+                       meanprops=dict(mec='white', marker='x', ms=4),
+                       medianprops=dict(color='white', linewidth=1.5))
+
+    for pc in boxes['boxes']:
+        pc.set_facecolor('k')
+
+    axVisibleOff_(ax)
+    ax.set_yticks([])
+    ax.grid(True, 'major', 'x', lw=.5, c='k', alpha=.3)
+    if vl:
+        ax.set_xlabel(vl)
+
+
+def corr_tr_(t_o, t_r, obss, rcms, fn):
+    from itertools import combinations as _cb
+    n_o = len(obss)
+    nnn = max([len(i) for i in rcms + obss])
+    nnn_ = max([len(i) for i in obss])
+    ss = '{0}{1}{3} vs. {0}{2}{3}: '.format('{:', nnn, nnn_, 's}')
+    ss_ = '{0}{1}{2}: '.format('{:', nnn, 's}')
+    ss1 = '{:8.3f} ({:5.3f}), {:8.3f}, {:8.3f}, {:8.3f}\n'
+    ss_ += '{:.3f} +/-{:.3f}, {:.3f}\n'
+    tinv = lambda p, df: abs(t.ppf(p/2, df))
+    with open(fn, 'w') as f:
+        f.write('{:_^80}\n'.format('CORR COEF(P-VALUE), R2, RMSE, MBE'))
+        if n_o > 1:
+            for i, i_ in _cb(range(n_o), 2):
+                f.write(ss.format(obss[i], obss[i_]))
+                f.write(ss1.format(*pearsonr(t_o[i], t_o[i_]),
+                                   r2_(t_o[i], t_o[i_]),
+                                   mse_(t_o[i], t_o[i_], squared=False),
+                                   mbe_(t_o[i], t_o[i_])))
+                f.write('\n')
+        for i, ii in zip(rcms, t_r):
+            for iii, iiii in zip(obss, t_o):
+                f.write(ss.format(i, iii))
+                f.write(ss1.format(*pearsonr(ii, iiii),
+                                   r2_(iiii, ii),
+                                   mse_(iiii, ii, squared=False),
+                                   mbe_(iiii, ii)))
+        f.write('\n{:_^80}\n'.format('LINEAR TREND'))
+        for i, ii in zip(obss + rcms, t_o + t_r):
+            r_ = linregress(range(len(ii)), ii)
+            ts_ = tinv(0.05, len(ii) - 2)
+            f.write(ss_.format(i, r_.slope, ts_ * r_.stderr, r_.pvalue))
+
+
+def main():
+    warnings.filterwarnings("ignore", category=UserWarning)
+    parser = argparse.ArgumentParser('HWMId Evaluation')
+    parser.add_argument("-m", "--plt_map", action="store_false",
+                        help="whether _map()")
+    parser.add_argument("-t", "--plt_ts", action="store_false",
+                        help="whether _ts()")
+    parser.add_argument("--test", action="store_true",
+                        help="as in testing mode")
+    args = parser.parse_args()
+    with open(_djn(_here_, 'cfg_plt_hwmid_eval.yml'), 'r') as ymlfile:
+        cfg = yaml.safe_load(ymlfile)
+    #output dirs
+    #ddir = cfg['ddir']
+    fdir = cfg['fdir']
+    tdir = cfg['tdir']
+    #os.makedirs(ddir, exist_ok=True)
+    os.makedirs(fdir, exist_ok=True)
+    os.makedirs(tdir, exist_ok=True)
+    #constans
+    obss, rcms, rcms_, mD = cfg['obss'], cfg['rcms'], cfg['rcms_'], cfg['m']
+    rcms_.sort()
+    rcp, ref, rgDs = cfg['rcp'], cfg['ref'], cfg['rgDs']
+    idir, idir_ = cfg['idir']['obss'], cfg['idir']['rcms']
+    rgD_eur = rgDs['eur']
+    #loop variables
+    if args.test:
+        rr = ['eur']
+        vv = ['hwmid-tx']
+        ff = ['j-d']
+        yy = ['mean']
+        tt = ['mean']
+    else:
+        #rr = cfg['rgs']
+        #vv = ['hwmid-tx', 'hwmid-tn', 'wsdi-tx', 'wsdi-tn']
+        #ff = ['j-d', 'mjja', 'ndjf']
+        rr = ['eur']
+        vv = ['hwmid-tx', 'hwmid-tn', 'wsdi-tx']
+        ff = ['j-d']
+        yy = [1994, 2003, 2006, 2007, 'mean', 'g15']
+        #yy = ['mean']
+        tt = ['mean', 'p90', 'g15']
+    #loop 0
+    for var in vv:
+        print('{}'.format(var))
+        #loop 1
+        for freq in ff:
+            print('  {}'.format(freq))
+            y0y1 = [1990, 2008] if freq == 'ndjf' else [1989, 2008]
+            epcD = {} if freq == 'j-d' else dict(ccsn='seasonyr', mmm=freq)
+            lD = dict(var=var, ref=ref, freq=freq, y0y1=y0y1, epcD=epcD)
+            (clo, obss0) = _cl(idir, obss, mD, **lD)
+            (clr, rcms0)= _cl(idir_, rcms_, mD, rcp=rcp, **lD)
+            if freq == 'j-d' and args.plt_map:
+                for year in yy:
+                    if isinstance(year, str) and year[0] == 'g':
+                        hh = range(1, 6)
+                        if var[0] == 'w':
+                            continue
+                    elif year == 'mean':
+                        hh = range(6, 11)
+                    else:
+                        hh = range(6, 16)
+                    vl = _vlabel(var, year)
+                    ffmt = '{}_{}_ref{}-{}_{}_{}.pdf'
+                    pD = _pdict(var, year)
+                    print('    {} map'.format(year))
+                    (o, oo, ooo), (d, dd, ddd), mstat = _map_data(
+                        clo, clr, obss0, rcms0, year, rgD_eur, hh
+                        )
+                    _mp(
+                        _djn(fdir, ffmt.format('mp', var, *ref, freq, year)),
+                        (o, oo + ooo), (d, dd + ddd),
+                        mstat, (d, dd, ddd), hh,
+                        pD, rgD_eur, vl
+                        )
+            if args.plt_ts:
+                vl = _vlabel(var)
+                for rg in rr:
+                    print('    {} region'.format(rg))
+                    for ts in tt:
+                        print('      {} ts'.format(ts))
+                        vl_ = _vlabel(var, ts=ts)
+                        (o, oo, ooo), (d, dd, ddd) =_ts_data(
+                            clo, clr, obss0, rcms0, ts, rgDs[rg]
+                            )
+                        ffmt = '{}_{}_ref{}-{}_{}_{}.pdf'
+                        fn = _djn(fdir, ffmt.format(ts, var, *ref, freq, rg))
+                        _ts(fn, o + oo + ooo, d + dd + ddd,
+                            np.arange(y0y1[0], y0y1[-1] + 1),
+                            vl_)
+                        ffmt = '{}_{}_ref{}-{}_{}_{}.txt'
+                        fn = _djn(tdir, ffmt.format(ts, var, *ref, freq, rg))
+                        corr_tr_(ooo, o + oo, ddd, d + dd, fn)
+
+
+if __name__ == '__main__':
+    main()

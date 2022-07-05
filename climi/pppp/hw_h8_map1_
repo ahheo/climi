@@ -59,7 +59,7 @@ def _pdict(var, mtd, y0y1=None):
         elif mtd[0] == 'p':
             bd = [0, 6, 9, 12, 15, 18, 24, 48, 96]
             bd_ = [0, 3, 4, 5, 6, 9, 12, 24, 48]
-    return (_cmnm(bd), _cmnm(bd_, 'bone_r', v0=.2))
+    return (_cmnm(bd), _cmnm(bd_, 'twilight', v1=.6))
 
 
 def _rf(fn):

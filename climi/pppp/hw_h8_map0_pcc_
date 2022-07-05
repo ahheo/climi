@@ -41,23 +41,24 @@ def _rf(fn):
         return iris.load_cube(fn)
 
 
-def _clcdx(ddir, gcms, rcms, y0y1, freq, var0, var1):
-    ffmt = '{}cc_r_{}_{}_{}-{}_{}_{}-{}.nc'
+def _clcdx(ddir, gcms, rcms, y0y1, freq, var0, var1, var2):
+    ffmt = '{}pcc_r_{}_{}_{}-{}_{}_{}-{}-{}.nc'
     o = []
     for gcm in gcms:
         oo = []
         for rcm in rcms:
             oo.append(_rf(ffmt.format(ddir, gcm, rcm, *y0y1, freq,
-                                      var0, var1)))
+                                      var0, var1, var2)))
         o.append(oo)
     return o
 
 
-def _clcmp(ddir, gcms, y0y1, freq, var0, var1, go_='g'):
-    ffmt = '{}cc_{}_{}_{}-{}_{}_{}-{}.nc'
+def _clcmp(ddir, gcms, y0y1, freq, var0, var1, var2, go_='g'):
+    ffmt = '{}pcc_{}_{}_{}-{}_{}_{}-{}-{}.nc'
     o = []
     for gcm in gcms:
-        o.append(_rf(ffmt.format(ddir, go_, gcm, *y0y1, freq, var0, var1)))
+        o.append(_rf(ffmt.format(ddir, go_, gcm, *y0y1, freq,
+                                 var0, var1, var2)))
     return o
 
 
@@ -172,7 +173,8 @@ def main():
     yy = ['mean']
     pp = [[1981, 2100]]
     #pp = [[1981, 2020], [2021, 2060], [2061, 2100]]
-    VV = ['EffPR', 'DryDays', 'TX']
+    VV = ['EffPR', 'DryDays']
+    var2 = 'TX'
     #vv = ['hwmid-tn']
     #yy = ['g15', 'mean']
     #loop 0
@@ -187,10 +189,11 @@ def main():
                     print('    {}-{}'.format(*y0y1))
                     vl = 'Correlation coeficient'
                     pD = _pdict(var1)
-                    fn = '{}cc_p{}-{}_{}-{}.pdf'.format(fdir, *y0y1,
-                                                        var0, var1)
-                    crLL = _clcdx(ddir, gcms, rcms, y0y1, freq, var0, var1)
-                    cgL = _clcmp(ddir, gcms, y0y1, freq, var0, var1)
+                    fn = '{}pcc_p{}-{}_{}-{}.pdf'.format(fdir, *y0y1,
+                                                        var0, var1, var2)
+                    crLL = _clcdx(ddir, gcms, rcms, y0y1, freq,
+                                  var0, var1, var2)
+                    cgL = _clcmp(ddir, gcms, y0y1, freq, var0, var1, var2)
                     #print(ddir)
                     #################
                     A2, TFx, TFy = compressLL_(crLL)
@@ -200,7 +203,8 @@ def main():
                     #print(A1, A2)
                     #################
                     if y0y1[0] < 2021:
-                        coL = _clcmp(ddir, obss, [1981, 2020], freq, var0, var1, 'o')
+                        coL = _clcmp(ddir, obss, [1981, 2020],
+                                     freq, var0, var1, var2, 'o')
                         print(coL)
                         if not all([i is None for i in coL]):
                             B1, B2 = zip(*[(i, ii) for i, ii in zip(coL, obss)

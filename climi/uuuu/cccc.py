@@ -53,8 +53,9 @@
 * nearest_point_cube    : extract 1 point cube
 * nine_points_cube      : extract nine points cube centered at a given point
 * pSTAT_cube            : period statistic (month, season, year)
-* pst_                  : post-rename/reunits cube(L)
+* pcorr_cube            : partial correlation (cube_0, cube_1, cube_cntr)
 * pp_cube               : pth and 100-pth of cube(L) data (each)
+* pst_                  : post-rename/reunits cube(L)
 * purefy_cubeL_         : prepare for concat or merge
 * repair_cs_            : bug fix for save cube to nc
 * repair_lccs_          : bug fix for save cube to nc (LamgfortComfort)
@@ -148,8 +149,9 @@ __all__ = ['alng_axis_',
            'nearest_point_cube',
            'nine_points_cube',
            'pSTAT_cube',
-           'pst_',
+           'pcorr_cube',
            'pp_cube',
+           'pst_',
            'purefy_cubeL_',
            'repair_cs_',
            'repair_lccs_',
@@ -1959,3 +1961,20 @@ def doy_f_cube(cube,
             ll_('{}'.format(i), t0=t0, _p=True)
 
     return out
+
+
+def pcorr_cube(x, y, z, corr_coords='time', common_mask=True):                                                         
+    assert x.shape == y.shape == z.shape                                        
+    from iris.analysis.stats import pearsonr
+    from iris.analysis.maths import apply_ufunc as _apply
+    def _corr(cube_0, cube_1):
+        return pearsonr(cube_0, cube_1,
+                        corr_coords=corr_coords, common_mask=common_mask)
+    rxy = _corr(x, y)                                                           
+    rxz = _corr(x, z)                                                           
+    ryz = _corr(y, z)
+    covar = rxy - rxz * ryz                                                           
+    denom = _apply(np.sqrt, (1 - rxz**2) * (1 - ryz**2), new_unit=covar.units)
+    corr_cube = covar / denom
+    corr_cube.rename("Pearson's partial r")
+    return corr_cube

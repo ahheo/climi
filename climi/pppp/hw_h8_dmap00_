@@ -153,7 +153,7 @@ def _mp0(fn, cgL, cgL1, crLL, crLL1, gcms, rcms, prds, pD, rgD, vl):
                 if xi in rcms:
                     axr.append(ax)
                 _tx_rgmean(fig, ax, cube, rgD)
-    axs_rct_(fig, axr, color='r')
+    axs_rct_(fig, axr, color='b', lw=2)
     axs_abc_(fig, axs, '(a)')
     aligned_tx_(fig, axs, prds[0], rpo='lc', itv=.03, **tiD)
     axs1, axr1 = [], []
@@ -170,7 +170,7 @@ def _mp0(fn, cgL, cgL1, crLL, crLL1, gcms, rcms, prds, pD, rgD, vl):
                 if xi in rcms:
                     axr1.append(ax)
                 _tx_rgmean_(fig, ax, cube, cube_, rgD)
-    axs_rct_(fig, axr1, color='r')
+    axs_rct_(fig, axr1, color='b', lw=2)
     axs_abc_(fig, axs1, '(b)')
     aligned_tx_(fig, axs1, prds[1], rpo='lc', itv=.03, **tiD)
     cbw = wspace_ax_(*axs[-2:])

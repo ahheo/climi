@@ -36,30 +36,39 @@ def _rf(fn):
         return iris.load_cube(fn)
 
 
-def _clcdx(ddir, gcms, rcms, y_, y0y1, freq, var):
-    ffmt = '{}mp_r_{}_{}_{}_{}-{}_{}_{}.nc'
+def _clcdx(ddir, gcms, rcms, y_, pp, freq, var):
+    ffmt = '{}ts_r_{}_{}_{}_{}-{}_{}_{}.nc'
     o = []
     for gcm in gcms:
         oo = []
         for rcm in rcms:
-            oo.append(_rf(ffmt.format(ddir, y_, gcm, rcm, *y0y1, freq, var)))
+            ooo = []
+            for y0y1 in pp:
+                ooo.append(_rf(ffmt.format(ddir, y_, gcm, rcm, *y0y1, freq, var)))
+            ooo = None if any(i is None for i in ooo) else\
+                  concat_cube_(iris.cube.CubeList(ooo))
+            oo.append(ooo)
         o.append(oo)
     return o
 
 
-def _clcmp(ddir, gcms, y_, y0y1, freq, var, go_='g'):
-    ffmt = '{}mp_{}_{}_{}_{}-{}_{}_{}.nc'
+def _clcmp(ddir, gcms, y_, pp, freq, var, go_='g'):
+    ffmt = '{}ts_{}_{}_{}_{}-{}_{}_{}.nc'
     o = []
     for gcm in gcms:
-        o.append(_rf(ffmt.format(ddir, go_, y_, gcm, *y0y1, freq, var)))
+        oo = []
+        for y0y1 in pp:
+            oo.append(_rf(ffmt.format(ddir, go_, y_, gcm, *y0y1, freq, var)))
+        oo = None if any(i is None for i in oo) else\
+                concat_cube_(iris.cube.CubeList(oo))
+        o.append(oo)
     return o
 
 
-def _af(cube, rgD):
-    vv = np.linspace(*minmax_cube_(cube, rg=rgD, p=1), 8)
-    af = [rgCount_cube(cube, rgD=rgD, function=lambda x: x >= i).data
-          for i in vv]
-    return (vv, np.asarray(af))
+def _af(cube):
+    vv = cube.coord('year').points
+    af = cube.data
+    return (vv, af)
 
 
 def plt_af_(ax, cgL, crLL, gcms, rcms, y0y1, rgD,
@@ -118,23 +127,18 @@ def plt_af_(ax, cgL, crLL, gcms, rcms, y0y1, rgD,
         #ax.add_artist(legr)
 
 
-def plt_af__(axs, cgL, crLL, gcms, rcms, y0y1, rgD,
-             lgo, lgo_, lgr, lgr_, lgy, lgy_,
+def plt_af__(axs, cgL, crLL, gcms, rcms, rgD,
+             lgo, lgo_, lgr, lgr_, 
              coL=None, obss=None, ls='-', lg_=False):
     tiD = dict(fontsize=10, fontweight='bold')
     if coL:
         cm = plt.get_cmap('tab20b').colors
         for i, (cube, xi) in enumerate(zip(coL, obss)):
             if cube:
-                vv, af = _af(cube, rgD)
+                vv, af = _af(cube)
                 for ii, ax in enumerate(axs):
-                    if xi == 'E-OBS':
-                        ax.fill_betweenx(af, .85*vv, 1.15*vv,
-                                         lw=0, color=cm[i], alpha=.1)
-                        ax.fill_betweenx(af, .9*vv, 1.1*vv,
-                                         lw=0, color=cm[i], alpha=.1)
                     l_, = ax.plot(vv, af, ls=ls,
-                                  color=cm[i], lw=2, alpha=.9, zorder=2)
+                                  color=cm[i], lw=1.5, alpha=.9, zorder=2)
                     if ii == 0:
                         lgo.append(l_)
                         lgo_.append(xi)
@@ -144,41 +148,36 @@ def plt_af__(axs, cgL, crLL, gcms, rcms, y0y1, rgD,
             ax.set_title(yi, **tiD)
             axs_abc_(ax.figure, ax, '({})'.format(a), dy=.015, dx=-.001)
         for ii, (cube, xi) in enumerate(zip([cg] + crL, ['GCM'] + rcms)):
-            lww = 1.5 if ii == 0 else 1
+            lww = 1.5 if ii == 0 else .75
             zoo = 3 if ii == 0 else 2
+            alp = .9 if ii == 0 else .67
             if cube:
-                vv, af = _af(cube, rgD)
+                vv, af = _af(cube)
                 l_, = ax.plot(vv, af, color=css[ii], lw=lww, ls=ls,
-                              zorder=zoo, alpha=.9)
-                if ii == 0 and i == 0:
-                    lgy.append(l_)
-                    lgy_.append('{}-{}'.format(*y0y1))
+                              zorder=zoo, alpha=alp)
                 if i == 0 and lg_:
                     lgr.append(l_)
                     lgr_.append(xi)
 
 
-def lgd_(ax, lgo, lgo_, lgr, lgr_, lgy, lgy_):
-    lego = ax.legend(lgo + lgr, lgo_ + lgr_, bbox_to_anchor=(.99, .99),
-                     loc='upper right', borderaxespad=0, frameon=False)
+def lgd_(ax, lgo, lgo_, lgr, lgr_):
+    lego = ax.legend(lgo, lgo_, bbox_to_anchor=(.78, .01),
+                     loc='lower right', borderaxespad=0, frameon=False)
     ax.add_artist(lego)
-    legy = ax.legend(lgy, lgy_, bbox_to_anchor=(.78, .99),
-                     loc='upper right', borderaxespad=0, frameon=False)
-    for i in legy.get_lines():
-        i.set_color('k')
-        i.set_lw(1.5)
+    lego = ax.legend(lgr, lgr_, bbox_to_anchor=(.99, .01),
+                     loc='lower right', borderaxespad=0, frameon=False)
     #ax.add_artist(legr)
 
 
 def _fas(vl):
     fig = init_fig_(fx=7.5, fy=6, t=.95, l=.09, b=.075, r=.99, h=.25)
-    ax_opt = dict(ylabel='Land area (%)', ylim=(0, 100))
+    ax_opt = dict(ylabel=vl, ylim=(0, 100))
     if '%' not in vl:
-        ax_opt.update(dict(xscale='log'))
+        ax_opt.update(dict(yscale='log'))
     ax0 = fig.add_subplot(3, 1, 1, **ax_opt)
     ax_opt.update(dict(sharex=ax0))
     ax1 = fig.add_subplot(3, 1, 2, **ax_opt)
-    ax2 = fig.add_subplot(3, 1, 3, xlabel=vl, **ax_opt)
+    ax2 = fig.add_subplot(3, 1, 3, xlabel='Year', **ax_opt)
     return (fig, (ax0, ax1, ax2))
 
 
@@ -228,28 +227,20 @@ def main():
             for y_ in yy:
                 print('  {}'.format(y_))
                 vl = _vlabel(var, y_)
-                fn = _djn(fdir, 'md0_{}_{}.pdf'.format(y_, var))
+                fn = _djn(fdir, 'ts0_{}_{}.pdf'.format(y_, var))
                 #fig, ax = _fa(vl)
                 fig, axs = _fas(vl)
                 lgo, lgo_, lgr, lgr_, lgy, lgy_ = [[] for _ in range(6)]
                 #for y0y1 in pp:
-                for y0y1, ls in zip(pp, ('-', '--', ':')):
-                    print('    {}-{}'.format(*y0y1))
-                    crLL = _clcdx(ddir, gcms, rcms, y_, y0y1, freq, var)
-                    cgL = _clcmp(ddir, gcms, y_, y0y1, freq, var)
-                    if y0y1[1] < 2021:
-                        coL = _clcmp(ddir, obss, y_, y0y1, freq, var, 'o')
-                        #plt_af_(ax, cgL, crLL, gcms, rcms, y0y1, rgD_eur,
-                        #        coL, obss, True)
-                        plt_af__(axs, cgL, crLL, gcms, rcms, y0y1, rgD_eur,
-                                 lgo, lgo_, lgr, lgr_, lgy, lgy_,
-                                 coL=coL, obss=obss, ls=ls, lg_=True)
-                    else:
-                        plt_af__(axs, cgL, crLL, gcms, rcms, y0y1, rgD_eur,
-                                 lgo, lgo_, lgr, lgr_, lgy, lgy_,
-                                 ls=ls)
-                        #plt_af_(ax, cgL, crLL, gcms, rcms, y0y1, rgD_eur)
-                lgd_(axs[0], lgo, lgo_, lgr, lgr_, lgy, lgy_)
+                crLL = _clcdx(ddir, gcms, rcms, y_, pp, freq, var)
+                cgL = _clcmp(ddir, gcms, y_, pp, freq, var)
+                coL = _clcmp(ddir, obss, y_, pp[:1], freq, var, 'o')
+                #plt_af_(ax, cgL, crLL, gcms, rcms, y0y1, rgD_eur,
+                #        coL, obss, True)
+                plt_af__(axs, cgL, crLL, gcms, rcms, rgD_eur,
+                         lgo, lgo_, lgr, lgr_,
+                         coL=coL, obss=obss, lg_=True)
+                lgd_(axs[0], lgo, lgo_, lgr, lgr_)
                 for ax in axs:
                     ax.grid(True, 'both', 'both', lw=.5, c='k', alpha=.1)
                 for ax in axs[:-1]:

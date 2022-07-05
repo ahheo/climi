@@ -23,85 +23,98 @@ def _msk(cube, dn, fxdir):
             maskLS_cube(cube, sftlf, thr=50)
 
 
-def _clcdx(idir, gcms, rcms, mD, var0, var1, ref, lD, ddir, rgD, fxdir=None):
-    ffmt0 = '{}cc_r_{}_{}_{}-{}_{}_{}-{}.nc'
+def _clcdx(idir, gcms, rcms, mD, var0, var1, var2, ref, lD, ddir, rgD,
+           fxdir=None):
+    ffmt0 = '{}pcc_r_{}_{}_{}-{}_{}_{}-{}-{}.nc'
     for gcm in gcms:
         for rcm in rcms:
             print('cc(), {}-{}'.format(gcm, rcm))
             tmp0 = load_h248_(idir, m=(mD[gcm], mD[rcm]), var=var0, ref=ref,
                               **lD)
             tmp1 = load_h248_(idir, m=(mD[gcm], mD[rcm]), var=var1, **lD)
-            if tmp0 and tmp1:
-                if len(tmp0[0]) > 1 or len(tmp1[0]) > 1:
+            tmp2 = load_h248_(idir, m=(mD[gcm], mD[rcm]), var=var2, **lD)
+            if tmp0 and tmp1 and tmp2:
+                if len(tmp0[0]) > 1 or len(tmp1[0]) > 1 or len(tmp2[0]) > 1:
                     warnings.warn("multiple files found; first one selected!")
-                o = _cc2cube(tmp0[0][0], tmp1[0][0])
+                o = _cc2cube(tmp0[0][0], tmp1[0][0], tmp2[0][0])
                 _msk(o, mD[rcm], fxdir)
                 fn_ = ffmt0.format(ddir, gcm, rcm,                      
                                    *lD['y0y1'], lD['freq'],                 
-                                   var0, var1)
+                                   var0, var1, var2)
                 print('save to {}'.format(fn_))
                 cubesv_(o, fn_)
             else:
                 warnings.warn("None files found; return None instead!")
 
 
-def _clcmp(idir, gcms, mD, var0, var1, ref, lD, ddir, rgD,
+def _clcmp(idir, gcms, mD, var0, var1, var2, ref, lD, ddir, rgD,
            go_='g', fxdir=None):
-    ffmt0 = '{}cc_{}_{}_{}-{}_{}_{}-{}.nc'
+    ffmt0 = '{}pcc_{}_{}_{}-{}_{}_{}-{}-{}.nc'
     for gcm in gcms:
         print('cc(), {}'.format(gcm))
         tmp0 = load_h248_(idir, m=gcm if go_=='g' else mD[gcm],
                           var=var0, ref=ref, **lD)
         tmp1 = load_h248_(idir, m=gcm if go_=='g' else mD[gcm], var=var1, **lD)
-        if tmp0 and tmp1:
-            if len(tmp0[0]) > 1 and len(tmp1[0]) > 1:
+        tmp2 = load_h248_(idir, m=gcm if go_=='g' else mD[gcm], var=var2, **lD)
+        if tmp0 and tmp1 and tmp2:
+            if len(tmp0[0]) > 1 and len(tmp1[0]) > 1 and len(tmp2[0]) > 1:
                 warnings.warn("multiple files found; first one selected!")
-            o = _cc2cube(tmp0[0][0], tmp1[0][0])
+            o = _cc2cube(tmp0[0][0], tmp1[0][0], tmp2[0][0])
             _msk(o, gcm, fxdir)
             fn_ = ffmt0.format(ddir, go_, gcm,                      
                                *lD['y0y1'], lD['freq'],                 
-                               var0, var1)
+                               var0, var1, var2)
             print('save to {}'.format(fn_))
             cubesv_(o, fn_)
         else:
             warnings.warn("None files found; return None instead!")
 
 
-def _checktime(c0, c1):
-    yy0, yy1 = y0y1_of_cube(c0), y0y1_of_cube(c1)
-    if not np.array_equal(yy0, yy1):
-        return [max(yy0[0], yy1[0]), min(yy0[1], yy1[1])]
+def _checktime(c0, c1, c2):
+    yy0, yy1, yy2 = y0y1_of_cube(c0), y0y1_of_cube(c1), y0y1_of_cube(c2)
+    if not np.array_equal(yy0, yy1) or np.array_equal(yy0, yy2):
+        return [max(yy0[0], yy1[0], yy2[0]), min(yy0[1], yy1[1], yy2[1])]
 
 
-def _checkspace(c0, c1):
+def _checkspace(c0, c1, c2):
     x0, y0 = get_xy_dim_(c0)
     x1, y1 = get_xy_dim_(c1)
+    x2, y2 = get_xy_dim_(c2)
     if not (np.array_equal(x0.points, x1.points) and
-            np.array_equal(y0.points, y1.points)):
-        if x0.shape != x1.shape or y0.shape != y1.shape:
+            np.array_equal(y0.points, y1.points) and
+            np.array_equal(x0.points, x2.points) and
+            np.array_equal(y0.points, y2.points)):
+        if (x0.shape != x1.shape or y0.shape != y1.shape or
+            x0.shape != x2.shape or y0.shape != y2.shape):
             return True
         elif (np.max(np.abs(x0.points - x1.points)) > 1e-10 or 
-              np.max(np.abs(y0.points - y1.points)) > 1e-10):
+              np.max(np.abs(y0.points - y1.points)) > 1e-10 or
+              np.max(np.abs(x0.points - x2.points)) > 1e-10 or                  
+              np.max(np.abs(y0.points - y2.points)) > 1e-10):
             return True
         else:
             replace_coord_(c1, x0) 
-            replace_coord_(c1, y0) 
+            replace_coord_(c1, y0)                                                                   
+            replace_coord_(c2, x0)                                              
+            replace_coord_(c2, y0) 
 
 
-def _cc2cube(c0, c1):
-    from iris.analysis.stats import pearsonr
-    yy = _checktime(c0, c1)
+def _cc2cube(c0, c1, c2):
+    yy = _checktime(c0, c1, c2)
     if yy:
-        print('>>>>>>>>>>> Proccess Extract')
+        print('>>>>>>>>>>> Proccess Extract{}-{}'.format(*yy))
         c0 = extract_period_cube(c0, *yy)
         c1 = extract_period_cube(c1, *yy)
-    rgd_ = _checkspace(c0, c1)
+        c2 = extract_period_cube(c2, *yy)
+    rgd_ = _checkspace(c0, c1, c2)
     if rgd_:
         print('>>>>>>>>>>> Proccess Regrid')
         c1 = rgd_li_opt0_(c1, c0, ctm=True)
-    rm_t_aux_cube((c0, c1))
+        c2 = rgd_li_opt0_(c2, c0, ctm=True)
+    rm_t_aux_cube((c0, c1, c2))
     replace_coord_(c1, c0.coord('time'))
-    return pearsonr(c0, c1, corr_coords='time', common_mask=True)
+    replace_coord_(c2, c0.coord('time'))
+    return pcorr_cube(c0, c1, c2)
 
 
 def _t1cube(c, mtd):
@@ -162,7 +175,8 @@ def main():
     pp = [[1981, 2100]]
     #pp = [[1981, 2020], [2021, 2060], [2061, 2100]]
     #VV = ['DryDays']
-    VV = ['DryDays', 'TX', 'EffPR']
+    VV = ['EffPR']
+    var2 = 'TX'
     #vv = ['EffPR']
     #ff = ['year']
     #yy = ['mean']
@@ -181,16 +195,16 @@ def main():
                     print('    {}-{}'.format(*y0y1))
                     lD = dict(freq=freq, y0y1=y0y1, epcD=epcD)
                     print('      RCM')
-                    _clcdx(idir__, gcms, rcms, mD, var0, var1, ref,
+                    _clcdx(idir__, gcms, rcms, mD, var0, var1, var2, ref,
                            dict(rcp=rcp, **lD),
                            ddir, rgD_eur, fxdir=fxdir)
-                    print('      GCM')
-                    _clcmp(idir_, gcms, mD, var0, var1, ref,
-                           dict(rcp=rcp, **lD),
-                           ddir, rgD_eur, fxdir=fxdir)
+                    #print('      GCM')
+                    #_clcmp(idir_, gcms, mD, var0, var1, var2, ref,
+                    #       dict(rcp=rcp, **lD),
+                    #       ddir, rgD_eur, fxdir=fxdir)
                     if y0y1[1] < 2021:
                         print('      OBS')
-                        _clcmp(idir, obss, mD, var0, var1, ref, lD,
+                        _clcmp(idir, obss, mD, var0, var1, var2, ref, lD,
                                ddir, rgD_eur, 'o', fxdir=fxdir)
 
 

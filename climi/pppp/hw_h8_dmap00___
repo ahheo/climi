@@ -23,7 +23,8 @@ _here_ = get_path_(__file__)
 _djn = os.path.join
 
 
-_vD = dict(EffPR='$\Delta$ Effective Precipitation (mm)',
+_vD = dict(#EffPR='$\Delta$ Effective Precipitation (mm)',
+           EffPR='$\Delta~P-E$ (mm)',
            DryDays='$\Delta$ Dry Days',
            TX='$\Delta T_{max}$ ($^{\circ}$C)',
            TN='$\Delta T_{min}$ ($^{\circ}$C)')
@@ -144,7 +145,7 @@ def cc_cube_(y0, y1, rgD=None):
     d0_, m0_ = d_m_(y0, rgD=rgD)
     d1_, m1_ = d_m_(y1, rgD=rgD)
     M_ = np.logical_and(~m0_, ~m1_)
-    print(d0_[M_].size)
+    #print(d0_[M_].size)
     return pearsonr(d0_[M_], d1_[M_])
 
 
@@ -188,7 +189,7 @@ def _mp0(fn, cgL, cgL1, crLL, crLL1, cgL_, cgL1_, crLL_, crLL1_,
                 _tx_rgmean(fig, ax, cube, cube_, rgD)
             else:
                 _xiyi(fig, nrow, ncol, (i + i_) * ncol + ii + 1, tiD, xi_, yi_)
-    axs_rct_(fig, axr, color='r')
+    axs_rct_(fig, axr, color='b', lw=2)
     axs_abc_(fig, axs, '(a)')
     aligned_tx_(fig, axs, prds[0], rpo='lc', itv=.03, **tiD)
     axs1, axr1 = [], []
@@ -205,7 +206,7 @@ def _mp0(fn, cgL, cgL1, crLL, crLL1, cgL_, cgL1_, crLL_, crLL1_,
                 if xi in rcms:
                     axr1.append(ax)
                 _tx_rgmean(fig, ax, cube, cube_, rgD)
-    axs_rct_(fig, axr1, color='r')
+    axs_rct_(fig, axr1, color='b', lw=2)
     axs_abc_(fig, axs1, '(b)')
     aligned_tx_(fig, axs1, prds[1], rpo='lc', itv=.03, **tiD)
     cbw = wspace_ax_(*axs[:2])
@@ -240,8 +241,9 @@ def main():
     rgD_eur = rgDs['eur']
     #loop variables
     #vv = ['EffPR', 'DryDays', 'TX']
-    vv = ['EffPR', 'DryDays']
-    ff = ['jja', 'mjjas']
+    vv = ['EffPR', 'DryDays', 'TX']
+    #ff = ['jja', 'mjjas']
+    ff = ['j-d']
     yy = ['mean']
     pp = [[1981, 2020], [2021, 2060], [2061, 2100]]
     freq_ = 'j-d'
@@ -254,13 +256,13 @@ def main():
             for y_ in yy:
                 vl = _vlabel(var)
                 pD = _pdict(var)
-                fn = _djn(fdir, 'dmp00_{}_{}_{}.pdf'.format(y_, freq, var))
+                fn = _djn(fdir, 'dmp000_{}_{}_{}.pdf'.format(y_, freq, var))
                 prds = ['{}-{}'.format(*i) for i in pp[1:]]
                 crLL = _clcdx(ddir, gcms, rcms, y_, pp[1], pp[0], freq, var)
                 cgL = _clcmp(ddir, gcms, y_, pp[1], pp[0], freq, var)
                 crLL1 = _clcdx(ddir, gcms, rcms, y_, pp[2], pp[0], freq, var)
                 cgL1 = _clcmp(ddir, gcms, y_, pp[2], pp[0], freq, var)
-                var_ = 'hwmid-tx'
+                var_ = 'wsdi-tx'
                 crLL_ = _clcdx(ddir, gcms, rcms, y_, pp[1], pp[0], freq_, var_)
                 cgL_ = _clcmp(ddir, gcms, y_, pp[1], pp[0], freq_, var_)
                 crLL1_ = _clcdx(ddir, gcms, rcms, y_, pp[2], pp[0], freq_, var_)

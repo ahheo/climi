@@ -48,8 +48,9 @@ def _pdict(var, mtd):
         bd_ = bd / 2.
     else:
         bd = [0, 6, 9, 12, 15, 18, 24, 48, 96]
-        bd_ = [0, 3, 4, 5, 6, 9, 12, 24, 48]
-    return (_cmnm(bd), _cmnm(bd_, 'bone_r', v0=.2))
+        #bd_ = [0, 3, 4, 5, 6, 9, 12, 24, 48]
+        bd_ = [0, 3, 6, 9, 12, 24, 48]
+    return (_cmnm(bd), _cmnm(bd_, 'twilight', v1=.6))
 
 
 def _rf(fn):
@@ -279,8 +280,8 @@ def main():
     rgD_eur = rgDs['eur']
     #loop variables
     #vv = ['hwmid-tx', 'hwmid-tn', 'wsdi-tx']
-    ff = ['j-d']
     #yy = ['g15', 'mean', 'p10', 'p50', 'p90']
+    ff = ['j-d']
     yy = ['mean']
     pp = [[1981, 2020], [2021, 2060], [2061, 2100]]
     vv = ['hwmid-tx']
