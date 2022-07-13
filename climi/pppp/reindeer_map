@@ -1,0 +1,130 @@
+#!/usr/bin/env python3
+
+import numpy as np
+import iris
+import matplotlib as mpl
+mpl.use('pdf', force=True)
+import matplotlib.pyplot as plt
+import iris.plot as iplt
+import os
+import time
+import cartopy.crs as ccrs
+import cartopy.feature as cft
+
+from matplotlib.colors import ListedColormap
+
+from climi.uuuu import *
+from climi.pppp import *
+
+
+_here_ = get_path_(__file__)
+
+
+_djn = os.path.join
+fxdir = '/nobackup/rossby22/sm_chali/DATA/fx'
+orog = 'orog_EUR-11_ECMWF-ERAINT_evaluation_r0i0p0_SMHI-RCA4_v1_fx.nc'
+sftlf = 'sftlf_EUR-11_ECMWF-ERAINT_evaluation_r0i0p0_SMHI-RCA4_v1_fx.nc'
+cm_ = plt.get_cmap('terrain')
+cmp0 = ListedColormap(cm_(np.linspace(.275, .85, 64)))
+cmp1 = ListedColormap(cm_(np.linspace(.275, .85, 64)) * (1, 1, 1, 0))
+ext0 = [5, 35, 51, 71]
+ext1 = [10, 25, 61, 69]
+sdict = {
+        'Kebnekaise': ([18.7, 67.9], 'L1', 'NE'),
+        'Kiruna': ([20.2, 67.8], 'L2', 'NE'),
+        'Tärendö': ([22.6, 67.2], 'L3', 'NE'),
+        'Överkalix': ([22.8, 66.3], 'L4', 'NE'),
+        'Kalix': ([23.2, 65.9], 'L5', 'NE'),
+        'Sirges-SF1': ([16.352574, 67.645623], 'S1', 'NE'),
+        'Sirges-SF2': ([17.211031, 67.468825], 'S2', 'SW'),
+        'Sirges-HF': ([18.748211, 67.197860], 'S3', 'NE'),
+        'Sirges-skog': ([19.049233, 66.897678], 'S4', 'NE'),
+        'Sirges-vinter': ([20.679246, 66.458987], 'S5', 'NE'),
+        'Sirges-kust': ([22.049494, 65.553455], 'S6', 'SW'),
+        'MD-SF1': ([12.145018, 62.858206], 'MD1', 'NE'),
+        'MD-SF2': ([12.779126, 62.738629], 'MD2', 'NE'),
+        'MD-HF': ([12.908606, 62.546127], 'MD3', 'SW'),
+        'MD-skog': ([13.465182, 62.330892], 'MD4', 'SW'),
+        'MD-vinter': ([13.821275, 62.198467], 'MD5', 'NE')
+        }
+
+
+def _labelxy(lo, la, po, dd=.175):
+    llx = lo + dd if 'E' in po else lo - dd
+    lly = la + dd if 'N' in po else la - dd
+    return (llx, lly)
+
+
+def _hva(po):
+    hha = 'left' if 'E' in po else 'right'
+    vva = 'baseline' if 'N' in po else 'top'
+    return dict(ha=hha, va=vva)
+
+
+def default_projection(cube):
+    cs = cube.coord_system("CoordSystem")
+    projection = cs.as_cartopy_projection() if cs else None
+    return projection
+
+
+def main():
+    o = iris.load_cube(_djn(fxdir, orog))
+    o0 = iris.load_cube(_djn(fxdir, sftlf))
+    guessBnds_cube(o)
+    maskLS_cube(o, o0, thr=50)
+    #iplt.pcolormesh(o, rasterized=True, cmap=cmp_, vmax=2000)
+    fig = init_fig_(fx=7.5, fy=5, l=.05, r=.95, t=.9, b=.22)
+    ax0 = fig.add_subplot(121, projection=default_projection(o))
+    pm_ = iplt.pcolormesh(o,
+            axes=ax0,
+            rasterized=True,
+            cmap=cmp0, vmin=0, vmax=1500)
+    ax0.set_extent(ext0, crs=ccrs.PlateCarree())
+    ax0.set(fc=cm_(0.16))
+    #ax0.gridlines(crs=ccrs.PlateCarree(), linestyle="-")
+    axs_abc_(fig, ax0, '(a)', dx=0, dy=.01)
+
+    ax1 = fig.add_subplot(122, projection=default_projection(o))
+    iplt.pcolormesh(o,
+            axes=ax1,
+            rasterized=True,
+            cmap=cmp0, vmax=1500, vmin=0)
+    ax1.set_extent(ext1, crs=ccrs.PlateCarree())
+    ax1.set(fc=cm_(0.16))
+    #ax1.gridlines(crs=ccrs.PlateCarree(), linestyle="-")
+    axs_abc_(fig, ax1, '(b)', dx=0, dy=.01)
+    #ax1.coastlines('110m',linewidth=.5)
+    #ax1.add_feature(cft.OCEAN, zorder=100, fc=cm_(0.15))
+    for site in sdict.keys():
+        o_ = nine_points_cube(o, *sdict[site][0])
+        lo = o_.coord('grid_longitude').points[1]
+        la = o_.coord('grid_latitude').points[1]
+        iplt.pcolormesh(o_,
+                axes=ax1,
+                rasterized=True,
+                cmap=cmp1, vmax=1500, vmin=0,
+                ec=[.5,.5,.5], lw=.3,
+                zorder=5)
+        o__ = rgMean_cube(o_)
+        lob = o__.coord('grid_longitude').bounds.ravel()
+        x = np.hstack((lob, np.flip(lob), lob[:1]))
+        lab = o__.coord('grid_latitude').bounds
+        y = np.dot(lab.T, [[1,1]]).ravel()
+        y = np.append(y, y[0])
+        ax1.plot(x, y, c=[.1,.1,.1], lw=.6, zorder=6)
+        #iplt.pcolormesh(o__,
+        #        axes=ax1,
+        #        rasterized=True,
+        #        cmap=cmp1, vmax=1500, vmin=0,
+        #        ec=[.1,.1,.1,.5], lw=1,
+        #        zorder=6)
+        ax1.text(*_labelxy(lo, la, sdict[site][2]), sdict[site][1],
+                **_hva(sdict[site][2]), c='k', size=8, zorder=9)
+    aligned_cb_(fig, [ax0, ax1], pm_, [.04, .04],
+                orientation='horizontal', shrink=.5, ti='Terrain height (m)')
+    plt.savefig('/nobackup/rossby26/users/sm_chali/DATA/energi/reindeer/x.pdf',
+                dpi=300)
+
+
+if __name__ == '__main__':
+    main()

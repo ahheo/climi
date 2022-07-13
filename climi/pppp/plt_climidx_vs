@@ -1,0 +1,384 @@
+#!/usr/bin/env python3
+
+import numpy as np
+from scipy.stats import pearsonr
+import geopandas as gpd
+import matplotlib as mpl
+mpl.use('pdf', force=True)
+import matplotlib.pyplot as plt
+from matplotlib.patches import Ellipse
+import matplotlib.transforms as transforms
+import iris
+import os
+import logging
+import warnings
+import argparse
+import yaml
+import time
+from time import localtime, strftime
+
+from climi.uuuu import *
+from climi.pppp import *
+
+
+_here_ = get_path_(__file__)
+
+
+_djn = os.path.join
+
+
+def _fnfmt(idir, *terms, ext='.pdf'):
+    nm_ = '_'.join(i for i in terms if i) + ext
+    return _djn(idir, nm_)
+
+
+def _shps():
+    shp = gpd_read(_djn(_here_, 'swe_districts/distriktsanalys_polygon.shp'))
+    shp_ = shp.to_crs(epsg=4326)
+    return shp_
+
+
+def confidence_ellipse(x, y, ax, n_std=2.0, facecolor='none', **kwargs):
+    """
+    Create a plot of the covariance confidence ellipse of *x* and *y*.
+
+    Parameters
+    ----------
+    x, y : array-like, shape (n, )
+        Input data.
+
+    ax : matplotlib.axes.Axes
+        The axes object to draw the ellipse into.
+
+    n_std : float
+        The number of standard deviations to determine the ellipse's radiuses.
+
+    **kwargs
+        Forwarded to `~matplotlib.patches.Ellipse`
+
+    Returns
+    -------
+    matplotlib.patches.Ellipse
+    """
+    if x.size != y.size:
+        raise ValueError("x and y must be the same size")
+
+    cov = np.cov(x, y)
+    pearson = cov[0, 1]/np.sqrt(cov[0, 0] * cov[1, 1])
+    # Using a special case to obtain the eigenvalues of this
+    # two-dimensionl dataset.
+    ell_radius_x = np.sqrt(1 + pearson)
+    ell_radius_y = np.sqrt(1 - pearson)
+    ellipse = Ellipse((0, 0), width=ell_radius_x * 2, height=ell_radius_y * 2,
+                      facecolor=facecolor, **kwargs)
+
+    # Calculating the stdandard deviation of x from
+    # the squareroot of the variance and multiplying
+    # with the given number of standard deviations.
+    scale_x = np.sqrt(cov[0, 0]) * n_std
+    mean_x = np.mean(x)
+
+    # calculating the stdandard deviation of y ...
+    scale_y = np.sqrt(cov[1, 1]) * n_std
+    mean_y = np.mean(y)
+
+    transf = transforms.Affine2D() \
+        .rotate_deg(45) \
+        .scale(scale_x, scale_y) \
+        .translate(mean_x, mean_y)
+
+    ellipse.set_transform(transf + ax.transData)
+    return ax.add_patch(ellipse)
+
+
+def id__(cubeLL, dn, gwls, sc, unit, odir, var, freq, shp_,
+         ssss=None, eeee=None):
+    ids = list(set(shp_.ID))[ssss:eeee]
+    for i in ids:
+        svd = poly_to_path_(list(shp_.loc[shp_.ID == i, 'geometry'])) #poly
+        ts = get_ts_clmidx_(cubeLL, dn, sc, poly=svd)
+        ts0 = np.asarray([np.nanmean(ii, axis=-1) for ii in ts])
+        hh_ = ts0[0]
+        fig = init_fig_(fx=7.5, fy=2.5, l=.09, r=.99, b=.18, t=.9, w=.22) #fig
+        for ii, (data, abc) in enumerate(zip(ts0[1:], 'abcdefg')):
+            #preparing axes w.r.t. gwls
+            ax_opt = {'ylabel': 'Climate change ({})'.format(unit)} \
+                     if ii == 0 else {}
+            ax_opt.update({'xlabel': 'Historical ({})'.format(unit),
+                           'title': gwls[ii+1],
+                           'box_aspect': 1})
+            ax = fig.add_subplot(1, 3, ii+1, **ax_opt)
+
+            #dealing with NaN
+            ind = np.logical_and(~np.isnan(hh_), ~np.isnan(data))
+            x, y = hh_[ind], data[ind]
+
+            #constant?
+            if (x.size < 2 or x.min() == x.max()) or\
+               (y.size < 2 or y.min() == y.max()):
+                continue
+
+            #scatter
+            ax.scatter(x, y, s=10, color=[.3,.3,.3,.7], ec='none')
+
+            #cc
+            cc, pp = pearsonr(x, y)
+            pp_ = '' if pp > .05 else ('*' if pp > .01 else '**')
+            aligned_tx_(fig, ax,
+                        r'$r = {:.2f}${}'.format(cc, pp_),
+                        rpo='bl' if cc < 0 else 'tl',
+                        itv=-0.005,
+                        c='tab:blue')
+
+            #regline
+            xx_ = [x.min(), x.max()]
+            ax.plot(xx_, np.poly1d(np.polyfit(x, y, 1))(xx_),
+                    c='tab:blue',
+                    lw=1.5,
+                    label=r'$r = {:.2f}${}'.format(cc, pp_))
+
+            #ellipse
+            #confidence_ellipse(x, y, ax, ec='tab:orange')
+
+            #zeroline
+            if np.prod(ax.get_ylim()) < 0:
+                ax.axhline(c=[.7,.7,.7], lw=.5)
+            if np.prod(ax.get_xlim()) < 0:
+                ax.axvline(c=[.7,.7,.7], lw=.5)
+
+            #(a)(b)(c)
+            axs_abc_(fig, ax, s=r'({})'.format(abc), dx=-.001, dy=.01)
+
+            #legend
+            #ax.legend(frameon=False)
+
+        fn = _fnfmt(odir, 'cc-hist', var, freq, 'ID{}'.format(i))
+        fig.savefig(fn, dpi=300)
+        plt.close(fig)
+
+
+def id___(a, dn, gwls, sc, unit, odir, var, freq, shp_, b, dn_, rcms,
+         ssss=None, eeee=None):
+    ids = list(set(shp_.ID))[ssss:eeee]
+    for i in ids:
+        svd = poly_to_path_(list(shp_.loc[shp_.ID == i, 'geometry'])) #poly
+        ts = get_ts_clmidx_(a, dn, sc, poly=svd)
+        ts0 = np.asarray([np.nanmean(ii, axis=-1) for ii in ts])
+        hh_ = ts0[0]
+        ts_ = get_ts_eval_(b, dn_, sc, poly=svd)
+        ts0_ = np.asarray([np.nanmean(c.data) if c else np.nan for c in b])
+        bias = ts0_[:-2] - ts0_[-2]
+        bD = {kk:vv for kk,vv in zip(rcms, bias)}
+
+        rcms_ = [i.split('_')[-2] for i in dn]
+        gcms_ = [i.split('_')[0] for i in dn]
+        rcps_ = [i.split('_')[1] for i in dn] 
+        xdata = np.asarray([bD[i] for i in rcms_])
+        if len(
+            np.unique(
+                np.ma.masked_where(np.isnan(xdata), xdata).compressed()
+                )
+            ) < 2:
+            continue
+        fig = init_fig_(fx=7.5, fy=2.5, l=.09, r=.99, b=.18, t=.9, w=.22) #fig
+        for ii, (data, abc) in enumerate(zip(ts0[1:], 'abcdefg')):
+            #preparing axes w.r.t. gwls
+            ax_opt = {'ylabel': 'Climate change ({})'.format(unit)} \
+                     if ii == 0 else {}
+            ax_opt.update({'xlabel': 'Bias ({})'.format(unit),
+                           'title': gwls[ii+1],
+                           'box_aspect': 1})
+            ax = fig.add_subplot(1, 3, ii+1, **ax_opt)
+
+            #scatter
+            #cm_ = plt.get_cmap('tab20').colors
+            #cm_ = plt.rcParams['axes.prop_cycle'].by_key()['color']
+            #for rcm, m_ in zip(rcms, 'ovsphDdXP'):
+            #    for iii, gcm in enumerate(ouniqL_(gcms_)):
+            #        for rcp, ec in zip(['rcp85', 'rcp45'], ('face', 'none')):
+            #            udn = slctStrL_(dn, incl=[gcm, rcp, rcm])
+            #            ind = [idn in udn for idn in dn]
+            #            ax.scatter(xdata[ind],
+            #                       (data - hh_)[ind],
+            #                       s=10,
+            #                       marker=m_,
+            #                       color=cm_[iii],
+            #                       edgecolors=ec,
+            #                       alpha=.7)
+
+            #dealing with NaN
+            ind = np.logical_and(~np.isnan(xdata), ~np.isnan(data - hh_))
+            x, y = xdata[ind], (data - hh_)[ind]
+            
+            #constant?
+            if (x.size < 2 or x.min() == x.max()) or\
+               (y.size < 2 or y.min() == y.max()):
+                continue
+
+            ax.scatter(x, y, s=10, color=[.3,.3,.3,.7], ec='none')
+
+            #cc
+            cc, pp = pearsonr(x, y)
+            pp_ = '' if pp > .05 else ('*' if pp > .01 else '**')
+            aligned_tx_(fig, ax,
+                        r'$r = {:.2f}${}'.format(cc, pp_),
+                        rpo='bl' if cc < 0 else 'tl',
+                        itv=-0.005,
+                        c='tab:blue')
+
+            #regline
+            xx_ = [x.min(), x.max()]
+            ax.plot(xx_, np.poly1d(np.polyfit(x, y, 1))(xx_),
+                    c='tab:blue',
+                    lw=1.5,
+                    label=r'$r = {:.2f}${}'.format(cc, pp_))
+
+            #ellipse
+            #confidence_ellipse(xdata, data - hh_, ax, ec='tab:orange')
+
+            #zeroline
+            if np.prod(ax.get_ylim()) < 0:
+                ax.axhline(c=[.7,.7,.7], lw=.5)
+            if np.prod(ax.get_xlim()) < 0:
+                ax.axvline(c=[.7,.7,.7], lw=.5)
+
+            #(a)(b)(c)
+            axs_abc_(fig, ax, s=r'({})'.format(abc), dx=-.001, dy=.01)
+
+            #legend
+            #ax.legend(frameon=False)
+
+        fn = _fnfmt(odir, 'cc-bias', var, freq, 'ID{}'.format(i))
+        fig.savefig(fn, dpi=300)
+        plt.close(fig)
+
+
+def main():
+    warnings.filterwarnings("ignore", category=UserWarning)
+    mpl.style.use('tableau-colorblind10')
+    #####################################################################PARSER
+    parser = argparse.ArgumentParser('PLOT CLIMIDX')
+    parser.add_argument("-y", "--yml",                                          
+                        type=str,                                               
+                        help="yml file defining freqs for each index")
+    parser.add_argument("-c", "--config", type=str, default="2",
+                        help="paths/version information")
+    parser.add_argument("-s", "--start", type=int, help="variable loop start")
+    parser.add_argument("-e", "--end", type=int, help="variable loop end")
+    parser.add_argument("-l", "--log", type=str, default="", help="log name")
+    parser.add_argument("--test", action="store_true", default="",
+                        help="test mode")
+    args = parser.parse_args()
+    log_ = args.log
+    sss_, eee_ = args.start, args.end
+    if args.test:
+        sss_, eee_ = None, 1
+        ssss, eeee = None, 1
+    else:
+        ssss, eeee = None, None
+    ####################################################################LOGGING
+    lfn = 'plt-reindeer-{}'.format(log_)
+    nlog = len(schF_keys_('', lfn, ext='.log'))
+    logging.basicConfig(filename='{}{}.log'.format(lfn, '_' * nlog),
+                        filemode='w',
+                        level=logging.INFO)
+    logging.info(' {:_^42}'.format('start of program'))
+    logging.info(strftime(" %a, %d %b %Y %H:%M:%S +0000", localtime()))
+    logging.info(' ')
+    ##################################################################CONFIGURE
+    if os.path.isfile(args.config):
+        yf = args.config
+    elif args.config == '2':
+        yf = _djn(_here_, 'cfg_plt_climidx_gwls2.yml')
+    elif args.config == '3':
+        yf = _djn(_here_, 'cfg_plt_climidx_gwls3.yml')
+    elif args.config == '4':
+        yf = _djn(_here_, 'cfg_plt_climidx_gwls4.yml')
+    else:
+        raise ValueError("unknown configuration!")
+    with open(yf, 'r') as ymlfile:
+        cfg = yaml.safe_load(ymlfile)
+    version = cfg['version']
+    gg, gwls = cfg['gg'], cfg['gwls']
+    ddir, root = cfg['ddir'], cfg['root']
+    ######################################################INDEPENDENT VARIABLES
+    yml_ = args.yml
+    if yml_ and os.path.isfile(yml_):                                           
+        vf = yml_                                                               
+    elif yml_ and os.path.isfile(_djn(_here_, yml_)):                   
+        vf = _djn(_here_, yml_)                                         
+    else:                                                                       
+        vf = _djn(_here_, 'var_dict.yml')                               
+    with open(vf, 'r') as ymlfile:                                              
+        vdict = yaml.safe_load(ymlfile)
+    yf = _djn(_here_, 'rg_dict.yml')
+    with open(yf, 'r') as ymlfile:
+        rdict = yaml.safe_load(ymlfile)
+
+    idir = _djn(ddir, 'cordex/EUR11/')
+    edir = _djn(root, 'DATA/energi/res/eval/')
+    odir = _djn(root, 'DATA/energi/', version, 'fig{}K/'.format(gg[-1][3:]))
+    _rn = 'SWE/'
+    _od0 = lambda x: _djn(odir, x, _rn)
+    shp_ = _shps()
+    vvv_ = list(vdict['freq_cfg'].keys())[sss_:eee_]
+    lD = dict()
+    #############################################################FREQS & SUBDIR
+    def _get_freq(var):
+        def _sm(x):                                                             
+            if x == 'season':                                                   
+                return ['djf', 'mam', 'jja', 'son']                             
+            elif x == 'month':                                                  
+                return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',               
+                        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']               
+            else:                                                               
+                return x                                                        
+        freqs = ouniqL_(flt_l([_sm(i) for i in vdict['freq_cfg'][var]]))        
+        return freqs
+    def _get_odir(var):                                                         
+        if 'odir' in vdict:                                                     
+            return vdict['odir'][var]                                           
+        else:                                                                   
+            return var
+    ############################################################DOING SOMETHING
+    for var in vvv_:
+        freqs = _get_freq(var)[ssss:eeee]
+        #freqs = ['Nov', 'Dec']
+        odir_ = _od0(_get_odir(var))
+        os.makedirs(odir_, exist_ok=True)
+        for freq in freqs:
+            t000 = l__('{} >>>>>> {}'.format(var, freq))
+            a, dn = load_clmidx_(idir, var, gwls=gg, freq=freq, newestV=True,
+                                 **lD)
+            #-----------------------------------------------------fixing SNWmax
+            if var in ['SNWmax', 'R5OScw', 'R1OScw']:
+                a, dn = slct_cubeLL_dnL_(a, dn, slctStrL_, excl='KNMI')
+            #-----------------------------------------------------fixing SNWmax
+            ll_('< load0', t000)
+            if len(dn) == 0:
+                continue
+            sc, unit = sc_unit_clmidx_(a[0][0], var)
+            id__(a, dn, gwls, sc, unit, odir_, var, freq, shp_, ssss, eeee)
+            ll_('<< id__', t000)
+            #--------------------------------------------------------CC.vs.hist
+
+            p_= [1990, 2008] if 'dj' in freq else [1989, 2008]                  
+            b, dn_ = load_clmidx_eval_(edir, var, freq=freq, period=p_)
+            ll_('< load1', t000)
+            if dn_ is None or len(dn_) == 0 or dn_[-2] is None:
+                continue
+            rcms = [i.split('_')[0] for i in dn_[:-2]]
+            a, dn = slct_cubeLL_dnL_(a, dn, slctStrL_, incl=[rcms])
+            id___(a, dn, gwls, sc, unit, odir_, var, freq, shp_, b, dn_, rcms,
+                  ssss, eeee)
+            ll_('<< id___', t000)
+
+
+if __name__ == '__main__':
+    start_time = time.time()
+    main()
+    logging.info(' ')
+    logging.info(' {:_^42}'.format('end of program'))
+    logging.info(' {:_^42}'.format('TOTAL'))
+    logging.info(' ' + rTime_(time.time() - start_time))
+    logging.info(strftime(" %a, %d %b %Y %H:%M:%S +0000", localtime()))
