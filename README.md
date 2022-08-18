@@ -1,4 +1,5 @@
 # climi 
+[![DOI](https://zenodo.org/badge/302750076.svg)](https://zenodo.org/badge/latestdoi/302750076)
 
 ## Getting Started
 
