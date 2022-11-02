@@ -60,7 +60,7 @@ _isf = os.path.isfile
 
 def p25_75_(t_ref, ax_t, yr_ref=None):
     warnings.filterwarnings("ignore", message="All-NaN slice encountered")
-    tmp = t_ref if yr_ref is None else aggr_func_(t_ref, yr_ref, axis=x_t)
+    tmp = t_ref if yr_ref is None else aggr_func_(t_ref, yr_ref, axis=ax_t)
     p25 = np.nanpercentile(tmp, 25, ax_t, keepdims=True)
     p75 = np.nanpercentile(tmp, 75, ax_t, keepdims=True)
     return (p25, p75)
