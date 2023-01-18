@@ -355,11 +355,20 @@ def main():
                         help="options for dataset on BI")
     parser.add_argument("-y", "--yml",                                          
                         type=str,                                               
-                        help="yml file defining freqs for each index")
-    parser.add_argument("-c", "--config", type=str, default="2", help="")
-    parser.add_argument("-s", "--start", type=int, help="")
-    parser.add_argument("-e", "--end", type=int, help="")
-    parser.add_argument("-l", "--log", type=str, default="", help="")
+                        help="yml file definding freqs for each index")
+    parser.add_argument("-c", "--config", type=str, default="2",
+                        help="configure file storing maximum warming level "
+                             "and some directories; can be a file name or "
+                             "2|3|4 for predefined configured files!")
+    parser.add_argument("-v", "--variables", type=str,
+                        help="selected variables for plotting; "
+                             "seperated by comma")
+    parser.add_argument("-s", "--start", type=int,
+                        help="variable-loop starting index")
+    parser.add_argument("-e", "--end", type=int,
+                        help="variable-loop ending index")
+    parser.add_argument("-l", "--log", type=str, default="",
+                        help="tag to be added to log file name")
     args = parser.parse_args()
     opt_, log_ = args.opt, args.log
     sss_, eee_ = args.start, args.end
@@ -448,7 +457,10 @@ def main():
         mD = dict(pch__=pch_eur_, fig_dict=figD, ap='EUR') if opt_ == 1 else\
              dict(pch__=pch_ll_, fig_dict=figD, ap='EUR')
     if opt_ in (0, 1):
-        vvv_ = list(vdict['freq_cfg'].keys())[sss_:eee_]
+        if args.variables:
+            vvv_ = args.variables.split(',')
+        else:
+            vvv_ = list(vdict['freq_cfg'].keys())[sss_:eee_]
         lD = dict()
         tsD = dict(fxdir=fxdir)
         cref = iris.load_cube(_djn(fxdir, 'sftlf_EUR-11_ECMWF-ERAINT_'
