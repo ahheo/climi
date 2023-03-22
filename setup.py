@@ -2,8 +2,8 @@ from setuptools import setup, find_packages
 
 setup(name='climi',
       version='0.1',
-      description='Local Climate Indices python package',
-      url='https://git.smhi.se/a002344/heat-wave-2018.git',
+      description='CLIMate Indices python package',
+      url='https://github.com/ahheo/climi.git',
       author='Changgui Lin',
       author_email='mapulynn@gmail.com',
       license='MIT',
