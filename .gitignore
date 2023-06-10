@@ -6,6 +6,7 @@
 *.#
 *.swp
 *.nc
+*.nc4
 *.hdf
 *.p
 *.tmp
