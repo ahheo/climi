@@ -39,6 +39,7 @@
 * l2b_endian_           : return big endian copy
 * latex_unit_           : m s-1 -> m s$^{-1}$
 * ll_                   : end logging
+* loggingMain_          : decorator for executable function
 * m2s_                  : season
 * m2sm_                 : season membership
 * m2sya_                : season year adjust
@@ -125,6 +126,7 @@ __all__ = ['aggr_func_',
            'l2b_endian_',
            'latex_unit_',
            'll_',
+           'loggingMain_',
            'm2s_',
            'm2sm_',
            'm2sya_',
@@ -338,7 +340,7 @@ def ind_shape_i_(shape, i, axis=-1, sl_=np.s_[:]):
 
 def ind_sm_(ind):
     """
-    ... if x[ind] shares memonry of x where x is of type numpy array ... 
+    ... if x[ind] shares memonry of x where x is of type numpy array ...
     """
     return all(not isIter_(i) for i in ind) and \
             any(isinstance(i, slice) for i in ind)
@@ -551,15 +553,15 @@ def find_patt_(p, s):
         return [i for i in s if find_patt_(p, i)]
 
 
-def pure_fn_(s, no_etc=True):
+def pure_fn_(s, no_ext=True):
     """
     ... get pure filename without path to and without extension ...
     """
     #import re
     import os
     def _rm_etc(s):
-        #return re.sub(r'\.\w+$', '', s) if no_etc else s
-        return os.path.splitext(s)[0] if no_etc else s
+        #return re.sub(r'\.\w+$', '', s) if no_ext else s
+        return os.path.splitext(s)[0] if no_ext else s
     if isinstance(s, str):
         #tmp = re.search(r'((?<=[\\/])[^\\/]*$)|(^[^\\/]+$)', s)
         #fn = tmp.group() if tmp else tmp
@@ -1076,3 +1078,23 @@ def pcorr_xyz(x, y, z):
     rxz = _corr(x, z)
     ryz = _corr(y, z)
     return (rxy - rxz * ryz) / (np.sqrt((1 - rxz**2) * (1 - ryz**2)))
+
+
+def loggingMain_(func):
+    import time
+    import logging
+    from time import localtime, strftime
+    def func_(*args, **kwargs):
+        start_time = time.time()
+        logging.info(' {:_^42}'.format('start of program'))
+        if func.__name__:
+            logging.info(" {!r:_^42}".format(func.__name__))
+        logging.info(strftime(" %a, %d %b %Y %H:%M:%S +0000", localtime()))
+        logging.info(' ')
+        func(*args, **kwargs)
+        logging.info(' ')
+        logging.info(' {:_^42}'.format('end of program'))
+        logging.info(' {:_^42}'.format('TOTAL'))
+        logging.info(' ' + rTime_(time.time() - start_time))
+        logging.info(strftime(" %a, %d %b %Y %H:%M:%S +0000", localtime()))
+    return func_
