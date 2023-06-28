@@ -39,7 +39,6 @@
 * l2b_endian_           : return big endian copy
 * latex_unit_           : m s-1 -> m s$^{-1}$
 * ll_                   : end logging
-* loggingMain_          : decorator for executable function
 * m2s_                  : season
 * m2sm_                 : season membership
 * m2sya_                : season year adjust
@@ -66,6 +65,7 @@
 * shp_drop_             : drop dims specified (and replace if desired)
 * slctStrL_             : select string list include or exclude substr(s)
 * ss_fr_sl_             : subgroups that without intersections
+* timerMain_            : decorator for executable function
 * uniqL_                : unique elements of list
 * valid_seasons_        : if provided seasons valid
 * valueEqFront_         : move elements equal specified value to front
@@ -78,8 +78,7 @@
             E-mail: mapulynn@gmail.com
       Date created: 02.09.2019
 Date last modified: 01.04.2022
-          comments: add func dgt_, prg_;
-                    fix rMEAN1d_ issue with mode 'full' and 'same'
+          comments: add timerMain_
 """
 
 
@@ -126,7 +125,6 @@ __all__ = ['aggr_func_',
            'l2b_endian_',
            'latex_unit_',
            'll_',
-           'loggingMain_',
            'm2s_',
            'm2sm_',
            'm2sya_',
@@ -152,6 +150,7 @@ __all__ = ['aggr_func_',
            'shp_drop_',
            'slctStrL_',
            'ss_fr_sl_',
+           'timerMain_',
            'uniqL_',
            'valid_seasons_',
            'valueEqFront_',
@@ -1080,21 +1079,22 @@ def pcorr_xyz(x, y, z):
     return (rxy - rxz * ryz) / (np.sqrt((1 - rxz**2) * (1 - ryz**2)))
 
 
-def loggingMain_(func):
+def timerMain_(func):
     import time
-    import logging
-    from time import localtime, strftime
+    from functools import wraps
+    @wraps(func)
     def func_(*args, **kwargs):
         start_time = time.time()
-        logging.info(' {:_^42}'.format('start of program'))
+        print(' {:_^42}'.format('start of program'))
         if func.__name__:
-            logging.info(" {!r:_^42}".format(func.__name__))
-        logging.info(strftime(" %a, %d %b %Y %H:%M:%S +0000", localtime()))
-        logging.info(' ')
-        func(*args, **kwargs)
-        logging.info(' ')
-        logging.info(' {:_^42}'.format('end of program'))
-        logging.info(' {:_^42}'.format('TOTAL'))
-        logging.info(' ' + rTime_(time.time() - start_time))
-        logging.info(strftime(" %a, %d %b %Y %H:%M:%S +0000", localtime()))
+            print(" {!r:_^42}".format(func.__name__))
+        print(time.strftime(" %a, %d %b %Y %H:%M:%S +0000", time.localtime()))
+        print(' ')
+        o = func(*args, **kwargs)
+        print(' ')
+        print(' {:_^42}'.format('end of program'))
+        print(' {:_^42}'.format('TOTAL'))
+        print(' ' + rTime_(time.time() - start_time))
+        print(time.strftime(" %a, %d %b %Y %H:%M:%S +0000", time.localtime()))
+        return o
     return func_
