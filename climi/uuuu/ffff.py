@@ -889,7 +889,7 @@ def intsect_(*l):
 
 
 def l_ind_(l, ind):
-    if isIter_(ind, xi=(bool, np.bool, np.bool_)):
+    if isIter_(ind, xi=(bool, np.bool_)):
         return [i for i, ii in zip(l, ind) if ii]
     elif isIter_(ind, xi=(int, np.integer)):
         ind = cyl_(ind, len(l))
@@ -963,7 +963,7 @@ def consecutive_(x1d, func_,
 def consecutiveN_(x1d, func_, args=(), kargs={}):
     def _f(x):
         m = np.sum(x)
-        xx = np.empty(x.size, dtype=np.int)
+        xx = np.empty(x.size, dtype=int)
         xx[x] = m
         xx[~x] = 0
         return xx
