@@ -418,7 +418,7 @@ def extract_season_cube(cube, mmm, valid_season=True):
             except ValueError:
                 c.remove_coord(mmm)
                 ica.add_season_membership(c, 'time', mmm, name=mmm)
-            c.coord(mmm).points = c.coord(mmm).points.astype(np.int)
+            c.coord(mmm).points = c.coord(mmm).points.astype(np.int32)
             ncube = c.extract(iris.Constraint(**{mmm: True}))
         if valid_season and not ismono_(mmmN_(mmm)):
             y0, y1 = y0y1_of_cube(ncube, ccsn='seasonyr', mmm=mmm)
@@ -1646,7 +1646,7 @@ def pSTAT_cube(cube, method, *freq, valid_season=True, **method_opts):
                 _f(c, *fA, **fK)
         if mmm:
             if isSeason_(mmm):
-                c.coord(mmm).points = c.coord(mmm).points.astype(np.int)
+                c.coord(mmm).points = c.coord(mmm).points.astype(np.int32)
                 cstr = iris.Constraint(**{mmm: True})
             elif isMonth_(mmm):
                 cstr = iris.Constraint(**{'month': mmm})
@@ -1879,7 +1879,7 @@ def nine_points_cube(cube, longitude, latitude):
                       np.argmin(haversine_(longitude, latitude, x, y)),
                       axis=None)
     xyd = get_xyd_cube(cube)
-    ind_ = np.arange(-1, 2, dtype=np.int)
+    ind_ = np.arange(-1, 2, dtype=np.int32)
     ind = list(np.s_[:,] * cube.ndim)
     wmsg = ("Causious that center point may be given outside (or at the "
             "boundary of) the geo domain of the input CUBE!")
